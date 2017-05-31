@@ -133,6 +133,7 @@ public class HiveServer2 extends CompositeService {
     // 初始化，会对服务列表serviceList每个Service,调用该Service(CLIService, ThriftBinaryCLIService)的init方法,CLIService 在init的时候会加入SessionManager服务
     super.init(hiveConf);
     // Set host name in hiveConf
+    // hive.server2.thrift.bind.host : localhost的hostname
     try {
       hiveConf.set(HiveConf.ConfVars.HIVE_SERVER2_THRIFT_BIND_HOST.varname, getServerHost());
     } catch (Throwable t) {
@@ -458,6 +459,7 @@ public class HiveServer2 extends CompositeService {
     if ((thriftCLIService == null) || (thriftCLIService.getServerIPAddress() == null)) {
       throw new Exception("Unable to get the server address; it hasn't been initialized yet.");
     }
+    // 初始化的时候thriftCLIService已经设置serverIPAddress为LocalHost, 然后调用LocalHost的getHostName方法
     return thriftCLIService.getServerIPAddress().getHostName();
   }
 
@@ -540,6 +542,7 @@ public class HiveServer2 extends CompositeService {
     long attempts = 0, maxAttempts = 1;
     while (true) {
       LOG.info("Starting HiveServer2");
+      // 加载配置文件, 后面构造的所有类里面的hiveConf都是用的这个
       HiveConf hiveConf = new HiveConf();
       maxAttempts = hiveConf.getLongVar(HiveConf.ConfVars.HIVE_SERVER2_MAX_START_ATTEMPTS);
       HiveServer2 server = null;

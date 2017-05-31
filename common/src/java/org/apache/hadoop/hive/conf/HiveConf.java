@@ -3649,6 +3649,7 @@ public class HiveConf extends Configuration {
 
   public HiveConf() {
     super();
+    // 调用初始化方法, 会加载配置文件及jar
     initialize(this.getClass());
   }
 
@@ -3706,6 +3707,7 @@ public class HiveConf extends Configuration {
 
     // if embedded metastore is to be used as per config so far
     // then this is considered like the metastore server case
+    // hive.metastore.uris值如果为null或空则重新加载hivemetastore-site.xml
     String msUri = this.getVar(HiveConf.ConfVars.METASTOREURIS);
     if(HiveConfUtil.isEmbeddedMetaStore(msUri)){
       setLoadMetastoreConfig(true);
@@ -3725,6 +3727,7 @@ public class HiveConf extends Configuration {
     }
 
     // Overlay the values of any system properties whose names appear in the list of ConfVars
+    // 启动的时候将启动参数设置到了system properties,这里是将这些参数取出然后加入ConfVars,旧属性会被覆盖
     applySystemProperties();
 
     if ((this.get("hive.metastore.ds.retry.attempts") != null) ||
