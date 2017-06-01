@@ -536,6 +536,7 @@ public class SessionState {
   }
 
   private static void start(SessionState startSs, boolean isAsync, LogHelper console) {
+    // 将SessionState封装成SessionStates设置给当前线程, 存入ThreadLocal<SessionStates>
     setCurrentSessionState(startSs);
 
     if (startSs.hiveHist == null){
@@ -553,6 +554,7 @@ public class SessionState {
       // Hive object instance should be created with a copy of the conf object. If the conf is
       // shared with SessionState, other parts of the code might update the config, but
       // Hive.get(HiveConf) would not recognize the case when it needs refreshing
+      // 获取当前线程对应的Hive实例,没有的话创建一个,同时调用Hive实例的getMSC()来构造一个到MetaStore的client
       Hive.get(new HiveConf(startSs.sessionConf)).getMSC();
       UserGroupInformation sessionUGI = Utils.getUGI();
       FileSystem.get(startSs.sessionConf);
