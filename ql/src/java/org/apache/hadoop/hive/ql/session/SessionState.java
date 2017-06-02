@@ -554,7 +554,7 @@ public class SessionState {
       // Hive object instance should be created with a copy of the conf object. If the conf is
       // shared with SessionState, other parts of the code might update the config, but
       // Hive.get(HiveConf) would not recognize the case when it needs refreshing
-      // 获取当前线程对应的Hive实例,没有的话创建一个,同时调用Hive实例的getMSC()来构造一个到MetaStore的client
+      // 获取当前线程对应的Hive实例,没有的话创建一个,同时调用Hive实例的getMSC()来获取Hive内部的metaStoreClient对象,如果为null,则构造一个到MetaStore的client
       Hive.get(new HiveConf(startSs.sessionConf)).getMSC();
       UserGroupInformation sessionUGI = Utils.getUGI();
       FileSystem.get(startSs.sessionConf);
@@ -838,31 +838,37 @@ public class SessionState {
     }
 
     try {
+      // 这里我们分析 hive.security.authenticator.manager = org.apache.hadoop.hive.ql.security.SessionStateUserAuthenticator
       authenticator = HiveUtils.getAuthenticator(sessionConf,
           HiveConf.ConfVars.HIVE_AUTHENTICATOR_MANAGER);
       authenticator.setSessionState(this);
 
+      // 这里我们分析 clsStr = org.apache.hadoop.hive.ql.security.authorization.plugin.sqlstd.SQLStdConfOnlyAuthorizerFactory
       String clsStr = HiveConf.getVar(sessionConf, HiveConf.ConfVars.HIVE_AUTHORIZATION_MANAGER);
       authorizer = HiveUtils.getAuthorizeProviderManager(sessionConf,
           clsStr, authenticator, true);
-
+      // authorizer返回null
       if (authorizer == null) {
-        // if it was null, the new (V2) authorization plugin must be specified in
-        // config
+        // if it was null, the new (V2) authorization plugin must be specified in config
+        // 返回SQLStdConfOnlyAuthorizerFactory
         HiveAuthorizerFactory authorizerFactory = HiveUtils.getAuthorizerFactory(sessionConf,
             HiveConf.ConfVars.HIVE_AUTHORIZATION_MANAGER);
 
         HiveAuthzSessionContext.Builder authzContextBuilder = new HiveAuthzSessionContext.Builder();
+        // 如果该SessionState是HiveServer2服务的, 则isHiveServerQuery为true
         authzContextBuilder.setClientType(isHiveServerQuery() ? CLIENT_TYPE.HIVESERVER2
             : CLIENT_TYPE.HIVECLI);
         authzContextBuilder.setSessionString(getSessionId());
 
+        // 返回HiveAuthorizerImpl对象
         authorizerV2 = authorizerFactory.createHiveAuthorizer(new HiveMetastoreClientFactoryImpl(),
             sessionConf, authenticator, authzContextBuilder.build());
+        // 设置一下权限验证的钩子类,有一个逻辑是将hive.security.authorization.createtable.owner.grants设置为INSERT,SELECT,UPDATE,DELETE
         setAuthorizerV2Config();
 
       }
       // create the create table grants with new config
+      // 创建table是user, owner, group, role都赋什么权限
       createTableGrants = CreateTableAutomaticGrant.create(sessionConf);
 
     } catch (HiveException e) {
@@ -892,6 +898,7 @@ public class SessionState {
     sessionConf.setVar(ConfVars.METASTORE_FILTER_HOOK,
         AuthorizationMetaStoreFilterHook.class.getName());
 
+    // applyAuthorizationConfigPolicy里面有一个逻辑是将hive.security.authorization.createtable.owner.grants设置为INSERT,SELECT,UPDATE,DELETE
     authorizerV2.applyAuthorizationConfigPolicy(sessionConf);
     // update config in Hive thread local as well and init the metastore client
     try {

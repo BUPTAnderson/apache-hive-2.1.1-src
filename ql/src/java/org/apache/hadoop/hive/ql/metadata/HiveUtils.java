@@ -18,11 +18,6 @@
 
 package org.apache.hadoop.hive.ql.metadata;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.common.JavaUtils;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -40,6 +35,11 @@ import org.apache.hadoop.hive.ql.security.authorization.plugin.sqlstd.SQLStdHive
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.hadoop.util.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * General collection of helper functions.
@@ -373,6 +373,7 @@ public final class HiveUtils {
         cls = DefaultHiveAuthorizationProvider.class;
       } else {
         Class<?> configClass = Class.forName(authzClassName, true, JavaUtils.getClassLoader());
+        // 这里判断HiveAuthorizationProvider类是否是configClass的父类 如果这里configClass是SQLStdConfOnlyAuthorizerFactory, isAssignableFrom返回false
         if(nullIfOtherClass && !HiveAuthorizationProvider.class.isAssignableFrom(configClass) ){
           return null;
         }

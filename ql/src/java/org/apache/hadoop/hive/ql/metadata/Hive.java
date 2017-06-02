@@ -3364,7 +3364,7 @@ private void constructOneLBLocationMap(FileStatus fSta,
         }
       };
 
-    // hive.metastore.fastpath默认值为false, 所以执行else中的代码
+    // hive.metastore.fastpath默认值为false(如果为true, metastore必须是local, 配置项hive.metastore.uris必须为空或者不设置), 所以执行else中的代码
     if (conf.getBoolVar(ConfVars.METASTORE_FASTPATH)) {
       return new SessionHiveMetaStoreClient(conf, hookLoader, allowEmbedded);
     } else {
@@ -3430,6 +3430,7 @@ private void constructOneLBLocationMap(FileStatus fSta,
       // 如果配置项hive.metastore.uris不为空
       if (!org.apache.commons.lang3.StringUtils.isEmpty(metaStoreUris)) {
         // get a synchronized wrapper if the meta store is remote.
+        // 如果meta store是一个远程服务, 获取一个同步的包装对象(实际只是又做了一次代理类的封装,没有其它逻辑)
         metaStoreClient = HiveMetaStoreClient.newSynchronizedClient(metaStoreClient);
       }
     }
