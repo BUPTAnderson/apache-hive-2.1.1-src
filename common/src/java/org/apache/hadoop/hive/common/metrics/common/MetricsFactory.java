@@ -18,7 +18,6 @@
 package org.apache.hadoop.hive.common.metrics.common;
 
 import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.util.ReflectionUtils;
 
 import java.lang.reflect.Constructor;
 
@@ -36,6 +35,7 @@ public class MetricsFactory {
    */
   public synchronized static void init(HiveConf conf) throws Exception {
     if (metrics == null) {
+      // 默认是class是CodahaleMetrics
       Class metricsClass = conf.getClassByName(
         conf.getVar(HiveConf.ConfVars.HIVE_METRICS_CLASS));
       Constructor constructor = metricsClass.getConstructor(HiveConf.class);

@@ -219,11 +219,13 @@ public class HiveMetaStoreClient implements IMetaStoreClient {
     }
     this.conf = conf;
     filterHook = loadFilterHooks();
+    // 一个批次内部检索的最大对象数
     fileMetadataBatchSize = HiveConf.getIntVar(
         conf, HiveConf.ConfVars.METASTORE_BATCH_RETRIEVE_OBJECTS_MAX);
 
     String msUri = conf.getVar(ConfVars.METASTOREURIS);
     localMetaStore = HiveConfUtil.isEmbeddedMetaStore(msUri);
+    // 如果metastore是本地模式, 执行下面代码
     if (localMetaStore) {
       if (!allowEmbedded) {
         throw new MetaException("Embedded metastore is not allowed here. Please configure "
@@ -247,12 +249,14 @@ public class HiveMetaStoreClient implements IMetaStoreClient {
       }
     }
 
-    // get the number retries
+    // get the number retries 重试次数, 默认3次
     retries = HiveConf.getIntVar(conf, HiveConf.ConfVars.METASTORETHRIFTCONNECTIONRETRIES);
+    // 客户端在连续连接尝试之间等待的秒数, 默认值为1s
     retryDelaySeconds = conf.getTimeVar(
         ConfVars.METASTORE_CLIENT_CONNECT_RETRY_DELAY, TimeUnit.SECONDS);
 
     // user wants file store based configuration
+    // 下面逻辑可知, hive.metastore.uris可以配置多个metastore地址, 用逗号分割
     if (conf.getVar(HiveConf.ConfVars.METASTOREURIS) != null) {
       String metastoreUrisString[] = conf.getVar(
           HiveConf.ConfVars.METASTOREURIS).split(",");
@@ -271,6 +275,7 @@ public class HiveMetaStoreClient implements IMetaStoreClient {
         // make metastore URIS random
         List uriList = Arrays.asList(metastoreUris);
         Collections.shuffle(uriList);
+        // metastoreUris的顺序已经打乱
         metastoreUris = (URI[]) uriList.toArray();
       } catch (IllegalArgumentException e) {
         throw (e);
@@ -282,6 +287,7 @@ public class HiveMetaStoreClient implements IMetaStoreClient {
       throw new MetaException("MetaStoreURIs not found in conf file");
     }
     // finally open the store
+    // 打开到metastore的连接,这里是针对remote模式
     open();
   }
 
@@ -425,6 +431,7 @@ public class HiveMetaStoreClient implements IMetaStoreClient {
     boolean useSasl = conf.getBoolVar(ConfVars.METASTORE_USE_THRIFT_SASL);  // 默认值为false
     boolean useFramedTransport = conf.getBoolVar(ConfVars.METASTORE_USE_THRIFT_FRAMED_TRANSPORT); // 默认值为false
     boolean useCompactProtocol = conf.getBoolVar(ConfVars.METASTORE_USE_THRIFT_COMPACT_PROTOCOL); // 默认值为false
+    // MetaStore客户端套接字超时时间, 默认值600s
     int clientSocketTimeout = (int) conf.getTimeVar(
         ConfVars.METASTORE_CLIENT_SOCKET_TIMEOUT, TimeUnit.MILLISECONDS);
 
@@ -470,7 +477,7 @@ public class HiveMetaStoreClient implements IMetaStoreClient {
           if (useCompactProtocol) {
             protocol = new TCompactProtocol(transport);
           } else {
-            protocol = new TBinaryProtocol(transport);  // 默认值
+            protocol = new TBinaryProtocol(transport);  // 默认
           }
           // ThriftHiveMetastore.Client是ThriftHiveMetastore.Iface的子类
           client = new ThriftHiveMetastore.Client(protocol);
@@ -490,6 +497,7 @@ public class HiveMetaStoreClient implements IMetaStoreClient {
 
           if (isConnected && !useSasl && conf.getBoolVar(ConfVars.METASTORE_EXECUTE_SET_UGI)){
             // Call set_ugi, only in unsecure mode.
+            // 调用set_ugi方法设置username和groupName
             try {
               UserGroupInformation ugi = Utils.getUGI();
               client.set_ugi(ugi.getUserName(), Arrays.asList(ugi.getGroupNames()));

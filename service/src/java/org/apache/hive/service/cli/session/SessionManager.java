@@ -96,12 +96,13 @@ public class SessionManager extends CompositeService {
     createBackgroundOperationPool();
     addService(operationManager);
     initSessionImplClassName();
+    // 调用operationManager的init方法
     super.init(hiveConf);
   }
 
   private void initSessionImplClassName() {
-    this.sessionImplclassName = hiveConf.getVar(ConfVars.HIVE_SESSION_IMPL_CLASSNAME);
-    this.sessionImplWithUGIclassName = hiveConf.getVar(ConfVars.HIVE_SESSION_IMPL_WITH_UGI_CLASSNAME);
+    this.sessionImplclassName = hiveConf.getVar(ConfVars.HIVE_SESSION_IMPL_CLASSNAME); // 默认值为null
+    this.sessionImplWithUGIclassName = hiveConf.getVar(ConfVars.HIVE_SESSION_IMPL_WITH_UGI_CLASSNAME);  // 默认值为null
   }
 
   private void createBackgroundOperationPool() {

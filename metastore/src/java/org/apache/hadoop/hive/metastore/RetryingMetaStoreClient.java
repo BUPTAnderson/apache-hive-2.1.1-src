@@ -64,18 +64,24 @@ public class RetryingMetaStoreClient implements InvocationHandler {
       Object[] constructorArgs, ConcurrentHashMap<String, Long> metaCallTimeMap,
       Class<? extends IMetaStoreClient> msClientClass) throws MetaException {
 
-    this.retryLimit = hiveConf.getIntVar(HiveConf.ConfVars.METASTORETHRIFTFAILURERETRIES);
+    // 连接metastore失败的重试次数
+    this.retryLimit = hiveConf.getIntVar(HiveConf.ConfVars.METASTORETHRIFTFAILURERETRIES);  // 默认值为1
+    // 客户端在连续连接尝试之间等待的秒数, 默认值为1s
     this.retryDelaySeconds = hiveConf.getTimeVar(
         HiveConf.ConfVars.METASTORE_CLIENT_CONNECT_RETRY_DELAY, TimeUnit.SECONDS);
     this.metaCallTimeMap = metaCallTimeMap;
+    // MetaStore客户端套接字寿命（以秒为单位）。 超过这一时间后，客户端将在下一次MetaStore操作中重新连接。 值为0表示连接具有无限寿命。
     this.connectionLifeTimeInMillis = hiveConf.getTimeVar(
-        HiveConf.ConfVars.METASTORE_CLIENT_SOCKET_LIFETIME, TimeUnit.MILLISECONDS);
+        HiveConf.ConfVars.METASTORE_CLIENT_SOCKET_LIFETIME, TimeUnit.MILLISECONDS); // 默认值为0s
+    // 将当前时间设置为上次连接时间
     this.lastConnectionTime = System.currentTimeMillis();
     String msUri = hiveConf.getVar(HiveConf.ConfVars.METASTOREURIS);
+    // 从这句代码可以看出,如果localMetaStore=true, 则msUri需为null或为""
     localMetaStore = (msUri == null) || msUri.trim().isEmpty();
 
     reloginExpiringKeytabUser();
-    // 创建IMetaStoreClient对象
+    // 创建IMetaStoreClient对象, msClientClass为SessionHiveMetaStoreClient, 调用SessionHiveMetaStoreClient的构造方法, 实际有调用的父类HiveMetaStoreClient的构造方法
+    // HiveMetaStoreClient的构造方法中会实例化client, 即base实际是SessionHiveMetaStoreClient对象
     this.base = (IMetaStoreClient) MetaStoreUtils.newInstance(
         msClientClass, constructorArgTypes, constructorArgs);
   }
@@ -126,10 +132,11 @@ public class RetryingMetaStoreClient implements InvocationHandler {
     Class<? extends IMetaStoreClient> baseClass =
         (Class<? extends IMetaStoreClient>)MetaStoreUtils.getClass(mscClassName);
 
-    // 构造一个RetryingMetaStoreClient对象, 构造方法中会创建一个IMetaStoreClient对象, baseClass是SessionHiveMetaStoreClient
+    // 构造一个RetryingMetaStoreClient对象, 构造方法中会创建一个IMetaStoreClient对象(对象名为base, invoke中使用该base), baseClass是SessionHiveMetaStoreClient
     RetryingMetaStoreClient handler =
         new RetryingMetaStoreClient(hiveConf, constructorArgTypes, constructorArgs,
             metaCallTimeMap, baseClass);
+    // 通过动态代理的方式获取IMetaStoreClient的一个代理类, 而使用该代理类的时候会调用handler(RetryingMetaStoreClient类)的invoke方法, 实际还是使用的handler实例的base对象(一个IMetaStoreClient对象)
     return (IMetaStoreClient) Proxy.newProxyInstance(
         RetryingMetaStoreClient.class.getClassLoader(), baseClass.getInterfaces(), handler);
   }

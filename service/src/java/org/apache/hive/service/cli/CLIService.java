@@ -82,6 +82,7 @@ public class CLIService extends CompositeService implements ICLIService {
     // 将SessionManager加入 cliService的serviceList
     addService(sessionManager);
     //  If the hadoop cluster is secure, do a kerberos login for the service from the keytab
+    // 如果hadoop开启了权限验证,则isSecurityEnabled为true(hadoop默认是simple,即没有开启权限验证, isSecurityEnabled是false),执行下面代码
     if (UserGroupInformation.isSecurityEnabled()) {
       try {
         HiveAuthFactory.loginFromKeytab(hiveConf);
@@ -109,6 +110,7 @@ public class CLIService extends CompositeService implements ICLIService {
     }
     // creates connection to HMS and thus *must* occur after kerberos login above
     try {
+      // 执行权限配置等信息, 创建SessionSate, 创建metastoreClient等操作
       applyAuthorizationConfigPolicy(hiveConf);
     } catch (Exception e) {
       throw new RuntimeException("Error applying authorization policy on hive configuration: "
@@ -123,9 +125,13 @@ public class CLIService extends CompositeService implements ICLIService {
       MetaException {
     // authorization setup using SessionState should be revisited eventually, as
     // authorization and authentication are not session specific settings
+    // 最后应该重新访问使用SessionState的授权设置，因为授权和身份验证不是会话特定的设置
     SessionState ss = new SessionState(newHiveConf);
+    // isHiveServerQuery = true, 用来标识该session是hiveServer2的session
     ss.setIsHiveServerQuery(true);
+    // start方法中会创建一个当前线程对应的Hive对象, 该对象会创建一个metaStoreClient
     SessionState.start(ss);
+    // 执行权限策略, 主要是设置一下权限验证类, 钩子程序等
     ss.applyAuthorizationPolicy();
   }
 
