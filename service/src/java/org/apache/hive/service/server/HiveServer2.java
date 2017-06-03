@@ -468,6 +468,7 @@ public class HiveServer2 extends CompositeService {
     super.start();  // 调用父类start方法，将serviceList中的服务逐个进行启动
     // If we're supporting dynamic service discovery, we'll add the service uri for this
     // HiveServer2 instance to Zookeeper as a znode.
+    // hive.server2.support.dynamic.service.discovery设置为true的话, 执行下面代码, 在zookeeper中创建节点
     HiveConf hiveConf = this.getHiveConf();
     if (hiveConf.getBoolVar(ConfVars.HIVE_SERVER2_SUPPORT_DYNAMIC_SERVICE_DISCOVERY)) {
       try {
