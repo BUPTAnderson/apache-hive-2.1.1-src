@@ -19,8 +19,6 @@
 
 package org.apache.hive.hcatalog.utils;
 
-import java.io.IOException;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.io.Text;
@@ -37,6 +35,8 @@ import org.apache.hive.hcatalog.data.schema.HCatSchema;
 import org.apache.hive.hcatalog.mapreduce.HCatInputFormat;
 import org.apache.hive.hcatalog.mapreduce.HCatOutputFormat;
 import org.apache.hive.hcatalog.mapreduce.OutputJobInfo;
+
+import java.io.IOException;
 
 /**
  * This is a map reduce test for testing hcat which goes against the "numbers"

@@ -19,6 +19,12 @@
 
 package org.apache.hive.hcatalog.utils;
 
+import org.apache.hive.hcatalog.common.HCatException;
+import org.apache.hive.hcatalog.data.transfer.DataTransferFactory;
+import org.apache.hive.hcatalog.data.transfer.HCatWriter;
+import org.apache.hive.hcatalog.data.transfer.WriteEntity;
+import org.apache.hive.hcatalog.data.transfer.WriterContext;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -29,14 +35,8 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Map.Entry;
-
-import org.apache.hive.hcatalog.common.HCatException;
-import org.apache.hive.hcatalog.data.transfer.DataTransferFactory;
-import org.apache.hive.hcatalog.data.transfer.HCatWriter;
-import org.apache.hive.hcatalog.data.transfer.WriteEntity;
-import org.apache.hive.hcatalog.data.transfer.WriterContext;
+import java.util.Properties;
 
 public class DataWriterMaster {
 

@@ -19,9 +19,6 @@
 
 package org.apache.hive.hcatalog.utils;
 
-import java.io.IOException;
-import java.util.Arrays;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
@@ -37,6 +34,9 @@ import org.apache.hive.hcatalog.common.HCatConstants;
 import org.apache.hive.hcatalog.data.HCatRecord;
 import org.apache.hive.hcatalog.data.schema.HCatSchema;
 import org.apache.hive.hcatalog.mapreduce.HCatInputFormat;
+
+import java.io.IOException;
+import java.util.Arrays;
 
 /**
  * This is a map reduce test for testing hcat that checks that the columns

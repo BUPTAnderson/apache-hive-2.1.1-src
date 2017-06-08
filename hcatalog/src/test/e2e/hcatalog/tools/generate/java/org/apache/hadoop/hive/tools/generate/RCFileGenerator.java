@@ -19,20 +19,19 @@
 
 package org.apache.hadoop.hive.tools.generate;
 
-import java.util.Properties;
-import java.util.Random;
-import java.io.FileWriter;
-import java.io.PrintWriter;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.compress.DefaultCodec;
-
-import org.apache.hadoop.hive.serde2.columnar.BytesRefArrayWritable;
-import org.apache.hadoop.hive.serde2.columnar.BytesRefWritable;
 import org.apache.hadoop.hive.ql.io.RCFile;
 import org.apache.hadoop.hive.ql.io.RCFileOutputFormat;
+import org.apache.hadoop.hive.serde2.columnar.BytesRefArrayWritable;
+import org.apache.hadoop.hive.serde2.columnar.BytesRefWritable;
+import org.apache.hadoop.io.compress.DefaultCodec;
+
+import java.io.FileWriter;
+import java.io.PrintWriter;
+import java.util.Properties;
+import java.util.Random;
 
 /**
  * Generate RCFile test data
