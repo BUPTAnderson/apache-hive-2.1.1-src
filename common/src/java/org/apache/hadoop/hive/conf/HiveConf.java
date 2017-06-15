@@ -3709,7 +3709,7 @@ public class HiveConf extends Configuration {
     // then this is considered like the metastore server case
     // hive.metastore.uris值如果为null或空则重新加载hivemetastore-site.xml
     String msUri = this.getVar(HiveConf.ConfVars.METASTOREURIS);
-    if(HiveConfUtil.isEmbeddedMetaStore(msUri)){
+    if(HiveConfUtil.isEmbeddedMetaStore(msUri)){  // 默认返回true
       setLoadMetastoreConfig(true);
     }
 
