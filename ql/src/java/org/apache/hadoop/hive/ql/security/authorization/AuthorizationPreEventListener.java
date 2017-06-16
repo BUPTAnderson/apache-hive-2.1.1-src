@@ -18,13 +18,8 @@
 
 package org.apache.hadoop.hive.ql.security.authorization;
 
-import java.util.Iterator;
-import java.util.List;
-
 import com.google.common.base.Function;
 import com.google.common.collect.Iterators;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.common.classification.InterfaceAudience.Private;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -53,14 +48,21 @@ import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.metadata.HiveUtils;
 import org.apache.hadoop.hive.ql.plan.HiveOperation;
 import org.apache.hadoop.hive.ql.security.HiveMetastoreAuthenticationProvider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.Iterator;
+import java.util.List;
 
 /**
  * AuthorizationPreEventListener : A MetaStorePreEventListener that
  * performs authorization/authentication checks on the metastore-side.
+ * AuthorizationPreEventListener：MetaStorePreEventListener，用于在metastore端执行授权/身份验证。
  *
  * Note that this can only perform authorization checks on defined
  * metastore PreEventContexts, such as the adding/dropping and altering
  * of databases, tables and partitions.
+ * 请注意，这只能对定义的转移PreEventContexts执行授权检查，例如添加/删除和更改数据库，表和分区。
  */
 @Private
 public class AuthorizationPreEventListener extends MetaStorePreEventListener {

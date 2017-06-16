@@ -69,7 +69,7 @@ public class ThriftBinaryCLIService extends ThriftCLIService {
       hiveAuthFactory = new HiveAuthFactory(hiveConf);
       // 返回TSaslServerTransport.Factory实例
       TTransportFactory transportFactory = hiveAuthFactory.getAuthTransFactory();
-      // 返回SQLPlainProcessorFactory实例
+      // 返回SQLPlainProcessorFactory实例(调用了SQLPlainProcessorFactory的构造方法, 构造方法入参为this(ThriftBinaryCLIService)), 参看SQLPlainProcessorFactory的getProcessor方法
       TProcessorFactory processorFactory = hiveAuthFactory.getAuthProcFactory(this);
       TServerSocket serverSocket = null;
       List<String> sslVersionBlacklist = new ArrayList<String>();
@@ -80,7 +80,7 @@ public class ThriftBinaryCLIService extends ThriftCLIService {
       // HIVE_SERVER2_USE_SSL默认值为false
       if (!hiveConf.getBoolVar(ConfVars.HIVE_SERVER2_USE_SSL)) {
         // hiveHost和portNum在父类ThriftCLIService的init方法中已经初始化过, host默认是本机地址, portNum默认是10000端口
-        serverSocket = HiveAuthFactory.getServerSocket(hiveHost, portNum);
+        serverSocket = HiveAuthFactory.getServerSocket(hiveHost, portNum);  // 设置ip和端口号
       } else {
         String keyStorePath = hiveConf.getVar(ConfVars.HIVE_SERVER2_SSL_KEYSTORE_PATH).trim();
         if (keyStorePath.isEmpty()) {
@@ -103,9 +103,13 @@ public class ThriftBinaryCLIService extends ThriftCLIService {
       int beBackoffSlotLength = (int) hiveConf.getTimeVar(
           HiveConf.ConfVars.HIVE_SERVER2_THRIFT_LOGIN_BEBACKOFF_SLOT_LENGTH, TimeUnit.MILLISECONDS);
       // 构造TThreadPoolServer.Args，上面的线程池会作为参数传入
-      TThreadPoolServer.Args sargs = new TThreadPoolServer.Args(serverSocket)
+      TThreadPoolServer.Args sargs = new TThreadPoolServer.Args(serverSocket)   // serverTransport = serverSocket
+          // processorFactory= processorFactory(SQLPlainProcessorFactory) inputTransportFactory/outputTransportFactory=transportFactory(TSaslServerTransport.Factory)
           .processorFactory(processorFactory).transportFactory(transportFactory)
+          // inputProtocolFactory/outputProtocolFactory = TBinaryProtocol.Factory()
           .protocolFactory(new TBinaryProtocol.Factory())
+          // inputProtocolFactory = TBinaryProtocol.Factory(true, true, maxMessageSize, maxMessageSize) maxMessageSize限制了从可变长度字段(如字符串或二进制)读取的最大字节数
+          // maxMessageSize设置从容器类如maps, sets, lists, 读取的最大元素数量
           .inputProtocolFactory(new TBinaryProtocol.Factory(true, true, maxMessageSize, maxMessageSize))
           .requestTimeout(requestTimeout).requestTimeoutUnit(TimeUnit.SECONDS)
           .beBackoffSlotLength(beBackoffSlotLength).beBackoffSlotLengthUnit(TimeUnit.MILLISECONDS)

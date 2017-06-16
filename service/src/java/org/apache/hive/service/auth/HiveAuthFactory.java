@@ -90,10 +90,10 @@ public class HiveAuthFactory {
   }
 
   private HadoopThriftAuthBridge.Server saslServer;
-  private String authTypeStr;
-  private final String transportMode;
+  private String authTypeStr; // 默认值NONE
+  private final String transportMode; // 默认值binary
   private final HiveConf conf;
-  private String hadoopAuth;
+  private String hadoopAuth; // 默认值simple
   private HiveDelegationTokenManager delegationTokenManager = null;
 
   public static final String HS2_PROXY_USER = "hive.server2.proxy.user";
@@ -162,7 +162,7 @@ public class HiveAuthFactory {
     TTransportFactory transportFactory;
     TSaslServerTransport.Factory serverTransportFactory;
 
-    if (isSASLWithKerberizedHadoop()) {
+    if (isSASLWithKerberizedHadoop()) { // 默认值false
       try {
         serverTransportFactory = saslServer.createSaslServerTransportFactory(
             getSaslProperties());
