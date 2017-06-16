@@ -29,6 +29,7 @@ import org.apache.hadoop.hive.metastore.events.PreEventContext;
  * This abstract class needs to be extended to  provide implementation of actions that needs
  * to be performed before a particular event occurs on a metastore. These methods
  * are called before an event occurs on metastore.
+ * 需要继承这个抽象类以提供在特定事件发生在metastore之前需要执行的动作的实现。 在事件发生在metastore之前调用这些方法。
  */
 
 public abstract class MetaStorePreEventListener implements Configurable {

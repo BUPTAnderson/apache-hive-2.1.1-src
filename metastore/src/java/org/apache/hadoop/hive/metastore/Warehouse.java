@@ -18,24 +18,7 @@
 
 package org.apache.hadoop.hive.metastore;
 
-import static org.apache.hadoop.hive.metastore.MetaStoreUtils.DATABASE_WAREHOUSE_SUFFIX;
-import static org.apache.hadoop.hive.metastore.MetaStoreUtils.DEFAULT_DATABASE_NAME;
-
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.util.AbstractList;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-
 import org.apache.commons.lang.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.ContentSummary;
 import org.apache.hadoop.fs.FileStatus;
@@ -54,6 +37,22 @@ import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.shims.ShimLoader;
 import org.apache.hadoop.util.ReflectionUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.util.AbstractList;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import static org.apache.hadoop.hive.metastore.MetaStoreUtils.DATABASE_WAREHOUSE_SUFFIX;
+import static org.apache.hadoop.hive.metastore.MetaStoreUtils.DEFAULT_DATABASE_NAME;
 
 /**
  * This class represents a warehouse where data of Hive tables is stored
@@ -70,18 +69,20 @@ public class Warehouse {
 
   public Warehouse(Configuration conf) throws MetaException {
     this.conf = conf;
+    // 获取配置项:hive.metastore.warehouse.dir, 默认值: /user/hive/warehouse
     whRootString = HiveConf.getVar(conf, HiveConf.ConfVars.METASTOREWAREHOUSE);
     if (StringUtils.isBlank(whRootString)) {
       throw new MetaException(HiveConf.ConfVars.METASTOREWAREHOUSE.varname
           + " is not set in the config or blank");
     }
-    fsHandler = getMetaStoreFsHandler(conf);
+    fsHandler = getMetaStoreFsHandler(conf);  // 默认值为org.apache.hadoop.hive.metastore.HiveMetaStoreFsImpl
     storageAuthCheck = HiveConf.getBoolVar(conf,
-        HiveConf.ConfVars.METASTORE_AUTHORIZATION_STORAGE_AUTH_CHECKS);
+        HiveConf.ConfVars.METASTORE_AUTHORIZATION_STORAGE_AUTH_CHECKS); // 默认值为false
   }
 
   private MetaStoreFS getMetaStoreFsHandler(Configuration conf)
       throws MetaException {
+    // 获取配置项:hive.metastore.fs.handler.class, 默认值为: org.apache.hadoop.hive.metastore.HiveMetaStoreFsImpl
     String handlerClassStr = HiveConf.getVar(conf,
         HiveConf.ConfVars.HIVE_METASTORE_FS_HANDLER_CLS);
     try {

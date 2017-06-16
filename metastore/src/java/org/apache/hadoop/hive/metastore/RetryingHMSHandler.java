@@ -18,16 +18,7 @@
 
 package org.apache.hadoop.hive.metastore;
 
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
-import java.lang.reflect.UndeclaredThrowableException;
-import java.util.concurrent.TimeUnit;
-
 import org.apache.commons.lang.exception.ExceptionUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.common.classification.InterfaceAudience;
 import org.apache.hadoop.hive.common.classification.InterfaceStability;
@@ -36,6 +27,15 @@ import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.ql.log.PerfLogger;
 import org.datanucleus.exceptions.NucleusException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
+import java.lang.reflect.UndeclaredThrowableException;
+import java.util.concurrent.TimeUnit;
 
 @InterfaceAudience.Private
 @InterfaceStability.Evolving
@@ -73,14 +73,18 @@ public class RetryingHMSHandler implements InvocationHandler {
     // Using the hook on startup ensures that the hook always has priority
     // over settings in *.xml.  The thread local conf needs to be used because at this point
     // it has already been initialized using hiveConf.
+    // 在初始化HMSHandler的实例之前必须先调用它。 在启动时使用钩子可确保钩子始终优先于* .xml中的设置。 Thread local conf需要使用，因为在当前节点上它已经使用hiveConf进行了初始化。
+    // updateConnectionURL方法的作用: 使用钩子更新hiveConf中的连接URL（如果使用hive.metastore.ds.connection.url.hook属性设置了一个钩子）, 实际更新的是metaStoreInitData里的两个属性
     MetaStoreInit.updateConnectionURL(hiveConf, getActiveConf(), null, metaStoreInitData);
 
+    // 实际是调用HMSHandler的init方法
     baseHandler.init();
   }
 
   public static IHMSHandler getProxy(HiveConf hiveConf, IHMSHandler baseHandler, boolean local)
       throws MetaException {
 
+    // RetryingHMSHandler继承了InvocationHandler
     RetryingHMSHandler handler = new RetryingHMSHandler(hiveConf, baseHandler, local);
 
     return (IHMSHandler) Proxy.newProxyInstance(

@@ -219,6 +219,7 @@ public class HiveMetaStore extends ThriftHiveMetastore {
     RawStore getMS() throws MetaException;
   }
 
+  // IHMSHandler继承子ThriftHiveMetastore.Iface, 即HMSHandler是metastore定义的各种接口的实现类
   public static class HMSHandler extends FacebookBase implements IHMSHandler, ThreadLocalRawStore {
     public static final Logger LOG = HiveMetaStore.LOG;
     private String rawStoreClassName;
@@ -398,31 +399,37 @@ public class HiveMetaStore extends ThriftHiveMetastore {
 
     @Override
     public void init() throws MetaException {
+      // 默认值为:org.apache.hadoop.hive.metastore.ObjectStore
       rawStoreClassName = hiveConf.getVar(HiveConf.ConfVars.METASTORE_RAW_STORE_IMPL);
+      // 获取hive.metastore.init.hooks配置项配置的hook, 逗号分隔, hook需要实现org.apache.hadoop.hive.metastore.MetaStoreInitListener, 通过反射获取类对象
       initListeners = MetaStoreUtils.getMetaStoreListeners(
           MetaStoreInitListener.class, hiveConf,
           hiveConf.getVar(HiveConf.ConfVars.METASTORE_INIT_HOOKS));
+      // 调用每个hook的onInit方法
       for (MetaStoreInitListener singleInitListener: initListeners) {
           MetaStoreInitContext context = new MetaStoreInitContext();
           singleInitListener.onInit(context);
       }
 
+      // 获取配置项hive.metastore.alter.impl的值, 没有配置的话默认为: HiveAlterHandler
       String alterHandlerName = hiveConf.get("hive.metastore.alter.impl",
           HiveAlterHandler.class.getName());
       alterHandler = (AlterHandler) ReflectionUtils.newInstance(MetaStoreUtils.getClass(
           alterHandlerName), hiveConf);
+      // 构造数据仓库Warehouse
       wh = new Warehouse(hiveConf);
 
+      // 初始化defaultDb, roles, adminUser
       synchronized (HMSHandler.class) {
         if (currentUrl == null || !currentUrl.equals(MetaStoreInit.getConnectionURL(hiveConf))) {
-          createDefaultDB();
-          createDefaultRoles();
-          addAdminUsers();
-          currentUrl = MetaStoreInit.getConnectionURL(hiveConf);
+          createDefaultDB();  // 创建default数据库
+          createDefaultRoles(); // 创建默认的角色: admin和public
+          addAdminUsers();  // 给配置项hive.users.in.admin.role配置的用户赋admin角色
+          currentUrl = MetaStoreInit.getConnectionURL(hiveConf);  // 获取数据库的url
         }
       }
 
-      //Start Metrics for Embedded mode
+      //Start Metrics for Embedded mode 默认值false
       if (hiveConf.getBoolVar(ConfVars.METASTORE_METRICS)) {
         try {
           MetricsFactory.init(hiveConf);
@@ -433,7 +440,7 @@ public class HiveMetaStore extends ThriftHiveMetastore {
         }
       }
 
-      Metrics metrics = MetricsFactory.getInstance();
+      Metrics metrics = MetricsFactory.getInstance(); // 默认值为null
       if (metrics != null && hiveConf.getBoolVar(ConfVars.METASTORE_INIT_METADATA_COUNT_ENABLED)) {
         LOG.info("Begin calculating metadata count metrics.");
         updateMetrics();
@@ -459,6 +466,9 @@ public class HiveMetaStore extends ThriftHiveMetastore {
         });
       }
 
+      // metastore主要维护2种数据: 1. 数据库, 表, 分区等数据, 算是DDL操作 2. 权限, 角色类的数据, 算是DCL操作
+      // 当上述2种数据将要发生变化的时候，都会首先调用preListeners执行一些预处理操作，如验证一个用户是否有权限来执行该操作
+      // 当上述第一种数据发生变化后，会调用上述listeners执行一些处理
       preListeners = MetaStoreUtils.getMetaStoreListeners(MetaStorePreEventListener.class,
           hiveConf,
           hiveConf.getVar(HiveConf.ConfVars.METASTORE_PRE_EVENT_LISTENERS));
@@ -472,10 +482,12 @@ public class HiveMetaStore extends ThriftHiveMetastore {
         listeners.add(new HMSMetricsListener(hiveConf, metrics));
       }
 
+      // 方法结束时需要调用的listener
       endFunctionListeners = MetaStoreUtils.getMetaStoreListeners(
           MetaStoreEndFunctionListener.class, hiveConf,
           hiveConf.getVar(HiveConf.ConfVars.METASTORE_END_FUNCTION_LISTENERS));
 
+      // 分区正则表达式(如果设置了hive.metastore.partition.name.whitelist.pattern)
       String partitionValidationRegex =
           hiveConf.getVar(HiveConf.ConfVars.METASTORE_PARTITION_NAME_WHITELIST_PATTERN);
       if (partitionValidationRegex != null && !partitionValidationRegex.isEmpty()) {
@@ -590,6 +602,7 @@ public class HiveMetaStore extends ThriftHiveMetastore {
         try {
           RawStore rs = ((Class<? extends RawStore>) MetaStoreUtils.getClass(
               rawStoreClassName)).newInstance();
+          // setConf方法会对ObjectStore进行初始化
           rs.setConf(conf);
           return rs;
         } catch (Exception e) {
@@ -602,9 +615,11 @@ public class HiveMetaStore extends ThriftHiveMetastore {
     }
 
     private void createDefaultDB_core(RawStore ms) throws MetaException, InvalidObjectException {
+      // 首先判断default数据库是否已经存在, 如果不存在会抛出异常, 在catch中创建数据库
       try {
         ms.getDatabase(DEFAULT_DATABASE_NAME);
       } catch (NoSuchObjectException e) {
+        // default数据库的路径是配置的hive.metastore.warehouse.dir的值
         Database db = new Database(DEFAULT_DATABASE_NAME, DEFAULT_DATABASE_COMMENT,
           wh.getDefaultDatabasePath(DEFAULT_DATABASE_NAME).toString(), null);
         db.setOwnerName(PUBLIC);
@@ -660,6 +675,7 @@ public class HiveMetaStore extends ThriftHiveMetastore {
     private void createDefaultRoles_core() throws MetaException {
 
       RawStore ms = getMS();
+      // 调用addRole方法添加admin
       try {
         ms.addRole(ADMIN, ADMIN);
       } catch (InvalidObjectException e) {
@@ -669,6 +685,7 @@ public class HiveMetaStore extends ThriftHiveMetastore {
         LOG.warn("Unexpected exception while adding " +ADMIN+" roles" , e);
       }
       LOG.info("Added "+ ADMIN+ " role in metastore");
+      // 调用addRole方法添加public
       try {
         ms.addRole(PUBLIC, PUBLIC);
       } catch (InvalidObjectException e) {
@@ -679,6 +696,7 @@ public class HiveMetaStore extends ThriftHiveMetastore {
       }
       LOG.info("Added "+PUBLIC+ " role in metastore");
       // now grant all privs to admin
+      // 将所有的权限赋给admin
       PrivilegeBag privs = new PrivilegeBag();
       privs.addToPrivileges(new HiveObjectPrivilege( new HiveObjectRef(HiveObjectType.GLOBAL, null,
         null, null, null), ADMIN, PrincipalType.ROLE, new PrivilegeGrantInfo("All", 0, ADMIN,
@@ -715,6 +733,7 @@ public class HiveMetaStore extends ThriftHiveMetastore {
     private void addAdminUsers_core() throws MetaException {
 
       // now add pre-configured users to admin role
+      // 获取配置项: hive.users.in.admin.role, 该配置项是逗号分割的用户, 会被赋予admin角色
       String userStr = HiveConf.getVar(hiveConf,ConfVars.USERS_IN_ADMIN_ROLE,"").trim();
       if (userStr.isEmpty()) {
         LOG.info("No user is added in admin role, since config is empty");
@@ -740,6 +759,7 @@ public class HiveMetaStore extends ThriftHiveMetastore {
       while (users.hasNext()) {
         String userName = users.next();
         try {
+          // 调用ObjectStore将admin角色赋给用户
           ms.grantRole(adminRole, userName, PrincipalType.USER, ADMIN, PrincipalType.ROLE, true);
           LOG.info("Added " + userName + " to admin role");
         } catch (NoSuchObjectException e) {
@@ -6592,7 +6612,8 @@ public class HiveMetaStore extends ThriftHiveMetastore {
    * @param args
    */
   public static void main(String[] args) throws Throwable {
-    HiveConf.setLoadMetastoreConfig(true);
+    HiveConf.setLoadMetastoreConfig(true);  // 是否需要加载hivemetastore-site.xml
+    // 加载hive-site.xml, hivemetastore-site.xml
     final HiveConf conf = new HiveConf(HMSHandler.class);
 
     HiveMetastoreCli cli = new HiveMetastoreCli(conf);
@@ -6624,6 +6645,7 @@ public class HiveMetaStore extends ThriftHiveMetastore {
 
 
       // set all properties specified on the command line
+      // 将命令行里的参数设置到conf中, 如果conf中已经存在, 会覆盖(即命令行里的设置会覆盖hive-site中的设置)
       for (Map.Entry<Object, Object> item : hiveconf.entrySet()) {
         conf.set((String) item.getKey(), (String) item.getValue());
       }
@@ -6659,11 +6681,13 @@ public class HiveMetaStore extends ThriftHiveMetastore {
         }
       }
 
+      // 创建一把互斥锁, 保证startMetaStoreThreads方法执行完再执行startMetaStore
       Lock startLock = new ReentrantLock();
       Condition startCondition = startLock.newCondition();
       AtomicBoolean startedServing = new AtomicBoolean();
+      // 开启一些thrift server之外的线程, 如compactor线程
       startMetaStoreThreads(conf, startLock, startCondition, startedServing);
-      // 进入startMetaStore方法
+      // 开启metastore服务部分, 进入startMetaStore方法
       startMetaStore(cli.getPort(), ShimLoader.getHadoopThriftAuthBridge(), conf, startLock,
           startCondition, startedServing);
     } catch (Throwable t) {
@@ -6735,6 +6759,7 @@ public class HiveMetaStore extends ThriftHiveMetastore {
       TTransportFactory transFactory;
       final TProtocolFactory protocolFactory;
       final TProtocolFactory inputProtoFactory;
+      // 设置TProtocolFactory
       if (useCompactProtocol) {
         protocolFactory = new TCompactProtocol.Factory();
         inputProtoFactory = new TCompactProtocol.Factory(maxMessageSize, maxMessageSize);
@@ -6742,10 +6767,10 @@ public class HiveMetaStore extends ThriftHiveMetastore {
         protocolFactory = new TBinaryProtocol.Factory();
         inputProtoFactory = new TBinaryProtocol.Factory(true, true, maxMessageSize, maxMessageSize);
       }
-      // 构造HMSHandler
+      // 构造HMSHandler(ThriftHiveMetaStore.Iface的实现类), HMSHandler暂不初始化
       HMSHandler baseHandler = new HiveMetaStore.HMSHandler("new db based metaserver", conf,
           false);
-      // 构造proxy handler
+      // 构造proxy handler(动态代理)
       IHMSHandler handler = newRetryingHMSHandler(baseHandler, conf);
       if (useSasl) {
         // we are in secure mode.
@@ -6766,13 +6791,14 @@ public class HiveMetaStore extends ThriftHiveMetastore {
           new ThriftHiveMetastore.Processor<IHMSHandler>(handler));
         LOG.info("Starting DB backed MetaStore Server in Secure Mode");
       } else {
-        // we are in unsecure mode.
-        if (conf.getBoolVar(ConfVars.METASTORE_EXECUTE_SET_UGI)) {
+        // we are in unsecure mode. 构造TTransportFactory
+        if (conf.getBoolVar(ConfVars.METASTORE_EXECUTE_SET_UGI)) {  // 默认值为true
           transFactory = useFramedTransport ?
               new ChainedTTransportFactory(new TFramedTransport.Factory(),
                   new TUGIContainingTransport.Factory())
               : new TUGIContainingTransport.Factory();
 
+          // TUGIBasedProcessor继承自TSetIpAddressProcessor, TSetIpAddressProcessor继承自ThriftHiveMetastore.Processor<Iface>, 所以processor是metastore thrift服务的启动者
           processor = new TUGIBasedProcessor<IHMSHandler>(handler);
           LOG.info("Starting DB backed MetaStore Server with SetUGI enabled");
         } else {
@@ -6782,14 +6808,15 @@ public class HiveMetaStore extends ThriftHiveMetastore {
           LOG.info("Starting DB backed MetaStore Server");
         }
       }
- 
+
+       // tcpKeepAlive默认值为true, 所以传输方式使用TServerSocketKeepAlive, TServerSocket的子类, 非阻塞型socket, 只是把clientTimeout, 即永远监听
        TServerTransport serverTransport = tcpKeepAlive ?
         new TServerSocketKeepAlive(port) : new TServerSocket(port);
 
-      TThreadPoolServer.Args args = new TThreadPoolServer.Args(serverTransport)
-          .processor(processor)
-          .transportFactory(transFactory)
-          .protocolFactory(protocolFactory)
+      TThreadPoolServer.Args args = new TThreadPoolServer.Args(serverTransport) // serverTransport通过监听获取一个TTransport, transport可以认为是一个连接, 接收到序列化的消息后根据protocol进行反序列化
+          .processor(processor) // inputProtocol反序列化的消息交给processor进行处理, 处理完通过outputProtocol进行序列化
+          .transportFactory(transFactory) // 定义消息是怎样在客户端和服务端之间通信的, 实际底层封装的socket
+          .protocolFactory(protocolFactory) // 定义消息的序列化方式
           .inputProtocolFactory(inputProtoFactory)
           .minWorkerThreads(minWorkerThreads)
           .maxWorkerThreads(maxWorkerThreads);
@@ -6911,9 +6938,12 @@ public class HiveMetaStore extends ThriftHiveMetastore {
         // AcidInputFormat).  ql depends on metastore so we can't directly access those.  To deal
         // with this the compactor thread classes have been put in ql and they are instantiated here
         // dyanmically.  This is not ideal but it avoids a massive refactoring of Hive packages.
+        // 这是一个巨大的黑客。 compactor线程必须访问ql中的包（如AcidInputFormat）。 ql依赖于metastore，所以我们不能直接访问它们。 为了处理这个问题，
+        // compactor线程类已经被放在ql中，并且它们在这里被实例化了。 这不是理想的，但它避免了Hive包的大量重构。
         //
         // Wrap the start of the threads in a catch Throwable loop so that any failures
         // don't doom the rest of the metastore.
+        // 将线程都放在try catch中, 以便任何故障都不会转移给metastore
         startLock.lock();
         try {
           JvmPauseMonitor pauseMonitor = new JvmPauseMonitor(conf);

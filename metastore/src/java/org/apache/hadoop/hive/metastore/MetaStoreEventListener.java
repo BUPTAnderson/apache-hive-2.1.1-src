@@ -41,6 +41,7 @@ import org.apache.hadoop.hive.metastore.events.LoadPartitionDoneEvent;
  * to be performed when a particular event occurs on a metastore. These methods
  * are called whenever an event occurs on metastore. Status of the event whether
  * it was successful or not is contained in container event object.
+ * 这个抽象类需要被扩展以提供在特定事件发生在metastore上时需要执行的动作的实现。 每当事件发生在metastore时，都会调用这些方法。 事件的状态是否成功包含在容器事件对象中。
  */
 
 public abstract class MetaStoreEventListener implements Configurable {

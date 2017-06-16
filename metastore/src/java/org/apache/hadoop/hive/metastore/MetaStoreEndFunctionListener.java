@@ -18,16 +18,18 @@
 
 package org.apache.hadoop.hive.metastore;
 
-import java.util.AbstractMap;
-
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
+
+import java.util.AbstractMap;
 
 /**
  * This abstract class needs to be extended to  provide implementation of actions that need
  * to be performed when a function ends. These methods are called whenever a function ends.
+ * 这个抽象类需要被扩展以提供在function结束时需要执行的动作的实现。 每当function结束时都会调用这些方法。
  *
  * It also provides a way to add fb303 counters through the exportCounters method.
+ * 它还提供了一种通过exportCounters方法添加fb303计数器的方法。
  */
 
 public abstract class MetaStoreEndFunctionListener implements Configurable {

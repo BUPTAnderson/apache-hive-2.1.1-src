@@ -18,44 +18,8 @@
 
 package org.apache.hadoop.hive.metastore;
 
-import static org.apache.commons.lang.StringUtils.join;
-
-import java.io.IOException;
-import java.lang.reflect.Field;
-import java.net.InetAddress;
-import java.net.URI;
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Properties;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.regex.Pattern;
-
-import javax.jdo.JDOCanRetryException;
-import javax.jdo.JDODataStoreException;
-import javax.jdo.JDOException;
-import javax.jdo.JDOHelper;
-import javax.jdo.JDOObjectNotFoundException;
-import javax.jdo.PersistenceManager;
-import javax.jdo.PersistenceManagerFactory;
-import javax.jdo.Query;
-import javax.jdo.Transaction;
-import javax.jdo.datastore.DataStoreCache;
-import javax.jdo.identity.IntIdentity;
-
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.hadoop.conf.Configurable;
@@ -163,8 +127,43 @@ import org.datanucleus.store.rdbms.exceptions.MissingTableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Lists;
+import javax.jdo.JDOCanRetryException;
+import javax.jdo.JDODataStoreException;
+import javax.jdo.JDOException;
+import javax.jdo.JDOHelper;
+import javax.jdo.JDOObjectNotFoundException;
+import javax.jdo.PersistenceManager;
+import javax.jdo.PersistenceManagerFactory;
+import javax.jdo.Query;
+import javax.jdo.Transaction;
+import javax.jdo.datastore.DataStoreCache;
+import javax.jdo.identity.IntIdentity;
+
+import java.io.IOException;
+import java.lang.reflect.Field;
+import java.net.InetAddress;
+import java.net.URI;
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Properties;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.regex.Pattern;
+
+import static org.apache.commons.lang.StringUtils.join;
 
 /**
  * This class is the interface between the application logic and the database
@@ -188,7 +187,7 @@ public class ObjectStore implements RawStore, Configurable {
     NO_STATE, OPEN, COMMITED, ROLLBACK
   }
 
-  private static final Map<String, Class> PINCLASSMAP;
+  private static final Map<String, Class> PINCLASSMAP;  // 可以缓存的数据类型
   private static final String HOSTNAME;
   private static final String USER;
   static {
@@ -263,6 +262,7 @@ public class ObjectStore implements RawStore, Configurable {
    * Called whenever this object is instantiated using ReflectionUtils, and also
    * on connection retries. In cases of connection retries, conf will usually
    * contain modified values.
+   * 当使用ReflectionUtils实例化此对象时，并在连接重试时调用。 在连接重试的情况下，conf通常将包含修改的值。
    */
   @Override
   @SuppressWarnings("nls")
@@ -270,6 +270,7 @@ public class ObjectStore implements RawStore, Configurable {
     // Although an instance of ObjectStore is accessed by one thread, there may
     // be many threads with ObjectStore instances. So the static variables
     // pmf and prop need to be protected with locks.
+    // 虽然一个线程访问了一个ObjectStore的实例，但是可能有许多线程与ObjectStore实例。 所以静态变量pmf和prop需要用锁保护。
     pmfPropLock.lock();
     try {
       isInitialized = false;
@@ -293,9 +294,10 @@ public class ObjectStore implements RawStore, Configurable {
       openTrasactionCalls = 0;
       currentTransaction = null;
       transactionStatus = TXN_STATUS.NO_STATE;
-
+      // 调用初始化方法
       initialize(propsFromConf);
 
+      // 将根据此正则表达式模式检查分区名称，如果不匹配则拒绝。
       String partitionValidationRegex =
           hiveConf.get(HiveConf.ConfVars.METASTORE_PARTITION_NAME_WHITELIST_PATTERN.name());
       if (partitionValidationRegex != null && !partitionValidationRegex.isEmpty()) {
@@ -325,14 +327,17 @@ public class ObjectStore implements RawStore, Configurable {
 
   @SuppressWarnings("nls")
   private void initialize(Properties dsProps) {
+    // 如果发生连接错误，重试HMSHandler调用的次数。默认为10
     int retryLimit = HiveConf.getIntVar(hiveConf,
         HiveConf.ConfVars.HMSHANDLERATTEMPTS);
+    // 失败重试间隔, 默认2000ms
     long retryInterval = HiveConf.getTimeVar(hiveConf,
         HiveConf.ConfVars.HMSHANDLERINTERVAL, TimeUnit.MILLISECONDS);
     int numTries = retryLimit;
 
     while (numTries > 0){
       try {
+        // 调用initializeHelper进行初始化, 可重复调用
         initializeHelper(dsProps);
         return; // If we reach here, we succeed.
       } catch (Exception e){
@@ -394,13 +399,17 @@ public class ObjectStore implements RawStore, Configurable {
    * @param dsProps
    */
   private void initializeHelper(Properties dsProps) {
+    // 实际就是初始化pm和expressionProxy
     LOG.info("ObjectStore, initialize called");
     prop = dsProps;
-    pm = getPersistenceManager();
+    pm = getPersistenceManager(); // 调用jdo实例化PersistenceManager
     isInitialized = pm != null;
     if (isInitialized) {
+      // 创建用于评估表达式的代理。 这是为了防止循环依赖 - ql - > metastore client < - > metastore server - > ql。 如果服务器和客户端被拆分，则可以将其删除。
       expressionProxy = createExpressionProxy(hiveConf);
       if (HiveConf.getBoolVar(getConf(), ConfVars.METASTORE_TRY_DIRECT_SQL)) {
+        // 此类包含依赖于对底层数据库的直接SQL访问的MetaStore的优化。 它应该使用ANSI SQL，并且与诸如MySQL之类的常见数据库兼容（注意，默认情况下，MySQL不使用完全ANSI模式），
+        // Postgres等。到目前为止，只有分区检索是通过这种方式完成的，以提高作业启动时间; JDOQL分区检索仍然存在，以免限制只有SQL存储的ORM解决方案。 总有一种方法可以直接使用SQL。
         directSql = new MetaStoreDirectSql(pm, hiveConf);
       }
     }
@@ -516,6 +525,7 @@ public class ObjectStore implements RawStore, Configurable {
       DataStoreCache dsc = pmf.getDataStoreCache();
       if (dsc != null) {
         HiveConf conf = new HiveConf(ObjectStore.class);
+        // 应该在缓存中存储的对象类型列表, 默认值:Table,StorageDescriptor,SerDeInfo,Partition,Database,Type,FieldSchema,Order
         String objTypes = HiveConf.getVar(conf, HiveConf.ConfVars.METASTORE_CACHE_PINOBJTYPES);
         LOG.info("Setting MetaStore object pin classes with hive.metastore.cache.pinobjtypes=\"" + objTypes + "\"");
         if (objTypes != null && objTypes.length() > 0) {
@@ -3827,10 +3837,12 @@ public class ObjectStore implements RawStore, Configurable {
     boolean commited = false;
     try {
       openTransaction();
+      // 检查该role是否已经存在, 如果存在抛出异常
       MRole nameCheck = this.getMRole(roleName);
       if (nameCheck != null) {
         throw new InvalidObjectException("Role " + roleName + " already exists.");
       }
+      // 构造MRole, 并持久化
       int now = (int)(System.currentTimeMillis()/1000);
       MRole mRole = new MRole(roleName, now, ownerName);
       pm.makePersistent(mRole);
@@ -4577,6 +4589,7 @@ public class ObjectStore implements RawStore, Configurable {
     int now = (int) (System.currentTimeMillis() / 1000);
     try {
       openTransaction();
+      // 由于一次可以授予多个权限, 每一种权限的授予组装成对象加入到persistentObjs中
       List<Object> persistentObjs = new ArrayList<Object>();
 
       List<HiveObjectPrivilege> privilegeList = privileges.getPrivileges();
@@ -4588,69 +4601,89 @@ public class ObjectStore implements RawStore, Configurable {
           HiveObjectPrivilege privDef = privIter.next();
           HiveObjectRef hiveObject = privDef.getHiveObject();
           String privilegeStr = privDef.getGrantInfo().getPrivilege();
+          // 获取授权信息
           String[] privs = privilegeStr.split(",");
+          // 获取被授权者
           String userName = privDef.getPrincipalName();
+          // 获取被授权者类型: user, role, group
           PrincipalType principalType = privDef.getPrincipalType();
+          // 获取授权者
           String grantor = privDef.getGrantInfo().getGrantor();
+          // 获取授权者类型
           String grantorType = privDef.getGrantInfo().getGrantorType().toString();
+          // 获取grantOption
           boolean grantOption = privDef.getGrantInfo().isGrantOption();
           privSet.clear();
 
+          // 如果授权者是role, 则确认该role是否存在
           if(principalType == PrincipalType.ROLE){
             validateRole(userName);
           }
 
+          // 下面分别针对不同的HiveObjectType进行处理
           if (hiveObject.getObjectType() == HiveObjectType.GLOBAL) {
+            // 获取数据库中该被授权者已经存在的被授权的信息
             List<MGlobalPrivilege> globalPrivs = this
                 .listPrincipalMGlobalGrants(userName, principalType);
             if (globalPrivs != null) {
               for (MGlobalPrivilege priv : globalPrivs) {
+                // 如果该条记录中授权信息的授权者与当前授权者相同, 将该权限加入privSet
                 if (priv.getGrantor().equalsIgnoreCase(grantor)) {
                   privSet.add(priv.getPrivilege());
                 }
               }
             }
             for (String privilege : privs) {
+              // 如果已经授权的权限中包含当前要授予的权限, 则抛出异常
               if (privSet.contains(privilege)) {
                 throw new InvalidObjectException(privilege
                     + " is already granted by " + grantor);
               }
+              // 组装全局授权对象MGlobalPrivilege, 加入persistentObjs中
               MGlobalPrivilege mGlobalPrivs = new MGlobalPrivilege(userName,
                   principalType.toString(), privilege, now, grantor, grantorType, grantOption);
               persistentObjs.add(mGlobalPrivs);
             }
           } else if (hiveObject.getObjectType() == HiveObjectType.DATABASE) {
+            // 先查询数据库是否存在
             MDatabase dbObj = getMDatabase(hiveObject.getDbName());
             if (dbObj != null) {
+              // 获取用户在这个数据库上已经被授予的权限
               List<MDBPrivilege> dbPrivs = this.listPrincipalMDBGrants(
                   userName, principalType, hiveObject.getDbName());
               if (dbPrivs != null) {
                 for (MDBPrivilege priv : dbPrivs) {
+                  // 如果被授权者是grantor, 经授权信息加入到privSet
                   if (priv.getGrantor().equalsIgnoreCase(grantor)) {
                     privSet.add(priv.getPrivilege());
                   }
                 }
               }
               for (String privilege : privs) {
+                // 如果已经授权的权限中包含当前要授予的权限, 则抛出异常
                 if (privSet.contains(privilege)) {
                   throw new InvalidObjectException(privilege
                       + " is already granted on database "
                       + hiveObject.getDbName() + " by " + grantor);
                 }
+                // 组装数据库授权对象MDBPrivilege, 加入persistentObjs中
                 MDBPrivilege mDb = new MDBPrivilege(userName, principalType
                     .toString(), dbObj, privilege, now, grantor, grantorType, grantOption);
                 persistentObjs.add(mDb);
               }
             }
           } else if (hiveObject.getObjectType() == HiveObjectType.TABLE) {
+            // 通过库名表名查询表是否存在
             MTable tblObj = getMTable(hiveObject.getDbName(), hiveObject
                 .getObjectName());
             if (tblObj != null) {
+              // 获取被授权者的被授权的该表的权限信息
               List<MTablePrivilege> tablePrivs = this
                   .listAllMTableGrants(userName, principalType,
                       hiveObject.getDbName(), hiveObject.getObjectName());
               if (tablePrivs != null) {
                 for (MTablePrivilege priv : tablePrivs) {
+                  // 如果已经授权的权限的授权者是当前授权者, 将权限新建加入到privSet中
                   if (priv.getGrantor() != null
                       && priv.getGrantor().equalsIgnoreCase(grantor)) {
                     privSet.add(priv.getPrivilege());
@@ -4658,12 +4691,14 @@ public class ObjectStore implements RawStore, Configurable {
                 }
               }
               for (String privilege : privs) {
+                // 如果已经授权的权限中包含当前要授予的权限, 则抛出异常
                 if (privSet.contains(privilege)) {
                   throw new InvalidObjectException(privilege
                       + " is already granted on table ["
                       + hiveObject.getDbName() + ","
                       + hiveObject.getObjectName() + "] by " + grantor);
                 }
+                // 组装表授权对象MTablePrivilege, 加入到persistentObjs中
                 MTablePrivilege mTab = new MTablePrivilege(
                     userName, principalType.toString(), tblObj,
                     privilege, now, grantor, grantorType, grantOption);
@@ -4773,6 +4808,7 @@ public class ObjectStore implements RawStore, Configurable {
           }
         }
       }
+      // 统一持久化
       if (persistentObjs.size() > 0) {
         pm.makePersistentAll(persistentObjs);
       }
