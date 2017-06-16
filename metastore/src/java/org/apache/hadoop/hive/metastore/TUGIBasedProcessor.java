@@ -64,12 +64,14 @@ public class TUGIBasedProcessor<I extends Iface> extends TSetIpAddressProcessor<
     InvocationTargetException {
     super(iface);
     this.iface = iface;
+    // getProcessMapView是TBaseProcessor中的方法, 返回的是不可修改的Map
     this.functions = getProcessMapView();
   }
 
   @SuppressWarnings("unchecked")
   @Override
   public boolean process(final TProtocol in, final TProtocol out) throws TException {
+    // in和out都是TBinaryProtocol, 里面封装的是TUGIContainingTransport(TTransport)
     setIpAddress(in);
 
     final TMessage msg = in.readMessageBegin();
@@ -87,6 +89,7 @@ public class TUGIBasedProcessor<I extends Iface> extends TSetIpAddressProcessor<
     }
     TUGIContainingTransport ugiTrans = (TUGIContainingTransport)in.getTransport();
     // Store ugi in transport if the rpc is set_ugi
+    // 如果客户端调用的是方法set_ugi
     if (msg.name.equalsIgnoreCase("set_ugi")){
       try {
         handleSetUGI(ugiTrans, (set_ugi<Iface>)fn, msg, in, out);

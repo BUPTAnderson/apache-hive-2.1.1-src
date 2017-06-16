@@ -57,6 +57,7 @@ public class TSetIpAddressProcessor<I extends Iface> extends ThriftHiveMetastore
   }
 
   protected void setIpAddress(final Socket inSocket) {
+    // 每个连接的client都会设置它的ipAddress
     HMSHandler.setThreadLocalIpAddress(inSocket.getInetAddress().getHostAddress());
   }
 }

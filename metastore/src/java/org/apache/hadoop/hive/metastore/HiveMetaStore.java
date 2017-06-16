@@ -6685,7 +6685,7 @@ public class HiveMetaStore extends ThriftHiveMetastore {
       Lock startLock = new ReentrantLock();
       Condition startCondition = startLock.newCondition();
       AtomicBoolean startedServing = new AtomicBoolean();
-      // 开启一些thrift server之外的线程, 如compactor线程
+      // 创建一些thrift server之外的线程, 如compactor线程, 之后通过startCondition等待
       startMetaStoreThreads(conf, startLock, startCondition, startedServing);
       // 开启metastore服务部分, 进入startMetaStore方法
       startMetaStore(cli.getPort(), ShimLoader.getHadoopThriftAuthBridge(), conf, startLock,
@@ -6813,13 +6813,13 @@ public class HiveMetaStore extends ThriftHiveMetastore {
        TServerTransport serverTransport = tcpKeepAlive ?
         new TServerSocketKeepAlive(port) : new TServerSocket(port);
 
-      TThreadPoolServer.Args args = new TThreadPoolServer.Args(serverTransport) // serverTransport通过监听获取一个TTransport, transport可以认为是一个连接, 接收到序列化的消息后根据protocol进行反序列化
-          .processor(processor) // inputProtocol反序列化的消息交给processor进行处理, 处理完通过outputProtocol进行序列化
-          .transportFactory(transFactory) // 定义消息是怎样在客户端和服务端之间通信的, 实际底层封装的socket
-          .protocolFactory(protocolFactory) // 定义消息的序列化方式
+      TThreadPoolServer.Args args = new TThreadPoolServer.Args(serverTransport) //TServerSocketKeepAlive, serverTransport通过监听获取一个TTransport, transport可以认为是一个连接, 接收到序列化的消息后根据protocol进行反序列化
+          .processor(processor) // TUGIBasedProcessor, inputProtocol反序列化的消息交给processor进行处理, 处理完通过outputProtocol进行序列化
+          .transportFactory(transFactory) // TUGIContainingTransport.Factory(), 定义消息是怎样在客户端和服务端之间通信的, 实际底层封装的socket
+          .protocolFactory(protocolFactory) // TBinaryProtocol.Factory(), 定义消息的序列化方式
           .inputProtocolFactory(inputProtoFactory)
-          .minWorkerThreads(minWorkerThreads)
-          .maxWorkerThreads(maxWorkerThreads);
+          .minWorkerThreads(minWorkerThreads) // 200
+          .maxWorkerThreads(maxWorkerThreads);  // 1000
 
       TServer tServer = new TThreadPoolServer(args);
       TServerEventHandler tServerEventHandler = new TServerEventHandler() {
