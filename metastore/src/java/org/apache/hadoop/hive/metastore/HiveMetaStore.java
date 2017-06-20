@@ -876,6 +876,7 @@ public class HiveMetaStore extends ThriftHiveMetastore {
 
       try {
 
+        // 构造PreCreateDatabaseEvent实例, 然后交由preListeners来处理
         firePreEvent(new PreCreateDatabaseEvent(db, this));
 
         if (!wh.isDir(dbPath)) {
@@ -896,6 +897,7 @@ public class HiveMetaStore extends ThriftHiveMetastore {
             wh.deleteDir(dbPath, true);
           }
         }
+        // 构造CreateDatabaseEvent实例, 交由listeners来处理
         for (MetaStoreEventListener listener : listeners) {
           listener.onCreateDatabase(new CreateDatabaseEvent(db, success, this));
         }

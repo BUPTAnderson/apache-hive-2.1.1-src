@@ -49,6 +49,8 @@ CREATE TABLE IF NOT EXISTS `CDS` (
 
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
+-- Mysql中varchar索引只支持不超过768个字节 或者 768/2=384个双字节 或者 768/3=256个三字节的字段
+-- 而 GBK是双字节的，UTF-8是三字节的。
 CREATE TABLE IF NOT EXISTS `COLUMNS_V2` (
   `CD_ID` bigint(20) NOT NULL,
   `COMMENT` varchar(256) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL,
