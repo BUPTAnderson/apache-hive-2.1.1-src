@@ -1100,42 +1100,45 @@ public class ObjectStore implements RawStore, Configurable {
       pm.retrieve(tbl);
       if (tbl != null) {
         // first remove all the grants
+        // 获取表TBL_PRIVS的授权信息, 然后删除
         List<MTablePrivilege> tabGrants = listAllTableGrants(dbName, tableName);
         if (tabGrants != null && tabGrants.size() > 0) {
           pm.deletePersistentAll(tabGrants);
         }
+        // 获取表TBL_COL_PRIVS的授权信息, 然后删除
         List<MTableColumnPrivilege> tblColGrants = listTableAllColumnGrants(dbName,
             tableName);
         if (tblColGrants != null && tblColGrants.size() > 0) {
           pm.deletePersistentAll(tblColGrants);
         }
-
+        // 获取表PART_PRIVS中的授权信息, 然后删除
         List<MPartitionPrivilege> partGrants = this.listTableAllPartitionGrants(dbName, tableName);
         if (partGrants != null && partGrants.size() > 0) {
           pm.deletePersistentAll(partGrants);
         }
-
+        // 获取表PART_COL_PRIVS中的授权信息, 然后删除
         List<MPartitionColumnPrivilege> partColGrants = listTableAllPartitionColumnGrants(dbName,
             tableName);
         if (partColGrants != null && partColGrants.size() > 0) {
           pm.deletePersistentAll(partColGrants);
         }
         // delete column statistics if present
+        // 获取表TAB_COL_STATS中的数据并删除
         try {
           deleteTableColumnStatistics(dbName, tableName, null);
         } catch (NoSuchObjectException e) {
           LOG.info("Found no table level column statistics associated with db " + dbName +
           " table " + tableName + " record to delete");
         }
-
+        // 获取表KEY_CONSTRAINTS中的数据并删除
         List<MConstraint> tabConstraints = listAllTableConstraintsWithOptionalConstraintName(
                                            dbName, tableName, null);
         if (tabConstraints != null && tabConstraints.size() > 0) {
           pm.deletePersistentAll(tabConstraints);
         }
-
+        // 删除表的MColumnDescriptor对应的CDS信息
         preDropStorageDescriptor(tbl.getSd());
-        // then remove the table
+        // then remove the table, 删除表TBLS中该表的信息
         pm.deletePersistentAll(tbl);
       }
       success = commitTransaction();
@@ -2075,14 +2078,19 @@ public class ObjectStore implements RawStore, Configurable {
     openTransaction();
     try {
       // Delete all things.
+      // 删除PART_PRIVS表中的数据
       dropPartitionGrantsNoTxn(dbName, tblName, partNames);
+      //  删除PART_COL_PRIVS表中的数据
       dropPartitionAllColumnGrantsNoTxn(dbName, tblName, partNames);
+      // 删除表PART_COL_STATS中的数据
       dropPartitionColumnStatisticsNoTxn(dbName, tblName, partNames);
 
       // CDs are reused; go thry partition SDs, detach all CDs from SDs, then remove unused CDs.
+      // detachCdsFromSdsNoTxn获取partition对应的MStorageDescriptor, 然后获取MStorageDescriptor中的MColumnDescriptor, MColumnDescriptor对应的是CDS表
       for (MColumnDescriptor mcd : detachCdsFromSdsNoTxn(dbName, tblName, partNames)) {
         removeUnusedColumnDescriptor(mcd);
       }
+      // 删除PARTITIONS表中的数据
       dropPartitionsNoTxn(dbName, tblName, partNames);
       if (!(success = commitTransaction())) {
         throw new MetaException("Failed to drop partitions"); // Should not happen?

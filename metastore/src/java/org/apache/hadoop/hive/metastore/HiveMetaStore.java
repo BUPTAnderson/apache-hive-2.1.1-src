@@ -1084,11 +1084,11 @@ public class HiveMetaStore extends ThriftHiveMetastore {
               }
 
               // For each partition in each table, drop the partitions and get a list of
-              // partitions' locations which might need to be deleted
+              // partitions' locations which might need to be deleted, 删除表的分区在元数据中的信息及各种相关信息, 单没有删除分区在hdfs上的数据, 返回分区的path信息
               partitionPaths = dropPartitionsAndGetLocations(ms, name, table.getTableName(),
                   tablePath, table.getPartitionKeys(), deleteData && !isExternal(table));
 
-              // Drop the table but not its data
+              // Drop the table but not its data, 删除元数据中表的信息及各种相关信息, 但还没有删除表在hdfs上的数据
               drop_table(name, table.getTableName(), false);
             }
 
@@ -1660,6 +1660,7 @@ public class HiveMetaStore extends ThriftHiveMetastore {
 
         checkTrashPurgeCombination(tblPath, dbname + "." + name, ifPurge, deleteData && !isExternal);
         // Drop the partitions and get a list of locations which need to be deleted
+        // dropPartitionsAndGetLocations会删除元数据中分区相关的信息, 然后返回分区的path信息(用来删除hdfs上的分区数据)
         partPaths = dropPartitionsAndGetLocations(ms, dbname, name, tblPath,
             tbl.getPartitionKeys(), deleteData && !isExternal);
 
@@ -1847,6 +1848,7 @@ public class HiveMetaStore extends ThriftHiveMetastore {
               partPaths.add(partPath);
             }
           }
+          // Table的partitionKeys是表的分区字段信息, Partition的values是每个分区字段总的值, 包括值的序号字段, 这里是拼装出partition的相对路径名(PART_NAME), 如: stat_date=20160812/province=beijing
           partNames.add(Warehouse.makePartName(tbl.getPartitionKeys(), part.getValues()));
         }
         for (MetaStoreEventListener listener : listeners) {
