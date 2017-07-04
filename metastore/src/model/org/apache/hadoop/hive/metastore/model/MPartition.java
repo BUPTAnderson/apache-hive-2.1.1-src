@@ -23,13 +23,13 @@ import java.util.Map;
 
 public class MPartition {
 
-  private String partitionName; // partitionname ==>  (key=value/)*(key=value)
+  private String partitionName; // partitionname ==>  (key=value/)*(key=value), 如:stat_date=20160812/province=beijing
   private MTable table; 
-  private List<String> values;
+  private List<String> values;  // 对应partitionName是stat_date=20160812/province=beijing, values中包含两个值, "20160812"和"beijing"
   private int createTime;
   private int lastAccessTime;
-  private MStorageDescriptor sd;
-  private Map<String, String> parameters;
+  private MStorageDescriptor sd;  // 存储的是该分区对应的一些存储信息
+  private Map<String, String> parameters; // 对应表PARTITION_PARAMS, 如("transient_lastDdlTime", "1470985255")
   
   
   public MPartition() {}

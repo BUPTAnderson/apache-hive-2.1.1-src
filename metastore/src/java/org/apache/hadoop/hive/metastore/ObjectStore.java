@@ -1951,6 +1951,7 @@ public class ObjectStore implements RawStore, Configurable {
       }
       // Change the query to use part_vals instead of the name which is
       // redundant TODO: callers of this often get part_vals out of name for no reason...
+      // part_vals是分区值存放的list(分区可能有多个字段), 比如分区字段是:stat_date和province, part_vals中存放的是:20160812和beijing, 则name为:stat_date=20160812/province=beijing
       String name =
           Warehouse.makePartName(convertToFieldSchemas(mtbl.getPartitionKeys()), part_vals);
       query =
@@ -4714,11 +4715,13 @@ public class ObjectStore implements RawStore, Configurable {
               }
             }
           } else if (hiveObject.getObjectType() == HiveObjectType.PARTITION) {
+            // List<String> part_vals中存放的是分区的字段值(针对的是一个分区, 因为一个分区可能由多个字段组成, 所以是list),比如分区字段是:stat_date和province, part_vals中存放的是:20160812和beijing
             MPartition partObj = this.getMPartition(hiveObject.getDbName(),
                 hiveObject.getObjectName(), hiveObject.getPartValues());
             String partName = null;
             if (partObj != null) {
               partName = partObj.getPartitionName();
+              // 库名,表名,分区名唯一确定一个分区, 查找PART_PRIVS表中已经存在的授权信息
               List<MPartitionPrivilege> partPrivs = this
                   .listPrincipalMPartitionGrants(userName,
                       principalType, hiveObject.getDbName(), hiveObject
@@ -4748,6 +4751,7 @@ public class ObjectStore implements RawStore, Configurable {
             MTable tblObj = getMTable(hiveObject.getDbName(), hiveObject
                 .getObjectName());
             if (tblObj != null) {
+              // COLUMN级别的授权包括两种情况, 一种是针对某个分区下面的column进行授权, 一种是针对表的column进行授权
               if (hiveObject.getPartValues() != null) {
                 MPartition partObj = null;
                 List<MPartitionColumnPrivilege> colPrivs = null;
@@ -4756,6 +4760,7 @@ public class ObjectStore implements RawStore, Configurable {
                 if (partObj == null) {
                   continue;
                 }
+                // 查询PART_COL_PRIVS中已经存在的针对该用户的关库表分区下该column的授权信息
                 colPrivs = this.listPrincipalMPartitionColumnGrants(
                     userName, principalType, hiveObject.getDbName(), hiveObject
                         .getObjectName(), partObj.getPartitionName(),
@@ -4786,6 +4791,7 @@ public class ObjectStore implements RawStore, Configurable {
 
               } else {
                 List<MTableColumnPrivilege> colPrivs = null;
+                // 查找表TBL_COL_PRIVS中关于该用户的关于该库表的关于该column的授权信息
                 colPrivs = this.listPrincipalMTableColumnGrants(
                     userName, principalType, hiveObject.getDbName(), hiveObject
                         .getObjectName(), hiveObject.getColumnName());

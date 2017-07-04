@@ -23,9 +23,9 @@ import java.util.Map;
 
 public class MStorageDescriptor {
   private MColumnDescriptor cd;
-  private String location;
-  private String inputFormat;
-  private String outputFormat;
+  private String location;  // 该表或该分区对应的LOCATION, 如:hdfs://ns1/user/hadoop/datajingdo_m_002.db/partition_test
+  private String inputFormat; // 如:org.apache.hadoop.mapred.TextInputFormat
+  private String outputFormat; // 如:org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
   private boolean isCompressed = false;
   private int numBuckets = 1;
   private MSerDeInfo serDeInfo;
