@@ -110,6 +110,7 @@ public class HiveAlterHandler implements AlterHandler {
       dbname = dbname.toLowerCase();
 
       // check if table with the new name already exists
+      // 判断要目标表对应的库表是否已经存在了
       if (!newt.getTableName().equalsIgnoreCase(name)
           || !newt.getDbName().equalsIgnoreCase(dbname)) {
         if (msdb.getTable(newt.getDbName(), newt.getTableName()) != null) {
