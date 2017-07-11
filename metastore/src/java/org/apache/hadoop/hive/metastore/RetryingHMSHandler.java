@@ -64,6 +64,7 @@ public class RetryingHMSHandler implements InvocationHandler {
   private RetryingHMSHandler(HiveConf hiveConf, IHMSHandler baseHandler, boolean local) throws MetaException {
     this.origConf = hiveConf;
     this.baseHandler = baseHandler;
+    // 正常启动情况下, local是false
     if (local) {
       baseHandler.setConf(hiveConf); // tests expect configuration changes applied directly to metastore
     }
@@ -77,14 +78,15 @@ public class RetryingHMSHandler implements InvocationHandler {
     // updateConnectionURL方法的作用: 使用钩子更新hiveConf中的连接URL（如果使用hive.metastore.ds.connection.url.hook属性设置了一个钩子）, 实际更新的是metaStoreInitData里的两个属性
     MetaStoreInit.updateConnectionURL(hiveConf, getActiveConf(), null, metaStoreInitData);
 
-    // 实际是调用HMSHandler的init方法
+    // 实际是调用HMSHandler的init方法, 进行一些初始化操作
     baseHandler.init();
   }
 
   public static IHMSHandler getProxy(HiveConf hiveConf, IHMSHandler baseHandler, boolean local)
       throws MetaException {
 
-    // RetryingHMSHandler继承了InvocationHandler
+    // RetryingHMSHandler继承了InvocationHandler, 即实际调用的时候是调用RetryingHMSHandler的invoke方法
+    // RetryingHMSHandler构造方法中对baseHandler进行了初始化
     RetryingHMSHandler handler = new RetryingHMSHandler(hiveConf, baseHandler, local);
 
     return (IHMSHandler) Proxy.newProxyInstance(

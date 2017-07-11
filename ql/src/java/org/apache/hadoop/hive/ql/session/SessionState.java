@@ -632,18 +632,20 @@ public class SessionState {
    */
   private void createSessionDirs(String userName) throws IOException {
     HiveConf conf = getConf();
+    // 创建/tmp/hive目录, 如果已经存在, 判断是否有写权限
     Path rootHDFSDirPath = createRootHDFSDir(conf);
     // Now create session specific dirs
     String scratchDirPermission = HiveConf.getVar(conf, HiveConf.ConfVars.SCRATCHDIRPERMISSION);
     Path path;
     // 1. HDFS scratch dir
     path = new Path(rootHDFSDirPath, userName);
+    // hdfs上目录路径: /tmp/hive/username
     hdfsScratchDirURIString = path.toUri().toString();
     createPath(conf, path, scratchDirPermission, false, false);
-    // 2. Local scratch dir
+    // 2. Local scratch dir, 本地临时目录, 值为: /tmp/username
     path = new Path(HiveConf.getVar(conf, HiveConf.ConfVars.LOCALSCRATCHDIR));
     createPath(conf, path, scratchDirPermission, true, false);
-    // 3. Download resources dir
+    // 3. Download resources dir, 本地目录, 值为: /tmp/${hive.session.id}_resources
     path = new Path(HiveConf.getVar(conf, HiveConf.ConfVars.DOWNLOADED_RESOURCES_DIR));
     createPath(conf, path, scratchDirPermission, true, false);
     // Finally, create session paths for this session
@@ -683,6 +685,7 @@ public class SessionState {
    * @throws IOException
    */
   private Path createRootHDFSDir(HiveConf conf) throws IOException {
+    // /tmp/hive
     Path rootHDFSDirPath = new Path(HiveConf.getVar(conf, HiveConf.ConfVars.SCRATCHDIR));
     FsPermission writableHDFSDirPermission = new FsPermission((short)00733);
     FileSystem fs = rootHDFSDirPath.getFileSystem(conf);

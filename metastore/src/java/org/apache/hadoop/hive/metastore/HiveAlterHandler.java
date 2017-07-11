@@ -137,6 +137,7 @@ public class HiveAlterHandler implements AlterHandler {
 
       if (cascade) {
         //Currently only column related changes can be cascaded in alter table
+        // 修改表的时候是否需要级联操作, 当新旧表的列(不包含分区列)没有发生变化时, 返回false, 否则返回true
         if(MetaStoreUtils.isCascadeNeededInAlterTable(oldt, newt)) {
           List<Partition> parts = msdb.getPartitions(dbname, name, -1);
           for (Partition part : parts) {

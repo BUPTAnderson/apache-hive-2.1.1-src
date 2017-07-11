@@ -414,9 +414,10 @@ public class HiveMetaStore extends ThriftHiveMetastore {
       // 获取配置项hive.metastore.alter.impl的值, 没有配置的话默认为: HiveAlterHandler
       String alterHandlerName = hiveConf.get("hive.metastore.alter.impl",
           HiveAlterHandler.class.getName());
+      // 实例化alterHandler, 在修改表(alter_table)修改分区(alter_partition)等时会用到该对象
       alterHandler = (AlterHandler) ReflectionUtils.newInstance(MetaStoreUtils.getClass(
           alterHandlerName), hiveConf);
-      // 构造数据仓库Warehouse
+      // 构造数据仓库Warehouse实例wh
       wh = new Warehouse(hiveConf);
 
       // 初始化defaultDb, roles, adminUser
@@ -6763,7 +6764,7 @@ public class HiveMetaStore extends ThriftHiveMetastore {
       TTransportFactory transFactory;
       final TProtocolFactory protocolFactory;
       final TProtocolFactory inputProtoFactory;
-      // 设置TProtocolFactory
+      // 设置TProtocolFactory, 默认使用TBinaryProtocol.Factory
       if (useCompactProtocol) {
         protocolFactory = new TCompactProtocol.Factory();
         inputProtoFactory = new TCompactProtocol.Factory(maxMessageSize, maxMessageSize);
@@ -6774,7 +6775,7 @@ public class HiveMetaStore extends ThriftHiveMetastore {
       // 构造HMSHandler(ThriftHiveMetaStore.Iface的实现类), HMSHandler暂不初始化
       HMSHandler baseHandler = new HiveMetaStore.HMSHandler("new db based metaserver", conf,
           false);
-      // 构造proxy handler(动态代理)
+      // 构造proxy handler(动态代理), 最终调用的是RetryingHMSHandler的getProxy方法, 该方法会调用baseHandler的init方法对baseHandler进行初始化操作(创建default数据库, public角色等)
       IHMSHandler handler = newRetryingHMSHandler(baseHandler, conf);
       if (useSasl) {
         // we are in secure mode.
