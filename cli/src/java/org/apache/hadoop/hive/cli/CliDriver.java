@@ -18,7 +18,48 @@
 
 package org.apache.hadoop.hive.cli;
 
-import static org.apache.hadoop.util.StringUtils.stringifyException;
+import com.google.common.base.Splitter;
+import jline.console.ConsoleReader;
+import jline.console.completer.ArgumentCompleter;
+import jline.console.completer.ArgumentCompleter.AbstractArgumentDelimiter;
+import jline.console.completer.ArgumentCompleter.ArgumentDelimiter;
+import jline.console.completer.Completer;
+import jline.console.completer.StringsCompleter;
+import jline.console.history.FileHistory;
+import jline.console.history.History;
+import jline.console.history.PersistentHistory;
+import org.apache.commons.lang.StringUtils;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.common.HiveInterruptUtils;
+import org.apache.hadoop.hive.common.LogUtils;
+import org.apache.hadoop.hive.common.LogUtils.LogInitializationException;
+import org.apache.hadoop.hive.common.cli.ShellCmdExecutor;
+import org.apache.hadoop.hive.common.io.CachingPrintStream;
+import org.apache.hadoop.hive.common.io.FetchConverter;
+import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
+import org.apache.hadoop.hive.conf.HiveVariableSource;
+import org.apache.hadoop.hive.conf.Validator;
+import org.apache.hadoop.hive.conf.VariableSubstitution;
+import org.apache.hadoop.hive.metastore.api.FieldSchema;
+import org.apache.hadoop.hive.ql.CommandNeedRetryException;
+import org.apache.hadoop.hive.ql.Driver;
+import org.apache.hadoop.hive.ql.exec.FunctionRegistry;
+import org.apache.hadoop.hive.ql.exec.mr.HadoopJobExecHelper;
+import org.apache.hadoop.hive.ql.exec.tez.TezJobExecHelper;
+import org.apache.hadoop.hive.ql.parse.HiveParser;
+import org.apache.hadoop.hive.ql.processors.CommandProcessor;
+import org.apache.hadoop.hive.ql.processors.CommandProcessorFactory;
+import org.apache.hadoop.hive.ql.processors.CommandProcessorResponse;
+import org.apache.hadoop.hive.ql.session.SessionState;
+import org.apache.hadoop.hive.ql.session.SessionState.LogHelper;
+import org.apache.hadoop.io.IOUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import sun.misc.Signal;
+import sun.misc.SignalHandler;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -36,54 +77,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import com.google.common.base.Splitter;
-
-import jline.console.ConsoleReader;
-import jline.console.completer.Completer;
-import jline.console.history.FileHistory;
-import jline.console.history.History;
-import jline.console.history.PersistentHistory;
-import jline.console.completer.StringsCompleter;
-import jline.console.completer.ArgumentCompleter;
-import jline.console.completer.ArgumentCompleter.ArgumentDelimiter;
-import jline.console.completer.ArgumentCompleter.AbstractArgumentDelimiter;
-
-import org.apache.commons.lang.StringUtils;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hive.cli.CliSessionState;
-import org.apache.hadoop.hive.cli.OptionsProcessor;
-import org.apache.hadoop.hive.common.HiveInterruptUtils;
-import org.apache.hadoop.hive.common.LogUtils;
-import org.apache.hadoop.hive.common.LogUtils.LogInitializationException;
-import org.apache.hadoop.hive.common.cli.ShellCmdExecutor;
-import org.apache.hadoop.hive.common.io.CachingPrintStream;
-import org.apache.hadoop.hive.common.io.FetchConverter;
-import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.hive.conf.HiveVariableSource;
-import org.apache.hadoop.hive.conf.Validator;
-import org.apache.hadoop.hive.conf.VariableSubstitution;
-import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
-import org.apache.hadoop.hive.metastore.api.FieldSchema;
-import org.apache.hadoop.hive.ql.CommandNeedRetryException;
-import org.apache.hadoop.hive.ql.Driver;
-import org.apache.hadoop.hive.ql.QueryPlan;
-import org.apache.hadoop.hive.ql.exec.FunctionRegistry;
-import org.apache.hadoop.hive.ql.exec.mr.HadoopJobExecHelper;
-import org.apache.hadoop.hive.ql.exec.tez.TezJobExecHelper;
-import org.apache.hadoop.hive.ql.parse.HiveParser;
-import org.apache.hadoop.hive.ql.processors.CommandProcessor;
-import org.apache.hadoop.hive.ql.processors.CommandProcessorFactory;
-import org.apache.hadoop.hive.ql.processors.CommandProcessorResponse;
-import org.apache.hadoop.hive.ql.session.SessionState;
-import org.apache.hadoop.hive.ql.session.SessionState.LogHelper;
-import org.apache.hadoop.io.IOUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import sun.misc.Signal;
-import sun.misc.SignalHandler;
+import static org.apache.hadoop.util.StringUtils.stringifyException;
 
 
 /**
@@ -104,6 +98,7 @@ public class CliDriver {
   private Configuration conf;
 
   public CliDriver() {
+    // SessionState的get方法会获取当前线程的SessionStates对象, 没有的话new一个, 然后获取SessionStates的SessionState属性state, 这里state是null值
     SessionState ss = SessionState.get();
     conf = (ss != null) ? ss.getConf() : new Configuration();
     Logger LOG = LoggerFactory.getLogger("CliDriver");
@@ -637,18 +632,21 @@ public class CliDriver {
     return new Completer[] {propCompleter, customCompletor};
   }
 
+  // hive cli执行的入口
   public static void main(String[] args) throws Exception {
+    // 调用CliDriver的构造方法, 初始化conf和console属性
     int ret = new CliDriver().run(args);
     System.exit(ret);
   }
 
   public  int run(String[] args) throws Exception {
-
+    // 利用apache commond cli来处理输入参数
     OptionsProcessor oproc = new OptionsProcessor();
     if (!oproc.process_stage1(args)) {
       return 1;
     }
 
+    // 重置默认的log4j配置并为hive重新初始化log4j, 注意, 在这里是读取hive-log4j.properties来初始化log4j
     // NOTE: It is critical to do this here so that log4j is reinitialized
     // before any of the other core hive classes are loaded
     boolean logInitFailed = false;
@@ -660,6 +658,7 @@ public class CliDriver {
       logInitDetailMessage = e.getMessage();
     }
 
+    // 创建CliSessionState, 并初始化in, out, error等stream流. CliSessionState是一次命令行操作的session会话, 其继承了SessionState
     CliSessionState ss = new CliSessionState(new HiveConf(SessionState.class));
     ss.in = System.in;
     try {
@@ -670,6 +669,7 @@ public class CliDriver {
       return 3;
     }
 
+    // 从命令行读取参数名设置到CliSessionState中
     if (!oproc.process_stage2(ss)) {
       return 2;
     }
@@ -699,6 +699,7 @@ public class CliDriver {
     }).substitute(conf, prompt);
     prompt2 = spacesForString(prompt);
 
+    // 默认值为true
     if (HiveConf.getBoolVar(conf, ConfVars.HIVE_CLI_TEZ_SESSION_ASYNC)) {
       // Start the session in a fire-and-forget manner. When the asynchronously initialized parts of
       // the session are needed, the corresponding getters and other methods will wait as needed.

@@ -540,6 +540,7 @@ public class SessionState {
     setCurrentSessionState(startSs);
 
     if (startSs.hiveHist == null){
+      // 默认值为false
       if (startSs.getConf().getBoolVar(HiveConf.ConfVars.HIVE_SESSION_HISTORY_ENABLED)) {
         startSs.hiveHist = new HiveHistoryImpl(startSs);
       } else {

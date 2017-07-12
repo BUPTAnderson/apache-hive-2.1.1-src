@@ -87,6 +87,7 @@ public class HiveServer2 extends CompositeService {
   private static CountDownLatch deleteSignal;
   private static final Logger LOG = LoggerFactory.getLogger(HiveServer2.class);
   private CLIService cliService;
+  // ThriftCLIService实现了TCLIService.Iface, 是一个抽象类, 有两个典型的子类ThriftBinaryCLIService, ThriftHttpCLIService
   private ThriftCLIService thriftCLIService;
   private PersistentEphemeralNode znode;
   private String znodePath;
