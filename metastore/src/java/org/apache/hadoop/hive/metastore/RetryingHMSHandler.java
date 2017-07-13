@@ -119,8 +119,10 @@ public class RetryingHMSHandler implements InvocationHandler {
     boolean gotNewConnectUrl = false;
     boolean reloadConf = HiveConf.getBoolVar(origConf,
         HiveConf.ConfVars.HMSHANDLERFORCERELOADCONF);
+    // 重试间隔, 默认值为2000ms
     long retryInterval = HiveConf.getTimeVar(origConf,
         HiveConf.ConfVars.HMSHANDLERINTERVAL, TimeUnit.MILLISECONDS);
+    // 重试次数, 默认值为10
     int retryLimit = HiveConf.getIntVar(origConf,
         HiveConf.ConfVars.HMSHANDLERATTEMPTS);
     long timeout = HiveConf.getTimeVar(origConf,
@@ -204,6 +206,7 @@ public class RetryingHMSHandler implements InvocationHandler {
         }
       }
 
+      // 重试10次之后还出错, 打印如下错误信息
       if (retryCount >= retryLimit) {
         LOG.error("HMSHandler Fatal error: " + ExceptionUtils.getStackTrace(caughtException));
         MetaException me = new MetaException(caughtException.getMessage());
@@ -213,6 +216,7 @@ public class RetryingHMSHandler implements InvocationHandler {
 
       assert (retryInterval >= 0);
       retryCount++;
+      // 错误输出信息
       LOG.error(
         String.format(
           "Retrying HMSHandler after %d ms (attempt %d of %d)", retryInterval, retryCount, retryLimit) +

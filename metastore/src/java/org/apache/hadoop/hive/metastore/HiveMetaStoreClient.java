@@ -200,7 +200,7 @@ public class HiveMetaStoreClient implements IMetaStoreClient {
 
   private static final AtomicInteger connCount = new AtomicInteger(0);
 
-  // for thrift connects
+  // for thrift connects, 尝试连接metastore次数
   private int retries = 5;
   private long retryDelaySeconds = 0;
 
@@ -219,11 +219,13 @@ public class HiveMetaStoreClient implements IMetaStoreClient {
     }
     this.conf = conf;
     filterHook = loadFilterHooks();
-    // 一个批次内部检索的最大对象数
+    // 一个批次内部检索的最大对象数, 默认值为1000
     fileMetadataBatchSize = HiveConf.getIntVar(
         conf, HiveConf.ConfVars.METASTORE_BATCH_RETRIEVE_OBJECTS_MAX);
 
+    // 获取配置项:hive.metastore.uris的值, 如: thrift://bds-test-0001:9083
     String msUri = conf.getVar(ConfVars.METASTOREURIS);
+    // 如果配置项hive.metastore.uris的值为null或"", 则是使用本地的metastore, localMetaStore为true, 否则为false
     localMetaStore = HiveConfUtil.isEmbeddedMetaStore(msUri);
     // 如果metastore是本地模式, 执行下面代码
     if (localMetaStore) {
@@ -243,6 +245,7 @@ public class HiveMetaStoreClient implements IMetaStoreClient {
       snapshotActiveConf();
       return;
     } else {
+      // 如果metastore是非本地模式, 则hive.metastore.fastpath必须设置为false
       if (conf.getBoolVar(ConfVars.METASTORE_FASTPATH)) {
         throw new RuntimeException("You can't set hive.metastore.fastpath to true when you're " +
             "talking to the thrift metastore service.  You must run the metastore locally.");
@@ -292,6 +295,8 @@ public class HiveMetaStoreClient implements IMetaStoreClient {
   }
 
   private MetaStoreFilterHook loadFilterHooks() throws IllegalStateException {
+    // Metastore hook类用于过滤元数据读取结果。 如果hive.security.authorization.manager设置为HiveAuthorizerFactory的实例，则该值将被忽略。
+    // 实际中hive.security.authorization.manager设置为HiveAuthorizerFactory的子类, 所以该设置hive.metastore.filter.hook将被忽略
     Class<? extends MetaStoreFilterHook> authProviderClass = conf.
         getClass(HiveConf.ConfVars.METASTORE_FILTER_HOOK.varname,
             DefaultMetaStoreFilterHookImpl.class,
@@ -482,7 +487,7 @@ public class HiveMetaStoreClient implements IMetaStoreClient {
           // ThriftHiveMetastore.Client是ThriftHiveMetastore.Iface的子类
           client = new ThriftHiveMetastore.Client(protocol);
           try {
-            transport.open();
+            transport.open(); // 打开连接
             LOG.info("Opened a connection to metastore, current connections: " + connCount.incrementAndGet());
             isConnected = true;
           } catch (TTransportException e) {
@@ -516,6 +521,7 @@ public class HiveMetaStoreClient implements IMetaStoreClient {
           LOG.error("Unable to connect to metastore with URI " + store
                     + " in attempt " + attempt, e);
         }
+        // 连接成功, 跳出循环
         if (isConnected) {
           break;
         }

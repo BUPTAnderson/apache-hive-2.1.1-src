@@ -229,7 +229,7 @@ public class SessionState {
    *  scratch path to use for all non-local (ie. hdfs) file system tmp folders
    *  @return Path for Scratch path for the current session
    */
-  private Path hdfsSessionPath;
+  private Path hdfsSessionPath; // hdfs路径:/tmp/hive/username/${hive.session.id}
 
   private FSDataOutputStream hdfsSessionPathLockFile = null;
 
@@ -243,7 +243,7 @@ public class SessionState {
    *  scratch directory to use for local file system tmp folders
    *  @return Path for local scratch directory for current session
    */
-  private Path localSessionPath;
+  private Path localSessionPath; // 本地路径:/tmp/username/${hive.session.id}
 
   private String hdfsScratchDirURIString;
 
@@ -316,6 +316,7 @@ public class SessionState {
 
   public boolean getIsSilent() {
     if(sessionConf != null) {
+      // 如果设置为true, 则执行的时候不会打印执行过程中产生的log信息
       return sessionConf.getBoolVar(HiveConf.ConfVars.HIVESESSIONSILENT);
     } else {
       return isSilent;
@@ -374,6 +375,7 @@ public class SessionState {
     // Must be deterministic order map for consistent q-test output across Java versions
     overriddenConfigurations = new LinkedHashMap<String, String>();
     overriddenConfigurations.putAll(HiveConf.getConfSystemProperties());
+    // 设置参数hive.session.id的值, 实际是一个UUID
     // if there isn't already a session name, go ahead and create it.
     if (StringUtils.isEmpty(conf.getVar(HiveConf.ConfVars.HIVESESSIONID))) {
       conf.setVar(HiveConf.ConfVars.HIVESESSIONID, makeSessionId());
@@ -526,6 +528,7 @@ public class SessionState {
   }
 
   public static void beginStart(SessionState startSs, LogHelper console) {
+    // 继续调用start
     start(startSs, true, console);
   }
 
@@ -555,14 +558,16 @@ public class SessionState {
       // Hive object instance should be created with a copy of the conf object. If the conf is
       // shared with SessionState, other parts of the code might update the config, but
       // Hive.get(HiveConf) would not recognize the case when it needs refreshing
-      // 获取当前线程对应的Hive实例,没有的话创建一个,同时调用Hive实例的getMSC()来获取Hive内部的metaStoreClient对象,如果为null,则构造一个到MetaStore的client
+      // 获取当前线程对应的Hive实例,没有的话创建一个,同时调用Hive实例的getMSC()来获取当前线程的Hive实例内部的metaStoreClient对象,如果为null,则构造一个到MetaStore的client, 该client会打开到metastore的连接
       Hive.get(new HiveConf(startSs.sessionConf)).getMSC();
       UserGroupInformation sessionUGI = Utils.getUGI();
       FileSystem.get(startSs.sessionConf);
 
+      // 为当前会话创建临时目录
       // Create scratch dirs for this session
       startSs.createSessionDirs(sessionUGI.getShortUserName());
 
+      // 为每个session的创建临时输出文件: /tmp/anderson/${hive.session.id}.pipeout
       // Set temp file containing results to be sent to HiveClient
       if (startSs.getTmpOutputFile() == null) {
         try {
@@ -572,6 +577,7 @@ public class SessionState {
         }
       }
 
+      // 为每个session的创建临时错误输出文件: /tmp/anderson/${hive.session.id}.pipeout
       // Set temp file containing error output to be sent to client
       if (startSs.getTmpErrOutputFile() == null) {
         try {
@@ -592,9 +598,12 @@ public class SessionState {
       throw new RuntimeException(e);
     }
 
+    // 默认值为mr
     String engine = HiveConf.getVar(startSs.getConf(), HiveConf.ConfVars.HIVE_EXECUTION_ENGINE);
+    // 如果使用的不是tez引擎或isHiveServerQuery为true, 直接返回
     if (!engine.equals("tez") || startSs.isHiveServerQuery) return;
 
+    // 下面是tez的一些设置
     try {
       if (startSs.tezSessionState == null) {
         startSs.setTezSession(new TezSessionState(startSs.getSessionId()));
@@ -633,7 +642,7 @@ public class SessionState {
    */
   private void createSessionDirs(String userName) throws IOException {
     HiveConf conf = getConf();
-    // 创建/tmp/hive目录, 如果已经存在, 判断是否有写权限
+    // 在hdfs上创建/tmp/hive目录, 如果已经存在, 判断是否有写权限
     Path rootHDFSDirPath = createRootHDFSDir(conf);
     // Now create session specific dirs
     String scratchDirPermission = HiveConf.getVar(conf, HiveConf.ConfVars.SCRATCHDIRPERMISSION);
@@ -646,17 +655,18 @@ public class SessionState {
     // 2. Local scratch dir, 本地临时目录, 值为: /tmp/username
     path = new Path(HiveConf.getVar(conf, HiveConf.ConfVars.LOCALSCRATCHDIR));
     createPath(conf, path, scratchDirPermission, true, false);
-    // 3. Download resources dir, 本地目录, 值为: /tmp/${hive.session.id}_resources
+    // 3. Download resources dir, 本地目录, 值为: /tmp/${hive.session.id}_resources, ${hive.session.id}在调用SessionState的构造方法的时候已经创建了, 是一个uuid, 如:48ae7fd-6001-435e-ab42-211f198387dd
     path = new Path(HiveConf.getVar(conf, HiveConf.ConfVars.DOWNLOADED_RESOURCES_DIR));
     createPath(conf, path, scratchDirPermission, true, false);
     // Finally, create session paths for this session
     // Local & non-local tmp location is configurable. however it is the same across
     // all external file systems
     String sessionId = getSessionId();
-    // 4. HDFS session path
+    // 4. HDFS session path, hdfs上会话路径: /tmp/hive/username/${hive.session.id}
     hdfsSessionPath = new Path(hdfsScratchDirURIString, sessionId);
     createPath(conf, hdfsSessionPath, scratchDirPermission, false, true);
     conf.set(HDFS_SESSION_PATH_KEY, hdfsSessionPath.toUri().toString());
+    // 如果配置项为true, 在hdfs上创建文件:/tmp/hive/username/${hive.session.id}/inuse.info, /tmp/hive/username/${hive.session.id}/inuse.lck
     // 5. hold a lock file in HDFS session dir to indicate the it is in use
     if (conf.getBoolVar(HiveConf.ConfVars.HIVE_SCRATCH_DIR_LOCK)) {
       FileSystem fs = hdfsSessionPath.getFileSystem(conf);
@@ -667,11 +677,11 @@ public class SessionState {
       hdfsSessionPathInfoFile.close();
       hdfsSessionPathLockFile = fs.create(new Path(hdfsSessionPath, LOCK_FILE_NAME), true);
     }
-    // 6. Local session path
+    // 6. Local session path, 创建本地会话路径: /tmp/username/${hive.session.id}
     localSessionPath = new Path(HiveConf.getVar(conf, HiveConf.ConfVars.LOCALSCRATCHDIR), sessionId);
     createPath(conf, localSessionPath, scratchDirPermission, true, true);
     conf.set(LOCAL_SESSION_PATH_KEY, localSessionPath.toUri().toString());
-    // 7. HDFS temp table space
+    // 7. HDFS temp table space, 创建临时表空间: /tmp/hive/username/${hive.session.id}/_tmp_space.db
     hdfsTmpTableSpace = new Path(hdfsSessionPath, TMP_PREFIX);
     // This is a sub-dir under the hdfsSessionPath. Will be removed along with that dir.
     // Don't register with deleteOnExit

@@ -65,8 +65,10 @@ public class SessionHiveMetaStoreClient extends HiveMetaStoreClient implements I
     super(conf, null, allowEmbedded);
   }
 
+  // RetryingMetaStoreClient的构造方法中调用MetaStoreUtils.newInstance创建IMetaStoreClient实例是实际调用的是该构造方法
   SessionHiveMetaStoreClient(
       HiveConf conf, HiveMetaHookLoader hookLoader, Boolean allowEmbedded) throws MetaException {
+    // 调用父类HiveMetaStoreClient的构造方法, HiveMetaStoreClient会初始化自己的属性:ThriftHiveMetastore.Iface client, 即连接metastore的client, 并且打开连接
     super(conf, hookLoader, allowEmbedded);
   }
 

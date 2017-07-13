@@ -176,6 +176,7 @@ public class Hive {
 
     @Override
     public synchronized void remove() {
+      // 如果Hive不为null, 先关闭Hive内的metaStore client然后remove
       if (this.get() != null) {
         this.get().close();
       }
@@ -303,8 +304,10 @@ public class Hive {
         ", db.isCurrentUserOwner = " + db.isCurrentUserOwner());
       db.close();
     }
+    // 移除该Hive实例
     closeCurrent();
     if (c == null) {
+      // 获取当前线程的HiveConf实例
       c = createHiveConf();
     }
     c.set("fs.scheme.class", "dfs");
@@ -3349,6 +3352,7 @@ private void constructOneLBLocationMap(FileStatus fSta,
             if (tbl == null) {
               return null;
             }
+            // 对于每个表, 可以配置一个参数:storage_handler, 值为类名, 该类继承HiveStorageHandler
             HiveStorageHandler storageHandler =
               HiveUtils.getStorageHandler(conf,
                 tbl.getParameters().get(META_TABLE_STORAGE));
@@ -3368,7 +3372,7 @@ private void constructOneLBLocationMap(FileStatus fSta,
     if (conf.getBoolVar(ConfVars.METASTORE_FASTPATH)) {
       return new SessionHiveMetaStoreClient(conf, hookLoader, allowEmbedded);
     } else {
-      // 传入的mscClassName(MetaStoreClient className)为SessionHiveMetaStoreClient
+      // 传入的mscClassName(MetaStoreClient className)为SessionHiveMetaStoreClient, RetryingMetaStoreClient是InvocationHandler的子类, 里面封装了SessionHiveMetaStoreClient对象
       return RetryingMetaStoreClient.getProxy(conf, hookLoader, metaCallTimeMap,
           SessionHiveMetaStoreClient.class.getName(), allowEmbedded);
     }
@@ -3408,7 +3412,7 @@ private void constructOneLBLocationMap(FileStatus fSta,
         throw new MetaException(msg + "\n" + StringUtils.stringifyException(e));
       }
       try {
-        // 获取代理类创建的IMetaStoreClient对象
+        // 获取通过动态代理创建的IMetaStoreClient对象
         metaStoreClient = createMetaStoreClient(allowEmbedded);
       } catch (RuntimeException ex) {
         Throwable t = ex.getCause();
@@ -3427,7 +3431,7 @@ private void constructOneLBLocationMap(FileStatus fSta,
         throw ex;
       }
       String metaStoreUris = conf.getVar(HiveConf.ConfVars.METASTOREURIS);
-      // 如果配置项hive.metastore.uris不为空
+      // 如果配置项hive.metastore.uris不为空, 通常情况下不为空, 如: thrift://bds-test-0001:9083
       if (!org.apache.commons.lang3.StringUtils.isEmpty(metaStoreUris)) {
         // get a synchronized wrapper if the meta store is remote.
         // 如果meta store是一个远程服务, 获取一个同步的包装对象(实际只是又做了一次代理类的封装,没有其它逻辑)

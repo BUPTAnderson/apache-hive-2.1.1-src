@@ -117,9 +117,11 @@ public class CliDriver {
     // Flush the print stream, so it doesn't include output from the last command
     ss.err.flush();
     String cmd_trimmed = cmd.trim();
+    // 通过空格分割cmd_trimmed
     String[] tokens = tokenizeCmd(cmd_trimmed);
     int ret = 0;
 
+    // 1. 如果是quit/exit
     if (cmd_trimmed.toLowerCase().equals("quit") || cmd_trimmed.toLowerCase().equals("exit")) {
 
       // if we have come this far - either the previous commands
@@ -128,6 +130,7 @@ public class CliDriver {
       ss.close();
       System.exit(0);
 
+    // 2. 如果是 source (如: source /home/wyp/Documents/test; 执行文件中的sql, 类似于: bin/hive -f /home/wyp/Documents/test)
     } else if (tokens[0].equalsIgnoreCase("source")) {
       String cmd_1 = getFirstCmd(cmd_trimmed, tokens[0].length());
       cmd_1 = new VariableSubstitution(new HiveVariableSource() {
@@ -331,6 +334,7 @@ public class CliDriver {
   }
 
   /**
+   * 处理一行分号分割的命令
    * Processes a line of semicolon separated commands
    *
    * @param line
@@ -391,9 +395,11 @@ public class CliDriver {
           continue;
         }
 
+        // 调用processCmd来处理输入
         ret = processCmd(command);
         command = "";
         lastRet = ret;
+        // 是否忽略error, 默认值false
         boolean ignoreErrors = HiveConf.getBoolVar(conf, HiveConf.ConfVars.CLIIGNOREERRORS);
         if (ret != 0 && !ignoreErrors) {
           CommandProcessorFactory.clean((HiveConf) conf);
@@ -502,10 +508,12 @@ public class CliDriver {
   }
 
   public static Completer[] getCommandCompleter() {
+    // StringsCompleter与预定义的单词列表匹配. 我们从一个空白的单词开始，并构建它
     // StringsCompleter matches against a pre-defined wordlist
     // We start with an empty wordlist and build it up
     List<String> candidateStrings = new ArrayList<String>();
 
+    // 添加函数, 如果函数只包含字母和下划线则在函数名最后添加一个'('
     // We add Hive function names
     // For functions that aren't infix operators, we add an open
     // parenthesis at the end.
@@ -517,6 +525,7 @@ public class CliDriver {
       }
     }
 
+    // 添加关键词(包括大小写), 如: PARTITION, UPDATE, ALTER
     // We add Hive keywords, including lower-cased versions
     for (String s : HiveParser.getKeywords()) {
       candidateStrings.add(s);
@@ -525,6 +534,7 @@ public class CliDriver {
 
     StringsCompleter strCompleter = new StringsCompleter(candidateStrings);
 
+    // 因为除了空格以外我们还使用括号作为关键字分隔符，我们需要定义一个新的ArgumentDelimiter，它将'(', ')', '[', ']', ' '识别为分隔符。
     // Because we use parentheses in addition to whitespace
     // as a keyword delimiter, we need to define a new ArgumentDelimiter
     // that recognizes parenthesis as a delimiter.
@@ -546,6 +556,7 @@ public class CliDriver {
     // that are not in our wordlist (eg. table and column names)
     argCompleter.setStrict(false);
 
+    // ArgumentCompletor总是在匹配的令牌之后添加一个空格。 这对于函数名称是不希望的，因为开头括号后的空格在Hive中是不必要的（并且不常见）。 我们将自定义Completor放在我们的ArgumentCompletor之上，以扭转这一点。
     // ArgumentCompletor always adds a space after a matched token.
     // This is undesirable for function names because a space after
     // the opening parenthesis is unnecessary (and uncommon) in Hive.
@@ -568,6 +579,7 @@ public class CliDriver {
     };
 
     List<String> vars = new ArrayList<String>();
+    // 获取HiveConf所有的配置项, 如: hive.jar.path
     for (HiveConf.ConfVars conf : HiveConf.ConfVars.values()) {
       vars.add(conf.varname);
     }
@@ -682,6 +694,7 @@ public class CliDriver {
       }
     }
 
+    // 将用户输入的 -hiveconf key=value , 各个key value设置到conf中
     // set all properties specified via command line
     HiveConf conf = ss.getConf();
     for (Map.Entry<Object, Object> item : ss.cmdProperties.entrySet()) {
@@ -699,7 +712,7 @@ public class CliDriver {
     }).substitute(conf, prompt);
     prompt2 = spacesForString(prompt);
 
-    // 默认值为true
+    // 默认值为true, 启动SessionState
     if (HiveConf.getBoolVar(conf, ConfVars.HIVE_CLI_TEZ_SESSION_ASYNC)) {
       // Start the session in a fire-and-forget manner. When the asynchronously initialized parts of
       // the session are needed, the corresponding getters and other methods will wait as needed.
@@ -710,6 +723,7 @@ public class CliDriver {
 
     ss.updateThreadName();
 
+    // 执行逻辑在executeDriver
     // execute cli driver work
     try {
       return executeDriver(ss, conf, oproc);
@@ -733,17 +747,20 @@ public class CliDriver {
     CliDriver cli = new CliDriver();
     cli.setHiveVariables(oproc.getHiveVariables());
 
+    // 如果在启动时 在命令行指定了 -database dbname, 则设置为CliDriver的database
     // use the specified database if specified
     cli.processSelectDatabase(ss);
 
     // Execute -i init files (always in silent mode)
     cli.processInitFiles(ss);
 
+    // 如果指定了 -e, 则直接执行该sql
     if (ss.execString != null) {
       int cmdProcessStatus = cli.processLine(ss.execString);
       return cmdProcessStatus;
     }
 
+    // 如果指定了 -f, 则直接执行文件中的sql
     try {
       if (ss.fileName != null) {
         return cli.processFile(ss.fileName);
@@ -752,35 +769,46 @@ public class CliDriver {
       System.err.println("Could not open input file for reading. (" + e.getMessage() + ")");
       return 3;
     }
+    // 如果使用的是默认的mr引擎, 则打印提示信息
     if ("mr".equals(HiveConf.getVar(conf, ConfVars.HIVE_EXECUTION_ENGINE))) {
       console.printInfo(HiveConf.generateMrDeprecationWarning());
     }
 
+    // 如果没有-e或-f, 则说明是交互式的方式启动的。那么就会调用setupConsoleReader(), setupConsoleReader方法会初始化ConsoleReader reader, 并设置reader的各种提示符及历史记录保存文件
     setupConsoleReader();
 
     String line;
     int ret = 0;
     String prefix = "";
+    // 默认返回""
     String curDB = getFormattedDb(conf, ss);
+    // prompt默认值是hive, 所以curPrompt默认值为: hive
     String curPrompt = prompt + curDB;
+    // 返回与curDB长度相同的空格
     String dbSpaces = spacesForString(curDB);
 
+    // 终端输出提示符: curPrompt + "> ", 通常是: hive>
     while ((line = reader.readLine(curPrompt + "> ")) != null) {
       if (!prefix.equals("")) {
         prefix += '\n';
       }
+      // 如果当前行以"--"开头, 则忽略该行
       if (line.trim().startsWith("--")) {
         continue;
       }
+      // 如果当前行以':'结尾, 且不是已'\\;'结尾, 则认为用户已经输入完一条完整的sql, 调用processLine方法执行该sql.
       if (line.trim().endsWith(";") && !line.trim().endsWith("\\;")) {
         line = prefix + line;
+        // 最最核心的地方, processLine方法, true表示可以通过ctrl + c进行中断
         ret = cli.processLine(line, true);
+        // 处理完成后, prefix再置为"", 即初始化再次等待用户输入
         prefix = "";
         curDB = getFormattedDb(conf, ss);
         curPrompt = prompt + curDB;
         dbSpaces = dbSpaces.length() == curDB.length() ? dbSpaces : spacesForString(curDB);
       } else {
         prefix = prefix + line;
+        // prompt2默认值是与prompt长度相同的空格串
         curPrompt = prompt2 + dbSpaces;
         continue;
       }
@@ -795,6 +823,7 @@ public class CliDriver {
     PersistentHistory history = null;
     try {
       if ((new File(historyDirectory)).exists()) {
+        // 创建文件 /home/username/.hivehistory 用来保存历史查询记录
         String historyFile = historyDirectory + File.separator + HISTORYFILE;
         history = new FileHistory(new File(historyFile));
         reader.setHistory(history);
@@ -808,6 +837,7 @@ public class CliDriver {
       System.err.println(e.getMessage());
     }
 
+    // 增加一个刷新的钩子程序, 关闭的时候将内存中的查询历史刷新到.hivehistory文件中
     // add shutdown hook to flush the history to history file
     Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
       @Override
@@ -828,9 +858,13 @@ public class CliDriver {
     reader = new ConsoleReader();
     reader.setExpandEvents(false);
     reader.setBellEnabled(false);
+    //  JLine中跟自动补全相关的接口是Completer, 每个completer代表一类自动补全规则, 添加completer的顺序就是调用自动补全规则的顺序
     for (Completer completer : getCommandCompleter()) {
+      // 将各种自动补全的completer添加到reader
       reader.addCompleter(completer);
     }
+    // 可以通过ConsoleReader的setUseHistory(boolean useHistory)方法启用/禁用Command History功能。
+    // ConsoleReader的history成员变量负责保存历史数据，默认情况下历史数据只保存在内存中。如果希望将历史数据保存 到文件中，那么只需要以File对象作为参数构造History对象，并将该History对象设置到ConsoleReader即可。
     setupCmdHistory();
   }
 
@@ -842,6 +876,7 @@ public class CliDriver {
    * @return String to show user for current db value
    */
   private static String getFormattedDb(HiveConf conf, CliSessionState ss) {
+    // 提示符中是否包含当前的数据库名, 默认是false
     if (!HiveConf.getBoolVar(conf, HiveConf.ConfVars.CLIPRINTCURRENTDB)) {
       return "";
     }

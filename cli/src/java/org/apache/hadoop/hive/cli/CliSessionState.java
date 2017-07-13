@@ -18,13 +18,13 @@
 
 package org.apache.hadoop.hive.cli;
 
+import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.ql.session.SessionState;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
-
-import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.hive.ql.session.SessionState;
 
 /**
  * SessionState for hive cli.
@@ -57,6 +57,7 @@ public class CliSessionState extends SessionState {
   public List<String> initFiles = new ArrayList<String>();
 
   public CliSessionState(HiveConf conf) {
+    // 调用SessionState的构造方法进行初始化
     super(conf);
   }
 
