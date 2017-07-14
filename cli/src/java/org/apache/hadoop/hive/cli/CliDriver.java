@@ -121,7 +121,7 @@ public class CliDriver {
     String[] tokens = tokenizeCmd(cmd_trimmed);
     int ret = 0;
 
-    // 1. 如果是quit/exit
+    // 1. 如果是quit/exit, 退出
     if (cmd_trimmed.toLowerCase().equals("quit") || cmd_trimmed.toLowerCase().equals("exit")) {
 
       // if we have come this far - either the previous commands
@@ -133,6 +133,7 @@ public class CliDriver {
     // 2. 如果是 source (如: source /home/wyp/Documents/test; 执行文件中的sql, 类似于: bin/hive -f /home/wyp/Documents/test)
     } else if (tokens[0].equalsIgnoreCase("source")) {
       String cmd_1 = getFirstCmd(cmd_trimmed, tokens[0].length());
+      // 用SessionState的hiveVariables对cmd_1中的变量${varname}进行替换
       cmd_1 = new VariableSubstitution(new HiveVariableSource() {
         @Override
         public Map<String, String> getHiveVariable() {
@@ -153,9 +154,11 @@ public class CliDriver {
           ret = 1;
         }
       }
+      // 3. 如果是!开头, 即以本地shell来执行该语句
     } else if (cmd_trimmed.startsWith("!")) {
 
       String shell_cmd = cmd_trimmed.substring(1);
+      // 用SessionState的hiveVariables对shell_cmd中的变量${varname}进行替换
       shell_cmd = new VariableSubstitution(new HiveVariableSource() {
         @Override
         public Map<String, String> getHiveVariable() {
@@ -175,6 +178,7 @@ public class CliDriver {
             stringifyException(e));
         ret = 1;
       }
+      // 其它的调用processLocalCmd进行处理
     }  else { // local mode
       try {
         CommandProcessor proc = CommandProcessorFactory.get(tokens, (HiveConf) conf);
@@ -652,7 +656,7 @@ public class CliDriver {
   }
 
   public  int run(String[] args) throws Exception {
-    // 利用apache commond cli来处理输入参数
+    // 利用apache commond cli来处理输入参数中的hiveconf, define和hivevar, 如果处理出错返回false, 否则返回true
     OptionsProcessor oproc = new OptionsProcessor();
     if (!oproc.process_stage1(args)) {
       return 1;
@@ -681,20 +685,25 @@ public class CliDriver {
       return 3;
     }
 
-    // 从命令行读取参数名设置到CliSessionState中
+    // 处理从命令行读取其它参数, 并将相应的信息设置到CliSessionState中, 处理成功返回true, 否则返回false
     if (!oproc.process_stage2(ss)) {
       return 2;
     }
 
+    // 当前会话是否在 silent 模式运行。 如果不是silent模式(默认, 即hive.session.silent值为false)，所有 info 级打在日志中的消息，都将以标准错误流的形式输出到控制台。
+    // 如果是silent模式(即hive.session.silent值为true), 日志信息不会打印到控制台
     if (!ss.getIsSilent()) {
       if (logInitFailed) {
+        // 初始化失败, 通过System.err在控制台打印错误信息
         System.err.println(logInitDetailMessage);
       } else {
+        // 初始化成功, 通过SessionState的_console调用ss.info在控制台打印日志初始化成功信息, 实际调用的是System.err, 因为上面已经ss.info = new PrintStream(System.err, true, "UTF-8");
+        // 如: Logging initialized using configuration in file:/export/App/hive-1.2.1/conf/hive-log4j.properties
         SessionState.getConsole().printInfo(logInitDetailMessage);
       }
     }
 
-    // 将用户输入的 -hiveconf key=value , 各个key value设置到conf中
+    // 将用户输入的 -hiveconf key=value , 各个key value设置到conf中, 这会覆盖conf中相同参数名的值. 然后吧这些值赋值给SessionState的overriddenConfigurations
     // set all properties specified via command line
     HiveConf conf = ss.getConf();
     for (Map.Entry<Object, Object> item : ss.cmdProperties.entrySet()) {
@@ -703,13 +712,16 @@ public class CliDriver {
     }
 
     // read prompt configuration and substitute variables.
+    // cli输出的提示符, 默认值为hive
     prompt = conf.getVar(HiveConf.ConfVars.CLIPROMPT);
+    // 对prompt进行变量置换, 比如prompt是"hive${A}", SessionState的hiveVariables有有<"A", "-->">, 则prompt变为hive-->
     prompt = new VariableSubstitution(new HiveVariableSource() {
       @Override
       public Map<String, String> getHiveVariable() {
         return SessionState.get().getHiveVariables();
       }
     }).substitute(conf, prompt);
+    // 获取与prompt长度相同的空字符串
     prompt2 = spacesForString(prompt);
 
     // 默认值为true, 启动SessionState
@@ -745,22 +757,23 @@ public class CliDriver {
       throws Exception {
 
     CliDriver cli = new CliDriver();
+    // 将用户在命令行中通过define和hivevar定义的变量赋值给当前线程的SessionState的hiveVariables属性
     cli.setHiveVariables(oproc.getHiveVariables());
 
     // 如果在启动时 在命令行指定了 -database dbname, 则设置为CliDriver的database
     // use the specified database if specified
     cli.processSelectDatabase(ss);
 
-    // Execute -i init files (always in silent mode)
+    // Execute -i init files (always in silent mode), 先执行-i filename中指定的hql, 看作是一种初始化操作(初始化一些参数或表信息)
     cli.processInitFiles(ss);
 
-    // 如果指定了 -e, 则直接执行该sql
+    // 如果指定了 -e, 则直接执行该hql
     if (ss.execString != null) {
       int cmdProcessStatus = cli.processLine(ss.execString);
       return cmdProcessStatus;
     }
 
-    // 如果指定了 -f, 则直接执行文件中的sql
+    // 如果指定了 -f, 则直接执行文件中的hql
     try {
       if (ss.fileName != null) {
         return cli.processFile(ss.fileName);
@@ -774,7 +787,8 @@ public class CliDriver {
       console.printInfo(HiveConf.generateMrDeprecationWarning());
     }
 
-    // 如果没有-e或-f, 则说明是交互式的方式启动的。那么就会调用setupConsoleReader(), setupConsoleReader方法会初始化ConsoleReader reader, 并设置reader的各种提示符及历史记录保存文件
+    // 如果没有-e或-f, 则说明是交互式的方式启动的。那么就会调用setupConsoleReader(), setupConsoleReader方法会初始化ConsoleReader reader,
+    // reader实际是一个命令行工具, 设置reader的各种提示符及历史记录保存文件
     setupConsoleReader();
 
     String line;
@@ -787,7 +801,7 @@ public class CliDriver {
     // 返回与curDB长度相同的空格
     String dbSpaces = spacesForString(curDB);
 
-    // 终端输出提示符: curPrompt + "> ", 通常是: hive>
+    // 终端输出提示符: curPrompt + "> ", 通常是: hive>, while循环的逻辑就是循环读取用户输入的hql执行
     while ((line = reader.readLine(curPrompt + "> ")) != null) {
       if (!prefix.equals("")) {
         prefix += '\n';

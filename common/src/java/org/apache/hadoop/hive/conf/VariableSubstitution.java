@@ -59,6 +59,7 @@ public class VariableSubstitution extends SystemVariables {
     if (expr == null) {
       return expr;
     }
+    // 是否允许变量置换, 默认值为true
     if (HiveConf.getBoolVar(conf, HiveConf.ConfVars.HIVEVARIABLESUBSTITUTE)) {
       l4j.debug("Substitution is on: " + expr);
     } else {

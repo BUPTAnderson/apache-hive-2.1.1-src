@@ -49,6 +49,7 @@ public class CliSessionState extends SessionState {
   /**
    * properties set from -hiveconf via cmdline.
    */
+  // 用户输入的 -hiveconf key=value 会放到该属性中
   public Properties cmdProperties = new Properties();
 
   /**

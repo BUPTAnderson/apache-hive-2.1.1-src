@@ -145,6 +145,7 @@ public class SessionState {
 
   /*
    * HiveHistory Object
+   * 将查询, 查询计划, 统计信息写入文件中
    */
   protected HiveHistory hiveHist;
 
@@ -189,6 +190,7 @@ public class SessionState {
 
   private Map<String, MapRedStats> mapRedStats;
 
+  // 保存用户通过-define key=value和-hivevar key=value自定义的变量保存到该熟悉中
   private Map<String, String> hiveVariables;
 
   // A mapping from a hadoop job ID to the stack traces collected from the map reduce task logs
@@ -198,6 +200,7 @@ public class SessionState {
   // explicitly, either via SET in the CLI, the hiveconf option, or a System property.
   // It is a mapping from the variable name to its value.  Note that if a user repeatedly
   // changes the value of a variable, the corresponding change will be made in this mapping.
+  // -hiveconf key=value 的key value会放入该属性中
   private Map<String, String> overriddenConfigurations;
 
   private Map<String, List<String>> localMapRedErrors;
@@ -539,7 +542,7 @@ public class SessionState {
   }
 
   private static void start(SessionState startSs, boolean isAsync, LogHelper console) {
-    // 将SessionState封装成SessionStates设置给当前线程, 存入ThreadLocal<SessionStates>
+    // 将SessionState设置给当前线程的SessionStates, 存入ThreadLocal<SessionStates>
     setCurrentSessionState(startSs);
 
     if (startSs.hiveHist == null){
@@ -547,7 +550,7 @@ public class SessionState {
       if (startSs.getConf().getBoolVar(HiveConf.ConfVars.HIVE_SESSION_HISTORY_ENABLED)) {
         startSs.hiveHist = new HiveHistoryImpl(startSs);
       } else {
-        // Hive history is disabled, create a no-op proxy
+        // Hive history is disabled, create a no-op proxy, 创建一个空操作代理
         startSs.hiveHist = HiveHistoryProxyHandler.getNoOpHiveHistoryProxy();
       }
     }
