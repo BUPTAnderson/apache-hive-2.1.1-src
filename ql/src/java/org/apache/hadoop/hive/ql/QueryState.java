@@ -18,17 +18,16 @@
 
 package org.apache.hadoop.hive.ql;
 
-import java.sql.Timestamp;
-import java.util.Map;
-
 import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.plan.HiveOperation;
+
+import java.util.Map;
 
 /**
  * The class to store query level info such as queryId. Multiple queries can run
  * in the same session, so SessionState is to hold common session related info, and
  * each QueryState is to hold query related info.
+ * 存储查询级别信息（如queryId）的类。 多个查询可以在同一个会话中运行，因此SessionState将保存公共会话相关信息，每个QueryState都将保存查询相关信息。
  *
  */
 public class QueryState {
@@ -81,6 +80,7 @@ public class QueryState {
       conf = new HiveConf();
     }
 
+    // 设置该条hsql的queryId, 如: zhangsan_20170714110522_f9001412-2aa0-4775-ad7a-f8e49aae3515
     conf.setVar(HiveConf.ConfVars.HIVEQUERYID, QueryPlan.makeQueryId());
     return conf;
   }

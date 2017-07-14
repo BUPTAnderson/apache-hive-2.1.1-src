@@ -33,7 +33,9 @@ public final class HiveAuthzSessionContext {
   };
 
   public static class Builder {
+    // sessionString值为当前线程的SessionState的sessionId
     private String sessionString;
+    // clientType根据当前SessionState是cli创建的还是HiveServer2创建的非别对应HIVECLI和HIVESERVER2
     private CLIENT_TYPE clientType;
 
     public Builder(){};

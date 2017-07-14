@@ -18,11 +18,7 @@
 
 package org.apache.hadoop.hive.ql.processors;
 
-import java.util.Arrays;
-import java.util.List;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.google.common.base.Joiner;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.security.authorization.plugin.HiveAccessControlException;
 import org.apache.hadoop.hive.ql.security.authorization.plugin.HiveAuthzContext;
@@ -30,13 +26,17 @@ import org.apache.hadoop.hive.ql.security.authorization.plugin.HiveAuthzPluginEx
 import org.apache.hadoop.hive.ql.security.authorization.plugin.HiveOperationType;
 import org.apache.hadoop.hive.ql.security.authorization.plugin.HivePrivilegeObject;
 import org.apache.hadoop.hive.ql.session.SessionState;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Joiner;
+import java.util.Arrays;
+import java.util.List;
 
 class CommandUtil {
   public static final Logger LOG = LoggerFactory.getLogger(CommandUtil.class);
 
   /**
+   * 判断给定类型和参数的命令的权限
    * Authorize command of given type and arguments
    *
    * @param ss
@@ -44,6 +44,7 @@ class CommandUtil {
    * @param command
    * @return null if there was no authorization error. Otherwise returns  CommandProcessorResponse
    * capturing the authorization error
+   * 如果没有授权错误则为null。 否则返回CommandProcessorResponse捕获的授权错误
    */
   static CommandProcessorResponse authorizeCommand(SessionState ss, HiveOperationType type,
       List<String> command) {
@@ -52,6 +53,7 @@ class CommandUtil {
       return null;
     }
 
+    // 判断AuthorizationMode是不是V2,  是否开启了权限验证(hive.security.authorization.enabled参数设为true则开启, 默认为false)
     if (ss.isAuthorizationModeV2() &&
         HiveConf.getBoolVar(ss.getConf(), HiveConf.ConfVars.HIVE_AUTHORIZATION_ENABLED)) {
       String errMsg = "Error authorizing command " + command;

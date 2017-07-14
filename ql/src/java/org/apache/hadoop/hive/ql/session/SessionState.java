@@ -845,6 +845,7 @@ public class SessionState {
   }
 
   /**
+   * 为此会话开启身份验证和授权插件。
    * Setup authentication and authorization plugins for this session.
    */
   private void setupAuth() {
@@ -855,24 +856,25 @@ public class SessionState {
     }
 
     try {
-      // 这里我们分析 hive.security.authenticator.manager = org.apache.hadoop.hive.ql.security.SessionStateUserAuthenticator
+      // 这里我们分析认证(authentication)配置项 hive.security.authenticator.manager = org.apache.hadoop.hive.ql.security.SessionStateUserAuthenticator
       authenticator = HiveUtils.getAuthenticator(sessionConf,
           HiveConf.ConfVars.HIVE_AUTHENTICATOR_MANAGER);
       authenticator.setSessionState(this);
 
-      // 这里我们分析 clsStr = org.apache.hadoop.hive.ql.security.authorization.plugin.sqlstd.SQLStdConfOnlyAuthorizerFactory
+      // 这里我们分析授权(authorization)配置项 hive.security.authorization.manager = org.apache.hadoop.hive.ql.security.authorization.plugin.sqlstd.SQLStdConfOnlyAuthorizerFactory
       String clsStr = HiveConf.getVar(sessionConf, HiveConf.ConfVars.HIVE_AUTHORIZATION_MANAGER);
+      // HiveAuthorizationProvider不是SQLStdConfOnlyAuthorizerFactory的父类, getAuthorizeProviderManager()返回null, 如果设置的是HiveAuthorizationProvider的子类则是AuthorizationMode.V1
       authorizer = HiveUtils.getAuthorizeProviderManager(sessionConf,
           clsStr, authenticator, true);
-      // authorizer返回null
+
       if (authorizer == null) {
         // if it was null, the new (V2) authorization plugin must be specified in config
-        // 返回SQLStdConfOnlyAuthorizerFactory
+        // 返回SQLStdConfOnlyAuthorizerFactory实例
         HiveAuthorizerFactory authorizerFactory = HiveUtils.getAuthorizerFactory(sessionConf,
             HiveConf.ConfVars.HIVE_AUTHORIZATION_MANAGER);
 
         HiveAuthzSessionContext.Builder authzContextBuilder = new HiveAuthzSessionContext.Builder();
-        // 如果该SessionState是HiveServer2服务的, 则isHiveServerQuery为true
+        // 如果该SessionState是HiveServer2服务的, 则isHiveServerQuery为true, clientType是HIVESERVER2, 如果是CLI, 则为false, clientType是HIVECLI
         authzContextBuilder.setClientType(isHiveServerQuery() ? CLIENT_TYPE.HIVESERVER2
             : CLIENT_TYPE.HIVECLI);
         authzContextBuilder.setSessionString(getSessionId());
@@ -885,7 +887,7 @@ public class SessionState {
 
       }
       // create the create table grants with new config
-      // 创建table是user, owner, group, role都赋什么权限
+      // 创建table时user, owner, group, role都赋什么权限
       createTableGrants = CreateTableAutomaticGrant.create(sessionConf);
 
     } catch (HiveException e) {
@@ -905,6 +907,7 @@ public class SessionState {
     if (sessionConf.get(CONFIG_AUTHZ_SETTINGS_APPLIED_MARKER, "").equals(Boolean.TRUE.toString())) {
       return;
     }
+    // 获取hive.metastore.filter.hook值, 如果hive.security.authorization.manager设置为了HiveAuthorizerFactory(SQLStdConfOnlyAuthorizerFactory是该类的子类), 则该项设置会被忽略
     String metastoreHook = sessionConf.get(ConfVars.METASTORE_FILTER_HOOK.name());
     if (!ConfVars.METASTORE_FILTER_HOOK.getDefaultValue().equals(metastoreHook) &&
         !AuthorizationMetaStoreFilterHook.class.getName().equals(metastoreHook)) {
@@ -915,7 +918,7 @@ public class SessionState {
     sessionConf.setVar(ConfVars.METASTORE_FILTER_HOOK,
         AuthorizationMetaStoreFilterHook.class.getName());
 
-    // applyAuthorizationConfigPolicy里面有一个逻辑是将hive.security.authorization.createtable.owner.grants设置为INSERT,SELECT,UPDATE,DELETE
+    // applyAuthorizationConfigPolicy里面有一个逻辑是将sessionConf的hive.security.authorization.createtable.owner.grants设置为INSERT,SELECT,UPDATE,DELETE
     authorizerV2.applyAuthorizationConfigPolicy(sessionConf);
     // update config in Hive thread local as well and init the metastore client
     try {
@@ -926,6 +929,7 @@ public class SessionState {
       throw new HiveException(e.getMessage(), e);
     }
 
+    // 将sessionConf的hive.internal.ss.authz.settings.applied.marker设置为true
     // set a marker that this conf has been processed.
     sessionConf.set(CONFIG_AUTHZ_SETTINGS_APPLIED_MARKER, Boolean.TRUE.toString());
   }

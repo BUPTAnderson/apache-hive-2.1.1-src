@@ -154,7 +154,7 @@ public class CliDriver {
           ret = 1;
         }
       }
-      // 3. 如果是!开头, 即以本地shell来执行该语句
+      // 3. 如果是!开头, 即以本地shell来执行该语句(比如, !pwd)
     } else if (cmd_trimmed.startsWith("!")) {
 
       String shell_cmd = cmd_trimmed.substring(1);
@@ -178,10 +178,12 @@ public class CliDriver {
             stringifyException(e));
         ret = 1;
       }
-      // 其它的调用processLocalCmd进行处理
+      // 4. 其它的调用processLocalCmd进行处理
     }  else { // local mode
       try {
+        // CommandProcessorFactory工厂解析输入的语句来获得一个CommandProcessor, 一般查询返回的是Drive, 注意每个查询都会创建一个CommandProcessor
         CommandProcessor proc = CommandProcessorFactory.get(tokens, (HiveConf) conf);
+        // 使用CommandProcessor处理
         ret = processLocalCmd(cmd, proc, ss);
       } catch (SQLException e) {
         console.printError("Failed processing command " + tokens[0] + " " + e.getLocalizedMessage(),
@@ -281,6 +283,7 @@ public class CliDriver {
                 (counter == 0 ? "" : ", Fetched: " + counter + " row(s)"));
           } else {
             String firstToken = tokenizeCmd(cmd.trim())[0];
+            // cmd_1是已经除掉第一个token的语句, 比如 cmd是: add jar /abc.jar, cmd_1是 jar /abc.jar
             String cmd_1 = getFirstCmd(cmd.trim(), firstToken.length());
 
             if (ss.getIsVerbose()) {

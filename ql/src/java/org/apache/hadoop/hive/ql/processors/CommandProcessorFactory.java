@@ -18,7 +18,12 @@
 
 package org.apache.hadoop.hive.ql.processors;
 
-import static org.apache.commons.lang.StringUtils.isBlank;
+import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.ql.Driver;
+import org.apache.hadoop.hive.ql.metadata.HiveException;
+import org.apache.hadoop.hive.ql.session.SessionState;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.SQLException;
 import java.util.Collections;
@@ -27,12 +32,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.hive.ql.Driver;
-import org.apache.hadoop.hive.ql.metadata.*;
-import org.apache.hadoop.hive.ql.session.SessionState;
+import static org.apache.commons.lang.StringUtils.isBlank;
 
 /**
  * CommandProcessorFactory.
@@ -59,6 +59,7 @@ public final class CommandProcessorFactory {
   public static CommandProcessor getForHiveCommandInternal(String[] cmd, HiveConf conf,
                                                            boolean testOnly)
     throws SQLException {
+    // 只有set, reset, dfs, add, list, reload, delete, compile开头的hql, 并且不是set role, delete from, reload function, set autocommit才会返回非null的HiveCommand实例, 否则返回null
     HiveCommand hiveCommand = HiveCommand.find(cmd, testOnly);
     if (hiveCommand == null || isBlank(cmd[0])) {
       return null;
@@ -67,10 +68,12 @@ public final class CommandProcessorFactory {
       conf = new HiveConf();
     }
     Set<String> availableCommands = new HashSet<String>();
+    // 被授权的用户可以执行的操作, 默认值为: set,reset,dfs,add,list,delete,reload,compile
     for (String availableCommand : conf.getVar(HiveConf.ConfVars.HIVE_SECURITY_COMMAND_WHITELIST)
       .split(",")) {
       availableCommands.add(availableCommand.toLowerCase().trim());
     }
+    // 如果availableCommands不包含cmd[0], 抛出异常, 默认走到这里的(hiveCommand不为null)都是包含的, 所以不会抛出异常
     if (!availableCommands.contains(cmd[0].trim().toLowerCase())) {
       throw new SQLException("Insufficient privileges to execute " + cmd[0], "42000");
     }
@@ -106,6 +109,9 @@ public final class CommandProcessorFactory {
   static Logger LOG = LoggerFactory.getLogger(CommandProcessorFactory.class);
   public static CommandProcessor get(String[] cmd, HiveConf conf)
       throws SQLException {
+    // 如果是set, reset, dfs, add, list, reload, delete, compile开头的hql, 并且不是set role, delete from, reload function, set autocommit
+    // 会返回SetProcessor, ResetProcessor,DfsProcessor,AddResourceProcessor,ListResourceProcessor,ReloadProcessor,DeleteResourceProcessor,CompileProcessor
+    // 其它的返回null, 会构造一个Driver返回
     CommandProcessor result = getForHiveCommand(cmd, conf);
     if (result != null) {
       return result;
@@ -118,12 +124,13 @@ public final class CommandProcessorFactory {
       }
       Driver drv = mapDrivers.get(conf);
       if (drv == null) {
+        // 构造一个Driver
         drv = new Driver();
         mapDrivers.put(conf, drv);
       } else {
         drv.resetQueryState();
       }
-      drv.init();
+      drv.init(); // init()是空操作
       return drv;
     }
   }
