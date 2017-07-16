@@ -58,6 +58,7 @@ class CommandUtil {
         HiveConf.getBoolVar(ss.getConf(), HiveConf.ConfVars.HIVE_AUTHORIZATION_ENABLED)) {
       String errMsg = "Error authorizing command " + command;
       try {
+        // 判断有没有执行该HQL的权限
         authorizeCommandThrowEx(ss, type, command);
         // authorized to perform action
         return null;
@@ -81,11 +82,13 @@ class CommandUtil {
    */
   static void authorizeCommandThrowEx(SessionState ss, HiveOperationType type,
       List<String> command) throws HiveAuthzPluginException, HiveAccessControlException {
+    // 两个参数HivePrivilegeObjectType.COMMAND_PARAMS和HivePrivObjectActionType.OTHER
     HivePrivilegeObject commandObj = HivePrivilegeObject.createHivePrivilegeObject(command);
     HiveAuthzContext.Builder ctxBuilder = new HiveAuthzContext.Builder();
     ctxBuilder.setCommandString(Joiner.on(' ').join(command));
     ctxBuilder.setUserIpAddress(ss.getUserIpAddress());
     ctxBuilder.setForwardedAddresses(ss.getForwardedAddresses());
+    // 这里我们查看SQLStdHiveAuthorizationValidator的checkPrivileges
     ss.getAuthorizerV2().checkPrivileges(type, Arrays.asList(commandObj), null, ctxBuilder.build());
   }
 

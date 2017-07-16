@@ -73,14 +73,18 @@ public class SQLStdHiveAuthorizationValidator implements HiveAuthorizationValida
       LOG.debug(msg);
     }
 
+    // 实际调用的sessionState.getUserName()
     String userName = authenticator.getUserName();
+    // 调用的是Hive.get().getMSC();来获取client
     IMetaStoreClient metastoreClient = metastoreClientFactory.getHiveMetastoreClient();
 
+    // 检查输入输出的权限
     // check privileges on input and output objects
     List<String> deniedMessages = new ArrayList<String>();
     checkPrivileges(hiveOpType, inputHObjs, metastoreClient, userName, IOType.INPUT, deniedMessages);
     checkPrivileges(hiveOpType, outputHObjs, metastoreClient, userName, IOType.OUTPUT, deniedMessages);
 
+    // 如果deniedMessages size不为0， 打印错误信息， 抛出HiveAccessControlException
     SQLAuthorizationUtils.assertNoDeniedPermissions(new HivePrincipal(userName,
         HivePrincipalType.USER), hiveOpType, deniedMessages);
   }

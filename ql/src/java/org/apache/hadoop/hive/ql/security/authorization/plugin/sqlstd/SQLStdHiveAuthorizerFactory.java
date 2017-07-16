@@ -34,6 +34,7 @@ public class SQLStdHiveAuthorizerFactory implements HiveAuthorizerFactory{
       HiveConf conf, HiveAuthenticationProvider authenticator, HiveAuthzSessionContext ctx) throws HiveAuthzPluginException {
     SQLStdHiveAccessControllerWrapper privilegeManager =
         new SQLStdHiveAccessControllerWrapper(metastoreClientFactory, conf, authenticator, ctx);
+    // HiveAuthorizerImpl构造函数传入两个参数， 一个访问控制， 一个权限验证器， 这里我们看到privilegeManager作为一个参数来构造SQLStdHiveAuthorizationValidator
     return new HiveAuthorizerImpl(
         privilegeManager,
         new SQLStdHiveAuthorizationValidator(metastoreClientFactory, conf, authenticator,

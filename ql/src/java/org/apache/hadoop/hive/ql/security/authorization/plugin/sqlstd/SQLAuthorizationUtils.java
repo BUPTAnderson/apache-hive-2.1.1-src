@@ -529,6 +529,7 @@ public class SQLAuthorizationUtils {
    * @return
    */
   static HiveAuthzSessionContext applyTestSettings(HiveAuthzSessionContext ctx, HiveConf conf) {
+    // hive.test.authz.sstd.hs2.mode默认值是false
     if (conf.getBoolVar(ConfVars.HIVE_TEST_AUTHORIZATION_SQLSTD_HS2_MODE)
         && ctx.getClientType() == CLIENT_TYPE.HIVECLI) {
       // create new session ctx object with HS2 as client type

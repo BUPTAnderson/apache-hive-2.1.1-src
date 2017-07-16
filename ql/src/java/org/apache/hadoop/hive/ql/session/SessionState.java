@@ -850,6 +850,7 @@ public class SessionState {
    */
   private void setupAuth() {
 
+    // 如果authenticator不为null说明已经初始化过了， 直接返回
     if (authenticator != null) {
       // auth has been initialized
       return;
@@ -863,7 +864,8 @@ public class SessionState {
 
       // 这里我们分析授权(authorization)配置项 hive.security.authorization.manager = org.apache.hadoop.hive.ql.security.authorization.plugin.sqlstd.SQLStdConfOnlyAuthorizerFactory
       String clsStr = HiveConf.getVar(sessionConf, HiveConf.ConfVars.HIVE_AUTHORIZATION_MANAGER);
-      // HiveAuthorizationProvider不是SQLStdConfOnlyAuthorizerFactory的父类, getAuthorizeProviderManager()返回null, 如果设置的是HiveAuthorizationProvider的子类则是AuthorizationMode.V1
+      // HiveAuthorizationProvider不是SQLStdConfOnlyAuthorizerFactory的父类, getAuthorizeProviderManager()返回null,
+      // 如果设置的是HiveAuthorizationProvider的子类则会通过反射获取该类的实例，这时权限mode是AuthorizationMode.V1
       authorizer = HiveUtils.getAuthorizeProviderManager(sessionConf,
           clsStr, authenticator, true);
 
@@ -918,8 +920,9 @@ public class SessionState {
     sessionConf.setVar(ConfVars.METASTORE_FILTER_HOOK,
         AuthorizationMetaStoreFilterHook.class.getName());
 
-    // applyAuthorizationConfigPolicy里面有一个逻辑是将sessionConf的hive.security.authorization.createtable.owner.grants设置为INSERT,SELECT,UPDATE,DELETE
+    // applyAuthorizationConfigPolicy里面有一个逻辑是将sessionConf的hive.security.authorization.createtable.owner.grants设置为INSERT,SELECT,UPDATE,DELETE， 如果是hiveserver2则还会设置hive.exec.pre.hooks和whiteList
     authorizerV2.applyAuthorizationConfigPolicy(sessionConf);
+    // 更新config
     // update config in Hive thread local as well and init the metastore client
     try {
       Hive.get(sessionConf).getMSC();
@@ -1595,6 +1598,7 @@ public class SessionState {
   }
 
   public AuthorizationMode getAuthorizationMode(){
+    // 为当前回话开启权限验证，从下面的判断可以看出， setupAuth方法会根据各种逻辑来选择初始化authorizer还是authorizerV2
     setupAuth();
     if(authorizer != null){
       return AuthorizationMode.V1;

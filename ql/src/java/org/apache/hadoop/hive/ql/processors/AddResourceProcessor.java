@@ -66,6 +66,7 @@ public class AddResourceProcessor implements CommandProcessor {
       return new CommandProcessorResponse(1);
     }
 
+    // 进行权限验证， 默认情况下是没有开启权限验证的， 这时返回的是null， 如果开启的权限验证， 会进行相关的权限验证。
     CommandProcessorResponse authErrResp =
         CommandUtil.authorizeCommand(ss, HiveOperationType.ADD, Arrays.asList(tokens));
     if(authErrResp != null){

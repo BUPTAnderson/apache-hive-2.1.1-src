@@ -90,6 +90,7 @@ public class SQLStdHiveAccessController implements HiveAccessController {
       HiveAuthenticationProvider authenticator, HiveAuthzSessionContext ctx) throws HiveAuthzPluginException {
     this.metastoreClientFactory = metastoreClientFactory;
     this.authenticator = authenticator;
+    // 默认sessionCtx等于传入的ctx
     this.sessionCtx = SQLAuthorizationUtils.applyTestSettings(ctx, conf);
     LOG.info("Created SQLStdHiveAccessController for session context : " + sessionCtx);
   }
@@ -622,6 +623,7 @@ public class SQLStdHiveAccessController implements HiveAccessController {
     // has permissions via HiveServer2 as well.
     hiveConf.setVar(ConfVars.HIVE_AUTHORIZATION_TABLE_OWNER_GRANTS, "INSERT,SELECT,UPDATE,DELETE");
 
+    // 如果是HiveServer2并且开启了权限验证， 则额外设置hive.exec.pre.hooks和whiteList
     // Apply rest of the configuration only to HiveServer2
     if (sessionCtx.getClientType() == CLIENT_TYPE.HIVESERVER2
         && hiveConf.getBoolVar(ConfVars.HIVE_AUTHORIZATION_ENABLED)) {
