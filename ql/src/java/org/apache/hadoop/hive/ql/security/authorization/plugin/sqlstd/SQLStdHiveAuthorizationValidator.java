@@ -100,6 +100,7 @@ public class SQLStdHiveAuthorizationValidator implements HiveAuthorizationValida
     // Compare required privileges and available privileges for each hive object
     for (HivePrivilegeObject hiveObj : hiveObjects) {
 
+      // 获取执行该HQL需要的权限信息, 比如add jar, 返回的是封装了SQLPrivTypeGrant.ADMIN_PRIV的requiredPrivs
       RequiredPrivileges requiredPrivs = Operation2Privilege.getRequiredPrivs(hiveOpType, hiveObj,
           ioType);
 
@@ -108,6 +109,7 @@ public class SQLStdHiveAuthorizationValidator implements HiveAuthorizationValida
         continue;
       }
 
+      // 根据HivePrivilegeObjectType类型来获取可用的权限
       // find available privileges
       RequiredPrivileges availPrivs = new RequiredPrivileges(); //start with an empty priv set;
       switch (hiveObj.getType()) {
@@ -134,8 +136,10 @@ public class SQLStdHiveAuthorizationValidator implements HiveAuthorizationValida
             hiveObj, privController.getCurrentRoleNames(), privController.isUserAdmin());
       }
 
+      // 检查availPrivs是否包含requiredPrivs, 如果包含missingPriv size为0, 否则missingPriv包含缺少的权限
       // Verify that there are no missing privileges
       Collection<SQLPrivTypeGrant> missingPriv = requiredPrivs.findMissingPrivs(availPrivs);
+      // 将缺少的权限添加到deniedMessages中
       SQLAuthorizationUtils.addMissingPrivMsg(missingPriv, hiveObj, deniedMessages);
 
     }

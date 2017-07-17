@@ -469,6 +469,7 @@ public class Operation2Privilege {
       HivePrivilegeObject hObj, IOType ioType) {
     List<PrivRequirement> opPrivs = op2Priv.get(hiveOpType);
     Preconditions.checkNotNull(opPrivs, "Privileges for " + hiveOpType + " are null");
+    // reqPrivs里面封装了一个Set<SQLPrivTypeGrant> privilegeGrantSet, 用量存储该hql需要的权限
     RequiredPrivileges reqPrivs = new RequiredPrivileges();
 
     // Find the PrivRequirements that match on IOType, ActionType, and HivePrivilegeObjectType add

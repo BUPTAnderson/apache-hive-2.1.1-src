@@ -54,6 +54,7 @@ class CommandUtil {
     }
 
     // 判断AuthorizationMode是不是V2,  是否开启了权限验证(hive.security.authorization.enabled参数设为true则开启, 默认为false)
+    // 通过if语句可知, 只有开启权限验证(hive.security.authorization.enabled参数设为true)且AuthorizationMode为V2才会进行权限验证
     if (ss.isAuthorizationModeV2() &&
         HiveConf.getBoolVar(ss.getConf(), HiveConf.ConfVars.HIVE_AUTHORIZATION_ENABLED)) {
       String errMsg = "Error authorizing command " + command;
