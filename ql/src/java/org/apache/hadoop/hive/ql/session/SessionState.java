@@ -374,6 +374,7 @@ public class SessionState {
     }
     isSilent = conf.getBoolVar(HiveConf.ConfVars.HIVESESSIONSILENT);
     ls = new LineageState();
+    // 初始化resourceMaps
     resourceMaps = new ResourceMaps();
     // Must be deterministic order map for consistent q-test output across Java versions
     overriddenConfigurations = new LinkedHashMap<String, String>();
@@ -389,6 +390,7 @@ public class SessionState {
     // Make sure that each session has its own UDFClassloader. For details see {@link UDFClassLoader}
     final ClassLoader currentLoader = Utilities.createUDFClassLoader((URLClassLoader) parentLoader, new String[]{});
     this.sessionConf.setClassLoader(currentLoader);
+    // 初始化资源下载resourceDownloader
     resourceDownloader = new ResourceDownloader(conf,
         HiveConf.getVar(conf, ConfVars.DOWNLOADED_RESOURCES_DIR));
   }
@@ -1324,6 +1326,7 @@ public class SessionState {
     Map<String, Set<String>> reverseResourcePathMap = resourceMaps.getReverseResourcePathMap(t);
     List<String> localized = new ArrayList<String>();
     try {
+      // values是要添加的资源, 如: /abc.jar /def.jar
       for (String value : values) {
         String key;
 

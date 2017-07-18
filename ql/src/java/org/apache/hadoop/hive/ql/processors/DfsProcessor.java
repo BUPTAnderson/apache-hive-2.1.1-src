@@ -18,12 +18,6 @@
 
 package org.apache.hadoop.hive.ql.processors;
 
-import java.io.PrintStream;
-import java.util.Arrays;
-import java.util.Map;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FsShell;
 import org.apache.hadoop.hive.conf.HiveVariableSource;
@@ -33,6 +27,12 @@ import org.apache.hadoop.hive.metastore.api.Schema;
 import org.apache.hadoop.hive.ql.security.authorization.plugin.HiveOperationType;
 import org.apache.hadoop.hive.ql.session.SessionState;
 import org.apache.hadoop.hive.ql.session.SessionState.LogHelper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.PrintStream;
+import java.util.Arrays;
+import java.util.Map;
 
 /**
  * DfsProcessor.
@@ -61,6 +61,7 @@ public class DfsProcessor implements CommandProcessor {
   public void init() {
   }
 
+  // 处理dfs 命令，即已“dfs”开头的命令，最终调用了FsShell的run方法, 比如 dfs -ls /, 穿过来的command为: -ls /
   @Override
   public CommandProcessorResponse run(String command) {
 

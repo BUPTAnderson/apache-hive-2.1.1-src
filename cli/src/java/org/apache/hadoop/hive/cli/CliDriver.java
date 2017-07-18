@@ -224,6 +224,7 @@ public class CliDriver {
       try {
         needRetry = false;
         if (proc != null) {
+          // 如果是执行正常的SQL, proc是Driver
           if (proc instanceof Driver) {
             Driver qp = (Driver) proc;
             PrintStream out = ss.out;
@@ -233,6 +234,7 @@ public class CliDriver {
             }
 
             qp.setTryCount(tryCount);
+            // 调用Driver的run方法
             ret = qp.run(cmd).getResponseCode();
             if (ret != 0) {
               qp.close();
@@ -289,6 +291,7 @@ public class CliDriver {
             if (ss.getIsVerbose()) {
               ss.out.println(firstToken + " " + cmd_1);
             }
+            // 调用proc的run方法来处理cmd_1, 比如AddResourceProcessor, DeleteResourceProcessor, DfsProcessor, SetProcessor等
             CommandProcessorResponse res = proc.run(cmd_1);
             if (res.getResponseCode() != 0) {
               ss.out.println("Query returned non-zero code: " + res.getResponseCode() +
@@ -321,6 +324,7 @@ public class CliDriver {
    */
   private void printHeader(Driver qp, PrintStream out) {
     List<FieldSchema> fieldSchemas = qp.getSchema().getFieldSchemas();
+    // hive.cli.print.header默认值为false
     if (HiveConf.getBoolVar(conf, HiveConf.ConfVars.HIVE_CLI_PRINT_HEADER)
           && fieldSchemas != null) {
       // Print the column names

@@ -18,9 +18,6 @@
 
 package org.apache.hadoop.hive.ql.processors;
 
-import java.util.Arrays;
-import java.util.Map;
-
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.hive.conf.HiveVariableSource;
 import org.apache.hadoop.hive.conf.VariableSubstitution;
@@ -29,6 +26,9 @@ import org.apache.hadoop.hive.ql.session.SessionState;
 import org.apache.hadoop.hive.ql.session.SessionState.LogHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Arrays;
+import java.util.Map;
 
 /**
  * DeleteResourceProcessor.
@@ -43,6 +43,8 @@ public class DeleteResourceProcessor implements CommandProcessor {
   public void init() {
   }
 
+  // 用来处理delete xxx命令的, 注意传入的command是已经截掉第一个单词后的命令, 比如 命令是: delete jar /abc.jar, 传过来的cmmand是 jar /abc.jar
+  // 最终调用了SessionState的delete_resource方法,把resource从HashMap中去掉。
   @Override
   public CommandProcessorResponse run(String command) {
     SessionState ss = SessionState.get();

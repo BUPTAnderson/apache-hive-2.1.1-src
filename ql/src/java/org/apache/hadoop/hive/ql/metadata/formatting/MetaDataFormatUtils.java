@@ -594,9 +594,12 @@ public final class MetaDataFormatUtils {
     return indexCols.toString();
   }
   public static MetaDataFormatter getFormatter(HiveConf conf) {
+    // 默认值为text
     if ("json".equals(conf.get(HiveConf.ConfVars.HIVE_DDL_OUTPUT_FORMAT.varname, "text"))) {
       return new JsonMetaDataFormatter();
     } else {
+      // hive.cli.pretty.output.num.cols: DESCRIBE PRETTY table_name命令格式和输出列的数量。如果此属性的值为-1，则Hive将使用自动检测的终端宽度。
+      // hive.display.partition.cols.separately: descirbe table是分区列和非分区列是否分开显示, 默认分开
       return new TextMetaDataFormatter(conf.getIntVar(HiveConf.ConfVars.CLIPRETTYOUTPUTNUMCOLS), conf.getBoolVar(ConfVars.HIVE_DISPLAY_PARTITION_COLUMNS_SEPARATELY));
     }
   }

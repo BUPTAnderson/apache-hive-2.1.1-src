@@ -75,6 +75,7 @@ public class AddResourceProcessor implements CommandProcessor {
       return authErrResp;
     }
 
+    // 比如, 命令command是jar /abc.jar /cde.jar, 则t是ResourceType.JAR, Arrays.asList的值是/abc.jar和/cde.jar
     try {
       ss.add_resources(t,
           Arrays.asList(Arrays.copyOfRange(tokens, 1, tokens.length)));

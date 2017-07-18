@@ -367,11 +367,13 @@ public class Driver implements CommandProcessor {
     perfLogger.PerfLogBegin(CLASS_NAME, PerfLogger.COMPILE);
     stateLock.lock();
     try {
+      // 更新状态为COMPILING
       driverState = DriverState.COMPILING;
     } finally {
       stateLock.unlock();
     }
 
+    // 对command中的变量进行变量替换
     command = new VariableSubstitution(new HiveVariableSource() {
       @Override
       public Map<String, String> getHiveVariable() {
@@ -1169,6 +1171,7 @@ public class Driver implements CommandProcessor {
 
   public CommandProcessorResponse run(String command, boolean alreadyCompiled)
         throws CommandNeedRetryException {
+    // 处理逻辑在runInternal中
     CommandProcessorResponse cpr = runInternal(command, alreadyCompiled);
 
     if(cpr.getResponseCode() == 0) {
@@ -1178,6 +1181,7 @@ public class Driver implements CommandProcessor {
     if(ss == null) {
       return cpr;
     }
+    // 默认值TextMetaDataFormatter
     MetaDataFormatter mdf = MetaDataFormatUtils.getFormatter(ss.getConf());
     if(!(mdf instanceof JsonMetaDataFormatter)) {
       return cpr;
@@ -1240,6 +1244,7 @@ public class Driver implements CommandProcessor {
     }
 
     try {
+      // 继续调用compile, compile用来完成语法和语义的分析，生成执行计划
       ret = compile(command, true, deferClose);
 
     } finally {
@@ -1265,6 +1270,7 @@ public class Driver implements CommandProcessor {
   }
 
   /**
+   * 获取可重入锁。 如果配置了可重入锁等待超时，则如果在给定的等待时间内未锁定另一个线程，则会获取该锁。
    * Acquires the compile lock. If the compile lock wait timeout is configured,
    * it will acquire the lock if it is not held by another thread within the given
    * waiting time.
@@ -1348,6 +1354,7 @@ public class Driver implements CommandProcessor {
           return createProcessorResponse(12);
         }
       } else {
+        // alreadyCompiled为false
         driverState = DriverState.COMPILING;
       }
     } finally {
@@ -1358,11 +1365,13 @@ public class Driver implements CommandProcessor {
     // the method has been returned by an error or not.
     boolean isFinishedWithError = true;
     try {
+      // 如果alreadyCompiled是false
       HiveDriverRunHookContext hookContext = new HiveDriverRunHookContextImpl(conf,
           alreadyCompiled ? ctx.getCmd() : command);
       // Get all the driver run hooks and pre-execute them.
       List<HiveDriverRunHook> driverRunHooks;
       try {
+        // 获取hive.exec.driver.run.hooks配置的hooks, 默认为空
         driverRunHooks = getHooks(HiveConf.ConfVars.HIVE_DRIVER_RUN_HOOKS,
             HiveDriverRunHook.class);
         for (HiveDriverRunHook driverRunHook : driverRunHooks) {
@@ -1380,6 +1389,7 @@ public class Driver implements CommandProcessor {
       PerfLogger perfLogger = null;
 
       int ret;
+      // 如果alreadyCompiled为false, 调用compileInternal对HQL进行编译
       if (!alreadyCompiled) {
         // compile internal will automatically reset the perf logger
         ret = compileInternal(command, true);

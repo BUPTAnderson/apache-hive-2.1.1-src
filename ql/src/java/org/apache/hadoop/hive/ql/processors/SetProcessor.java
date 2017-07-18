@@ -18,18 +18,8 @@
 
 package org.apache.hadoop.hive.ql.processors;
 
-import static org.apache.hadoop.hive.serde.serdeConstants.SERIALIZATION_NULL_FORMAT;
-import static org.apache.hadoop.hive.serde.serdeConstants.STRING_TYPE_NAME;
-import static org.apache.hadoop.hive.serde2.MetadataTypedColumnsetSerDe.defaultNullString;
-
-import static org.apache.hadoop.hive.conf.SystemVariables.*;
-
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
-import java.util.SortedMap;
-import java.util.TreeMap;
-
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.conf.HiveVariableSource;
@@ -41,8 +31,21 @@ import org.apache.hadoop.hive.ql.session.SessionState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
+import java.util.Map;
+import java.util.Properties;
+import java.util.Set;
+import java.util.SortedMap;
+import java.util.TreeMap;
+
+import static org.apache.hadoop.hive.conf.SystemVariables.ENV_PREFIX;
+import static org.apache.hadoop.hive.conf.SystemVariables.HIVECONF_PREFIX;
+import static org.apache.hadoop.hive.conf.SystemVariables.HIVEVAR_PREFIX;
+import static org.apache.hadoop.hive.conf.SystemVariables.METACONF_PREFIX;
+import static org.apache.hadoop.hive.conf.SystemVariables.SET_COLUMN_NAME;
+import static org.apache.hadoop.hive.conf.SystemVariables.SYSTEM_PREFIX;
+import static org.apache.hadoop.hive.serde.serdeConstants.SERIALIZATION_NULL_FORMAT;
+import static org.apache.hadoop.hive.serde.serdeConstants.STRING_TYPE_NAME;
+import static org.apache.hadoop.hive.serde2.MetadataTypedColumnsetSerDe.defaultNullString;
 
 /**
  * SetProcessor.
@@ -335,6 +338,13 @@ public class SetProcessor implements CommandProcessor {
     return new CommandProcessorResponse(0, null, null, getSchema());
   }
 
+  // 用来处理set xxx等命令，可以用来设置参数，变量等。
+  // 1.设置参数时, 以system: 开头的调用了 System.getProperties().setProperty方法。 比如:
+  // hive> set system:user.name=xxxx;
+  // hive> set system:user.name;
+  // system:user.name=xxxx
+  // 2. 以hiveconf:开头：调用了HiveConf的verifyAndSet方法
+  // 3. 以hivevar:开头：ss.getHiveVariables().put方法
   @Override
   public CommandProcessorResponse run(String command) {
     SessionState ss = SessionState.get();
