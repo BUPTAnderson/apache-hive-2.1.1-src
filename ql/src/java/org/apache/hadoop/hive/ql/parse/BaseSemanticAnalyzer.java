@@ -18,22 +18,7 @@
 
 package org.apache.hadoop.hive.ql.parse;
 
-import java.io.IOException;
-import java.io.Serializable;
-import java.io.UnsupportedEncodingException;
-import java.sql.Date;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
-
+import com.google.common.annotations.VisibleForTesting;
 import org.antlr.runtime.tree.Tree;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -79,7 +64,21 @@ import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.annotations.VisibleForTesting;
+import java.io.IOException;
+import java.io.Serializable;
+import java.io.UnsupportedEncodingException;
+import java.sql.Date;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
 
 /**
  * BaseSemanticAnalyzer.
@@ -246,7 +245,9 @@ public abstract class BaseSemanticAnalyzer {
 
   public void analyze(ASTNode ast, Context ctx) throws SemanticException {
     initCtx(ctx);
+    // 调用子类SemanticAnalyzer的init方法(初始化QB(query block))
     init(true);
+    // 根据不同SemanticAnalyzer实现, 调用不同的analyzeInternal方法(比如调用CalcitePlanner的analyzeInternal)
     analyzeInternal(ast);
   }
 
@@ -364,6 +365,7 @@ public abstract class BaseSemanticAnalyzer {
   }
 
   public static String[] getQualifiedTableName(ASTNode tabNameNode) throws SemanticException {
+    // getChildCount值为1, 表示只有表名, 值为2, 表示是库名加表名
     if (tabNameNode.getType() != HiveParser.TOK_TABNAME ||
         (tabNameNode.getChildCount() != 1 && tabNameNode.getChildCount() != 2)) {
       throw new SemanticException(ErrorMsg.INVALID_TABLE_NAME.getMsg(tabNameNode));

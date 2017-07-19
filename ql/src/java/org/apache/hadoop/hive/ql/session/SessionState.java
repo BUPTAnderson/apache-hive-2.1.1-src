@@ -433,6 +433,7 @@ public class SessionState {
   }
 
   /**
+   * 初始化事务管理器。 这样做是为了避免在会话开始时硬连线一个事务管理器。
    * Initialize the transaction manager.  This is done lazily to avoid hard wiring one
    * transaction manager at the beginning of the session.
    * @param conf Hive configuration to initialize transaction manager

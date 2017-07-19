@@ -21,9 +21,7 @@ package org.apache.hadoop.hive.ql.parse;
 import org.antlr.runtime.tree.Tree;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.QueryState;
-import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.plan.HiveOperation;
-import org.apache.hadoop.hive.ql.session.SessionState;
 
 import java.util.HashMap;
 
@@ -169,6 +167,7 @@ public final class SemanticAnalyzerFactory {
     if (tree.getToken() == null) {
       throw new RuntimeException("Empty Syntax Tree");
     } else {
+      // TOK_QUERY是860, 返回的是HiveOperation.QUERY
       HiveOperation opType = commandType.get(tree.getType());
       queryState.setCommandType(opType);
       switch (tree.getType()) {
@@ -298,6 +297,7 @@ public final class SemanticAnalyzerFactory {
       case HiveParser.TOK_ROLLBACK:
       case HiveParser.TOK_SET_AUTOCOMMIT:
       default: {
+        // hive.cbo.enable默认值为true
         SemanticAnalyzer semAnalyzer = HiveConf
             .getBoolVar(queryState.getConf(), HiveConf.ConfVars.HIVE_CBO_ENABLED) ?
                 new CalcitePlanner(queryState) : new SemanticAnalyzer(queryState);

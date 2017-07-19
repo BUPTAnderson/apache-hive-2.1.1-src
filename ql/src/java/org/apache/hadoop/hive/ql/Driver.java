@@ -385,15 +385,18 @@ public class Driver implements CommandProcessor {
 
     try {
       // command should be redacted to avoid to logging sensitive data
+      // 使用hive.exec.query.redactor.hooks配置的hooks来转化hql, 默认hooks为空
       queryStr = HookUtils.redactLogString(conf, command);
     } catch (Exception e) {
       LOG.warn("WARNING! Query command could not be redacted." + e);
     }
 
+    // ctx是否为null, 默认为null
     if (ctx != null) {
       closeInProcess(false);
     }
 
+    // 是否中断
     if (isInterrupted()) {
       return handleInterruption("at beginning of compilation."); //indicate if need clean resource
     }
@@ -414,6 +417,7 @@ public class Driver implements CommandProcessor {
 
     boolean compileError = false;
     try {
+      // 初始化transaction manager, 必须在调用analyze之前完成. 默认实现是DummyTxnManager, 该manager不支持事务
       // Initialize the transaction manager.  This must be done before analyze is called.
       final HiveTxnManager txnManager = SessionState.get().initTxnMgr(conf);
       // In case when user Ctrl-C twice to kill Hive CLI JVM, we want to release locks
@@ -444,13 +448,17 @@ public class Driver implements CommandProcessor {
 
       perfLogger.PerfLogBegin(CLASS_NAME, PerfLogger.PARSE);
       ParseDriver pd = new ParseDriver();
+      // 通过ParseDriver获取AST(抽象语法树)
       ASTNode tree = pd.parse(command, ctx);
+      // 找到root节点, 通常tree有两个节点 child[0]是TOK_QUERY child[1]是<EOF>, 将child[0]赋给tree
       tree = ParseUtils.findRootNonNullToken(tree);
       perfLogger.PerfLogEnd(CLASS_NAME, PerfLogger.PARSE);
 
 
       perfLogger.PerfLogBegin(CLASS_NAME, PerfLogger.ANALYZE);
+      // queryState在Driver的无参构造方法中已经初始化过了, 会根据tree的tree.getType()来获取相应的SemanticAnalyzer, 如果是TOK_QUERY, 返回的是new CalcitePlanner(queryState)
       BaseSemanticAnalyzer sem = SemanticAnalyzerFactory.get(queryState, tree);
+      // 获取hive.semantic.analyzer.hook, 默认为空
       List<HiveSemanticAnalyzerHook> saHooks =
           getHooks(HiveConf.ConfVars.SEMANTIC_ANALYZER_HOOK,
               HiveSemanticAnalyzerHook.class);
@@ -461,6 +469,7 @@ public class Driver implements CommandProcessor {
       // because at that point we need access to the objects.
       Hive.get().getMSC().flushCache();
 
+      // 默认saHooks size是0, 执行else中的逻辑
       // Do semantic analysis and plan generation
       if (saHooks != null && !saHooks.isEmpty()) {
         HiveSemanticAnalyzerHookContext hookCtx = new HiveSemanticAnalyzerHookContextImpl();
@@ -477,6 +486,7 @@ public class Driver implements CommandProcessor {
           hook.postAnalyze(hookCtx, sem.getAllRootTasks());
         }
       } else {
+        // 调用BaseSemanticAnalyzer的analyze方法
         sem.analyze(tree, ctx);
       }
       // Record any ACID compliant FileSinkOperators we saw so we can add our transaction ID to
@@ -1237,6 +1247,7 @@ public class Driver implements CommandProcessor {
   private static final ReentrantLock globalCompileLock = new ReentrantLock();
   private int compileInternal(String command, boolean deferClose) {
     int ret;
+    // 获取重入锁
     final ReentrantLock compileLock = tryAcquireCompileLock(isParallelEnabled,
       command);
     if (compileLock == null) {
@@ -1354,7 +1365,7 @@ public class Driver implements CommandProcessor {
           return createProcessorResponse(12);
         }
       } else {
-        // alreadyCompiled为false
+        // alreadyCompiled为false, 更新driverState为DriverState.COMPILING
         driverState = DriverState.COMPILING;
       }
     } finally {

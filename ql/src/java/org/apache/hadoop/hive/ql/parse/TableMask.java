@@ -17,22 +17,23 @@
  */
 package org.apache.hadoop.hive.ql.parse;
 
-import java.util.Iterator;
-import java.util.List;
-
 import org.antlr.runtime.TokenRewriteStream;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.Context;
 import org.apache.hadoop.hive.ql.metadata.HiveUtils;
 import org.apache.hadoop.hive.ql.metadata.VirtualColumn;
 import org.apache.hadoop.hive.ql.security.authorization.plugin.HiveAuthorizer;
-import org.apache.hadoop.hive.ql.security.authorization.plugin.HivePrivilegeObject;
 import org.apache.hadoop.hive.ql.security.authorization.plugin.HiveAuthzContext;
+import org.apache.hadoop.hive.ql.security.authorization.plugin.HivePrivilegeObject;
 import org.apache.hadoop.hive.ql.session.SessionState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Iterator;
+import java.util.List;
+
 /**
+ * 这个类的主要目的是授权。 更具体地说，行过滤和列掩蔽是通过这个类完成的。 我们首先调用create函数来创建用于行过滤和列屏蔽的相应字符串。 然后我们用字符串替换TAB_REF。
  * The main purpose for this class is for authorization. More specifically, row
  * filtering and column masking are done through this class. We first call
  * create function to create the corresponding strings for row filtering and

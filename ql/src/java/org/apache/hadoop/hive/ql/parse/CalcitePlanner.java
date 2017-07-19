@@ -224,7 +224,9 @@ public class CalcitePlanner extends SemanticAnalyzer {
   private EnumSet<ExtendedCBOProfile> profilesCBO;
 
   public CalcitePlanner(QueryState queryState) throws SemanticException {
+    // 调用父类SemanticAnalyzer的构造方法
     super(queryState);
+    // 默认值为true, 所以if中的逻辑不会执行
     if (!HiveConf.getBoolVar(conf, HiveConf.ConfVars.HIVE_CBO_ENABLED)) {
       runCBO = false;
       disableSemJoinReordering = false;
@@ -241,8 +243,10 @@ public class CalcitePlanner extends SemanticAnalyzer {
   @Override
   @SuppressWarnings("nls")
   public void analyzeInternal(ASTNode ast) throws SemanticException {
+    // 默认为true
     if (runCBO) {
       PreCboCtx cboCtx = new PreCboCtx();
+      // 调用SemanticAnalyzer的analyzeInternal方法
       super.analyzeInternal(ast, cboCtx);
     } else {
       super.analyzeInternal(ast);

@@ -406,7 +406,7 @@ public class CliDriver {
           continue;
         }
 
-        // 调用processCmd来处理输入
+        // 调用processCmd来处理输入, 这里的command是一条hql且已经不带';'
         ret = processCmd(command);
         command = "";
         lastRet = ret;
@@ -820,7 +820,7 @@ public class CliDriver {
       // 如果当前行以':'结尾, 且不是已'\\;'结尾, 则认为用户已经输入完一条完整的sql, 调用processLine方法执行该sql.
       if (line.trim().endsWith(";") && !line.trim().endsWith("\\;")) {
         line = prefix + line;
-        // 最最核心的地方, processLine方法, true表示可以通过ctrl + c进行中断
+        // 最最核心的地方, processLine方法, true表示可以通过ctrl + c进行中断, 这里的line是带着';'的
         ret = cli.processLine(line, true);
         // 处理完成后, prefix再置为"", 即初始化再次等待用户输入
         prefix = "";

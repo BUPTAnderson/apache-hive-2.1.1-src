@@ -349,6 +349,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
   }
 
   public SemanticAnalyzer(QueryState queryState) throws SemanticException {
+    // 调用BaseSemanticAnalyzer的构造方法
     super(queryState);
     opToPartPruner = new HashMap<TableScanOperator, ExprNodeDesc>();
     opToPartList = new HashMap<TableScanOperator, PrunedPartitionList>();
@@ -10502,6 +10503,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     // clear most members
     reset(clearPartsCache);
 
+    // 初始化QB(query block)
     // init
     QB qb = new QB(null, null, false);
     this.qb = qb;
@@ -10708,9 +10710,12 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     ctesExpanded = new ArrayList<String>();
 
     // 1. analyze and process the position alias
+    // 如果hive.groupby.orderby.position.alias设置为true,则group by和order by中可以用数字替代前面的列,
+    // 比如:"command = "select a, b, c from abc order by 2, 3" 在processPositionAlias方法中会将ast中的2,3替换为b, c
     processPositionAlias(ast);
 
     // 2. analyze create table command
+    // 判断是不是create table语句
     if (ast.getToken().getType() == HiveParser.TOK_CREATETABLE) {
       // if it is not CTAS, we don't need to go further and just return
       if ((child = analyzeCreateTable(ast, qb, plannerCtx)) == null) {
@@ -10721,6 +10726,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     }
 
     // 3. analyze create view command
+    // 判断是不是创建视图操作
     if (ast.getToken().getType() == HiveParser.TOK_CREATEVIEW
         || (ast.getToken().getType() == HiveParser.TOK_ALTERVIEW && ast.getChild(1).getType() == HiveParser.TOK_QUERY)) {
       child = analyzeCreateView(ast, qb);
@@ -10733,6 +10739,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       viewsExpanded.add(createVwDesc.getViewName());
     }
 
+    // switch来判断是不是事务相关操作
     switch(ast.getToken().getType()) {
       case HiveParser.TOK_SET_AUTOCOMMIT:
         assert ast.getChildCount() == 1;
@@ -11965,6 +11972,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
   // Process the position alias in GROUPBY and ORDERBY
   private void processPositionAlias(ASTNode ast) throws SemanticException {
     boolean isByPos = false;
+    // hive.groupby.orderby.position.alias: 是否启用在分组或排序方式中使用列位置别名, 默认值为false
     if (HiveConf.getBoolVar(conf,
           HiveConf.ConfVars.HIVE_GROUPBY_ORDERBY_POSITION_ALIAS) == true) {
       isByPos = true;

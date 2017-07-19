@@ -127,6 +127,8 @@ public class ParseDriver {
   }
 
   /**
+   * 用于使antlr返回ASTNodes而不是CommonTree节点的树适配器，以便可以在AST节点中使用ql.lib中定义的图行走算法和规则框架。
+   *
    * Tree adaptor for making antlr return ASTNodes instead of CommonTree nodes
    * so that the graph walking algorithms and the rules framework defined in
    * ql.lib can be used with the AST Nodes.

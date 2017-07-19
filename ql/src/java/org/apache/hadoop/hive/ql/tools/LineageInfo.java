@@ -18,13 +18,6 @@
 
 package org.apache.hadoop.hive.ql.tools;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Stack;
-import java.util.TreeSet;
-
 import org.apache.hadoop.hive.ql.lib.DefaultGraphWalker;
 import org.apache.hadoop.hive.ql.lib.DefaultRuleDispatcher;
 import org.apache.hadoop.hive.ql.lib.Dispatcher;
@@ -39,6 +32,13 @@ import org.apache.hadoop.hive.ql.parse.HiveParser;
 import org.apache.hadoop.hive.ql.parse.ParseDriver;
 import org.apache.hadoop.hive.ql.parse.ParseException;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Stack;
+import java.util.TreeSet;
 
 /**
  *
@@ -122,11 +122,13 @@ public class LineageInfo implements NodeProcessor {
     inputTableList.clear();
     OutputTableList.clear();
 
+    // 创建一个walker，以DFS(深度优先搜索)方式走树，同时保持操作员堆栈。 调度员从操作树生成计划
     // create a walker which walks the tree in a DFS manner while maintaining
     // the operator stack. The dispatcher
     // generates the plan from the operator tree
     Map<Rule, NodeProcessor> rules = new LinkedHashMap<Rule, NodeProcessor>();
 
+    // 调度员触发对应于最接近的匹配规则的处理器，并传递上下文
     // The dispatcher fires the processor corresponding to the closest matching
     // rule and passes the context along
     Dispatcher disp = new DefaultRuleDispatcher(this, rules, null);
