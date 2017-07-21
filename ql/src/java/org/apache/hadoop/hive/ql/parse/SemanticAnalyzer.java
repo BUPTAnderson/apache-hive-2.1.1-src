@@ -10169,6 +10169,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
   }
 
   public Operator genPlan(QB qb) throws SemanticException {
+    // 第二个参数指是否跳过模糊检查
     return genPlan(qb, false);
   }
 
@@ -10181,6 +10182,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     Map<String, Operator> aliasToOpInfo = new LinkedHashMap<String, Operator>();
 
     // Recurse over the subqueries to fill the subquery part of the plan
+    // 在子查询上重新填充计划的子查询部分
     for (String alias : qb.getSubqAliases()) {
       QBExpr qbexpr = qb.getSubqForAlias(alias);
       Operator operator = genPlan(qb, qbexpr);

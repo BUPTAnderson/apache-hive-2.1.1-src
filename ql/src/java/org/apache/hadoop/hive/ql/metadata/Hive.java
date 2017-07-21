@@ -3392,6 +3392,7 @@ private void constructOneLBLocationMap(FileStatus fSta,
   @LimitedPrivate(value = {"Hive"})
   @Unstable
   public synchronized IMetaStoreClient getMSC() throws MetaException {
+    // 第一个参数指是否允许嵌入式的HiveMetaStore服务
     return getMSC(true, false);
   }
 

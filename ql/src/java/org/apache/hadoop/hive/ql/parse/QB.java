@@ -48,6 +48,7 @@ public class QB {
   private int numSelDi = 0;
   // alias -> 表名的映射
   private HashMap<String, String> aliasToTabs;
+  // alias -> 子查询的映射
   private HashMap<String, QBExpr> aliasToSubq;
   private HashMap<String, Table> viewAliasToViewSchema;
   private HashMap<String, Map<String, String>> aliasToProps;

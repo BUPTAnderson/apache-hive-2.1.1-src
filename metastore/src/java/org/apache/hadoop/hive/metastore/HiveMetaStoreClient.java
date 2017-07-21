@@ -225,9 +225,9 @@ public class HiveMetaStoreClient implements IMetaStoreClient {
 
     // 获取配置项:hive.metastore.uris的值, 如: thrift://bds-test-0001:9083
     String msUri = conf.getVar(ConfVars.METASTOREURIS);
-    // 如果配置项hive.metastore.uris的值为null或"", 则是使用本地的metastore, localMetaStore为true, 否则为false
+    // metastore有两种模式, 本地模式和远程模式, 如果配置项hive.metastore.uris的值为null或"", 则是使用本地的metastore, localMetaStore为true, 否则为false, 使用远程metastore
     localMetaStore = HiveConfUtil.isEmbeddedMetaStore(msUri);
-    // 如果metastore是本地模式, 执行下面代码
+    // 如果metastore是本地模式(在本地起metastore服务), 执行下面代码
     if (localMetaStore) {
       if (!allowEmbedded) {
         throw new MetaException("Embedded metastore is not allowed here. Please configure "
@@ -235,6 +235,7 @@ public class HiveMetaStoreClient implements IMetaStoreClient {
       }
       // instantiate the metastore server handler directly instead of connecting
       // through the network
+      // 如果是hive.metastore.fastpath设置为true, 则client是一个HMSHandler, 如果设置为false, 则是一个封装了HMSHandler的RetryingHMSHandler, 该client有重试机制
       if (conf.getBoolVar(ConfVars.METASTORE_FASTPATH)) {
         client = new HiveMetaStore.HMSHandler("hive client", conf, true);
         fastpath = true;
@@ -243,6 +244,7 @@ public class HiveMetaStoreClient implements IMetaStoreClient {
       }
       isConnected = true;
       snapshotActiveConf();
+      // 如果是本地模式, 到这里就返回了.
       return;
     } else {
       // 如果metastore是非本地模式, 则hive.metastore.fastpath必须设置为false

@@ -188,7 +188,9 @@ public class ParseDriver {
       LOG.debug("Parsing command: " + command);
     }
 
+    // 词法分析器(根据HiveLexer.g进行词法分析), HiveLexerX继承子HiveLexer, HiveLexer由Antlr根据HiveLexer.g生成
     HiveLexerX lexer = new HiveLexerX(new ANTLRNoCaseStringStream(command));
+    // 词法分析, 获得tokens流
     TokenRewriteStream tokens = new TokenRewriteStream(lexer);
     if (ctx != null) {
       if ( setTokenRewriteStream) {
@@ -196,6 +198,7 @@ public class ParseDriver {
       }
       lexer.setHiveConf(ctx.getConf());
     }
+    // parser解析, 语法解析, HiveParser由Antlr根据HiveParser.g生成
     HiveParser parser = new HiveParser(tokens);
     if (ctx != null) {
       parser.setHiveConf(ctx.getConf());
