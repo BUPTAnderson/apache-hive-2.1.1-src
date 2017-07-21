@@ -1292,8 +1292,10 @@ public class Driver implements CommandProcessor {
    */
   private ReentrantLock tryAcquireCompileLock(boolean isParallelEnabled,
     String command) {
+    // 是否支持并发, 默认为false, 则compileLock从SessionState获取, 否则用Driver的全局锁
     final ReentrantLock compileLock = isParallelEnabled ?
         SessionState.get().getCompileLock() : globalCompileLock;
+    // 获取编译锁等待超时时间, 默认为0, 永不超时
     long maxCompileLockWaitTime = HiveConf.getTimeVar(
       this.conf, ConfVars.HIVE_SERVER2_COMPILE_LOCK_TIMEOUT,
       TimeUnit.SECONDS);

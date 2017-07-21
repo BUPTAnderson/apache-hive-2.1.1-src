@@ -18,6 +18,12 @@
 
 package org.apache.hadoop.hive.ql.parse;
 
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.ql.metadata.Table;
+import org.apache.hadoop.hive.ql.plan.CreateTableDesc;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -26,12 +32,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hive.ql.metadata.Table;
-import org.apache.hadoop.hive.ql.plan.CreateTableDesc;
 
 /**
  * Implementation of the query block.
@@ -46,10 +46,12 @@ public class QB {
   private final int numGbys = 0;
   private int numSels = 0;
   private int numSelDi = 0;
+  // alias -> 表名的映射
   private HashMap<String, String> aliasToTabs;
   private HashMap<String, QBExpr> aliasToSubq;
   private HashMap<String, Table> viewAliasToViewSchema;
   private HashMap<String, Map<String, String>> aliasToProps;
+  // 当前包含的别名, 主要是为了判断多个别名不可以重复
   private List<String> aliases;
   private QBParseInfo qbp;
   private QBMetaData qbm;

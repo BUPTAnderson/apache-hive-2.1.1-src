@@ -664,6 +664,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
   }
 
   /**
+   * 传入的ASTNode根节点是TOK_TABREF
    * Goes though the tabref tree and finds the alias for the table. Once found,
    * it records the table name-> alias association in aliasToTabs. It also makes
    * an association from the alias to the table AST in parse info.
@@ -687,16 +688,20 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       } else if (ct.getToken().getType() == HiveParser.TOK_TABLEPROPERTIES) {
         propsIndex = index;
       } else {
+        // 不符合的话将index赋值给aliasIndex
         aliasIndex = index;
       }
     }
 
+    // tableTree是根节点是TOK_TABNAME
     ASTNode tableTree = (ASTNode) (tabref.getChild(0));
 
+    // tabIdName是 库名.表名
     String tabIdName = getUnescapedName(tableTree).toLowerCase();
 
     String alias;
     if (aliasIndex != 0) {
+      // 不为0的话获取对应child的名字, 实际就是子查询或表的别名
       alias = unescapeIdentifier(tabref.getChild(aliasIndex).getText());
     }
     else {
@@ -782,13 +787,16 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       String alias_id = getAliasId(alias, qb);
       nameToSplitSample.put(alias_id, sample);
     }
+    // 将别名和表名插入到qb的aliasToTabs中
     // Insert this map into the stats
     qb.setTabAlias(alias, tabIdName);
     if (qb.isInsideView()) {
       qb.getAliasInsideView().add(alias.toLowerCase());
     }
+    // 将别名加入到aliases中
     qb.addAlias(alias);
 
+    // 将表的别名和对应的TOK_TABNAME加入到qb的qbp的aliasToSrc中
     qb.getParseInfo().setSrcForAlias(alias, tableTree);
 
     // if alias to CTE contains the alias, we do not do the translation because
@@ -1360,6 +1368,11 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
   /**
    * Phase 1: (including, but not limited to):
    *
+   * 1. 获取所有表/子查询的所有别名，并在aliasToTabs，aliasToSubq中进行适当的映射
+   * 2.
+   * 3. 从聚合树的字符串表示形式创建映射到实际的聚合AST
+   * 4. 在destToSelExpr中创建从子查询到select表达式AST的映射
+   * 5. 创建从别名到aliasToLateralViews中的横向视图AST的映射
    * 1. Gets all the aliases for all the tables / subqueries and makes the
    * appropriate mapping in aliasToTabs, aliasToSubq 2. Gets the location of the
    * destination and names the clause "inclause" + i 3. Creates a map from a
@@ -1388,7 +1401,8 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
         qb.countSelDi();
         // fall through
       case HiveParser.TOK_SELECT:
-        qb.countSel();
+        qb.countSel(); // 加1
+        // 插入子句<--> 数据来源表 ASTNode
         qbp.setSelExprForClause(ctx_1.dest, ast);
 
         int posn = 0;
@@ -1420,6 +1434,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
         qbp.addInsertIntoTable(tab_name, ast);
 
       case HiveParser.TOK_DESTINATION:
+        // insclause应该是insert clause插入子句, 插入子句<--> 插入目的表 ASTNode
         ctx_1.dest = "insclause-" + ctx_1.nextNum;
         ctx_1.nextNum++;
         boolean isTmpFileDest = false;
@@ -1428,6 +1443,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
           if (ch.getToken().getType() == HiveParser.TOK_DIR && ch.getChildCount() > 0
               && ch.getChild(0) instanceof ASTNode) {
             ch = (ASTNode) ch.getChild(0);
+            // 判断节点是不是TOK_TMP_FILE, 如果是isTmpFileDest是true
             isTmpFileDest = ch.getToken().getType() == HiveParser.TOK_TMP_FILE;
           } else {
             if (ast.getToken().getType() == HiveParser.TOK_DESTINATION
@@ -1445,10 +1461,12 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
         }
 
         if (plannerCtx != null) {
+          // 如果isTmpFileDest是true的话实际不会做任何操作
           plannerCtx.setInsertToken(ast, isTmpFileDest);
         }
 
         qbp.setDestForClause(ctx_1.dest, (ASTNode) ast.getChild(0));
+        // 对insert into foo(z,y) select a,b from bar语句进行处理
         handleInsertStatementSpecPhase1(ast, qbp, ctx_1);
         if (qbp.getClauseNamesForDest().size() > 1) {
           queryProperties.setMultiDestQuery(true);
@@ -1465,6 +1483,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
         // Check if this is a subquery / lateral view
         ASTNode frm = (ASTNode) ast.getChild(0);
         if (frm.getToken().getType() == HiveParser.TOK_TABREF) {
+          // 如果hql中包含别名, 将别名信息保存到qb中
           processTable(qb, frm);
         } else if (frm.getToken().getType() == HiveParser.TOK_VIRTUAL_TABLE) {
           // Create a temp table with the passed values in it then rewrite this portion of the
@@ -1582,6 +1601,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
               new Integer(ast.getChild(0).getText()),
               new Integer(ast.getChild(1).getText()));
         } else {
+          // 设置limit值
           qbp.setDestLimit(ctx_1.dest, new Integer(0),
               new Integer(ast.getChild(0).getText()));
         }
@@ -1615,9 +1635,11 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
         break;
 
       case HiveParser.TOK_INSERT:
+        // child[0]是TOK_DESTINATION
         ASTNode destination = (ASTNode) ast.getChild(0);
         Tree tab = destination.getChild(0);
 
+        // 如果包含partition执行if里面的逻辑
         // Proceed if AST contains partition & If Not Exists
         if (destination.getChildCount() == 2 &&
             tab.getChildCount() == 2 &&
@@ -1679,6 +1701,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       }
     }
 
+    // 是否跳过递归, 不跳过的话就执行if里面的逻辑
     if (!skipRecursion) {
       // Iterate over the rest of the children
       int child_count = ast.getChildCount();
@@ -2191,6 +2214,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
   }
 
   /**
+   * 检查给定的路径是否加密（仅适用于HDFS文件）
    * Checks if a given path is encrypted (valid only for HDFS files)
    * @param path The path to check for encryption
    * @return True if the path is encrypted; False if it is not encrypted
@@ -10770,7 +10794,10 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     
     // 4. continue analyzing from the child ASTNode.
     Phase1Ctx ctx_1 = initPhase1Ctx();
+    // 对于insert操作,判断要插入的表是否加密, 如果加密, 将要插入表的path放到qb的encryptedTargetTablePaths列表中
     preProcessForInsert(child, qb);
+    // CalcitePlanner传递过来的plannerCtx是new PreCboCtx()
+    // doPhase1的关键逻辑在该方法最后面的if语句中, 实际是递归处理child的各个节点. 将sql语句中涉及到的各种信息存储起来，存到QB中去，留着后面用, 正常处理成功返回true
     if (!doPhase1(child, qb, ctx_1, plannerCtx)) {
       // if phase1Result false return
       return false;
@@ -10779,6 +10806,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
 
     // 5. Resolve Parse Tree
     // Materialization is allowed if it is not a view definition
+    // 获取元数据信息，主要是sql中涉及到的 表 和 元数据 的关联
     getMetaData(qb, createVwDesc == null);
     LOG.info("Completed getting MetaData in Semantic Analysis");
 
@@ -10814,6 +10842,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
         String[] dbTab = getQualifiedTableName(n);
         Table t = db.getTable(dbTab[0], dbTab[1]);
         Path tablePath = t.getPath();
+        // 检查要插入的表是否加密, 如果加密将表的path加入到qb的encryptedTargetTablePaths列表中
         if (isPathEncrypted(tablePath)) {
           qb.addEncryptedTargetTablePath(tablePath);
         }
@@ -10829,12 +10858,14 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
 
   void analyzeInternal(ASTNode ast, PlannerContext plannerCtx) throws SemanticException {
     // 1. Generate Resolved Parse tree from syntax tree
+    // 将hql中的一些表信息等保存到qb中
     LOG.info("Starting Semantic Analysis");
     if (!genResolvedParseTree(ast, plannerCtx)) {
       return;
     }
 
     // 2. Gen OP Tree from resolved Parse Tree
+    // 生成Operator Tree, Operator是一个抽象类
     Operator sinkOp = genOPTree(ast, plannerCtx);
 
     if (!unparseTranslator.isEnabled() && tableMask.isEnabled()) {
@@ -11978,6 +12009,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       isByPos = true;
     }
 
+    // 下面的逻辑是通过对AST做DFS来进行处理
     Deque<ASTNode> stack = new ArrayDeque<ASTNode>();
     stack.push(ast);
 
