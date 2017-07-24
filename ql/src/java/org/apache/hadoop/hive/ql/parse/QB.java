@@ -48,7 +48,7 @@ public class QB {
   private int numSelDi = 0;
   // alias -> 表名的映射
   private HashMap<String, String> aliasToTabs;
-  // alias -> 子查询的映射
+  // alias -> 子查询的映射, QBExpr又包含QB对象, 也就是说如果有子查询的话, 子查询又有对应的qb
   private HashMap<String, QBExpr> aliasToSubq;
   private HashMap<String, Table> viewAliasToViewSchema;
   private HashMap<String, Map<String, String>> aliasToProps;
@@ -113,6 +113,7 @@ public class QB {
   public QB() {
   }
 
+  // SemanticAnalyzer中init方法会初始化QB, 传入的参数是: null, null, false
   public QB(String outer_id, String alias, boolean isSubQ) {
     // Must be deterministic order maps - see HIVE-8707
     aliasToTabs = new LinkedHashMap<String, String>();
@@ -128,6 +129,7 @@ public class QB {
     // Must be deterministic order maps - see HIVE-8707
     ptfNodeToSpec = new LinkedHashMap<ASTNode, PTFInvocationSpec>();
     destToWindowingSpec = new LinkedHashMap<String, WindowingSpec>();
+    // id 为null
     id = getAppendedAliasFromId(outer_id, alias);
     aliasInsideView = new HashSet<>();
   }

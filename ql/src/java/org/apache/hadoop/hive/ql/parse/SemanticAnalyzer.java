@@ -10799,7 +10799,8 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     // 对于insert操作,判断要插入的表是否加密, 如果加密, 将要插入表的path放到qb的encryptedTargetTablePaths列表中
     preProcessForInsert(child, qb);
     // CalcitePlanner传递过来的plannerCtx是new PreCboCtx()
-    // doPhase1的关键逻辑在该方法最后面的if语句中, 实际是递归处理child的各个节点. 将sql语句中涉及到的各种信息存储起来，存到QB中去，留着后面用, 正常处理成功返回true
+    // doPhase1方法的关键逻辑在该方法最后面的if语句中, 实际是递归处理child的各个节点. 将sql语句中涉及到的各种信息存储起来，存到QB中去，留着后面用,
+    // 正常处理成功返回true, 同时意味着QB生成成功, qb也是树形结构, 一般一个from对应一个qb
     if (!doPhase1(child, qb, ctx_1, plannerCtx)) {
       // if phase1Result false return
       return false;
@@ -10808,7 +10809,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
 
     // 5. Resolve Parse Tree
     // Materialization is allowed if it is not a view definition
-    // 获取元数据信息，主要是sql中涉及到的 表 和 元数据 的关联
+    // 获取元数据信息，主要是sql中涉及到的表和元数据的关联
     getMetaData(qb, createVwDesc == null);
     LOG.info("Completed getting MetaData in Semantic Analysis");
 
@@ -10858,9 +10859,11 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     return genPlan(qb);
   }
 
+  // 该方法是最核心的地方, 输入ast -> 输出mapreduce作业
+  // 该方法在两个地方被调用, 如果是SemanticAnalyzer调用的该方法, 传入的是new PlannerContext, 如果是CAlcitePlanner调用的该方法, 传入的是new PreCboCtx(), PreCboCtx是PlannerContext的子类
   void analyzeInternal(ASTNode ast, PlannerContext plannerCtx) throws SemanticException {
     // 1. Generate Resolved Parse tree from syntax tree
-    // 将hql中的一些表信息等保存到qb中
+    // genResolvedParseTree方法的作用是将hql中的一些表信息等保存到qb中, 即生成qb(query block)
     LOG.info("Starting Semantic Analysis");
     if (!genResolvedParseTree(ast, plannerCtx)) {
       return;

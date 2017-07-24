@@ -244,6 +244,7 @@ public abstract class BaseSemanticAnalyzer {
   }
 
   public void analyze(ASTNode ast, Context ctx) throws SemanticException {
+    // 初始化Context, 就是把ctx赋值给当前类的ctx
     initCtx(ctx);
     // 调用子类SemanticAnalyzer的init方法(初始化QB(query block))
     init(true);

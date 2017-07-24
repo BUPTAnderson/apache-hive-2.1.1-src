@@ -18,19 +18,6 @@
 
 package org.apache.hadoop.hive.ql;
 
-import java.io.DataInput;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.net.URI;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
-
 import org.antlr.runtime.TokenRewriteStream;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.ContentSummary;
@@ -55,6 +42,19 @@ import org.apache.hadoop.hive.shims.ShimLoader;
 import org.apache.hadoop.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.DataInput;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.net.URI;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Context for Semantic Analyzers. Usage: not reusable - construct a new one for
@@ -128,6 +128,7 @@ public class Context {
   private boolean skipTableMasking;
 
   public Context(Configuration conf) throws IOException {
+    // ExecutionId, 如: hive_2017-07-24_09-14-10_317_5823297735419077050
     this(conf, generateExecutionId());
   }
 

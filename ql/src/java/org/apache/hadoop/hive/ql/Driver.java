@@ -456,7 +456,9 @@ public class Driver implements CommandProcessor {
 
 
       perfLogger.PerfLogBegin(CLASS_NAME, PerfLogger.ANALYZE);
-      // queryState在Driver的无参构造方法中已经初始化过了, 会根据tree的tree.getType()来获取相应的SemanticAnalyzer, 如果是TOK_QUERY, 返回的是new CalcitePlanner(queryState)
+      // queryState在Driver的无参构造方法中已经初始化过了, 会根据tree的tree.getType()来获取相应的SemanticAnalyzer, 如果是TOK_QUERY,
+      // 会判断hive.cbo.enable的值, 如果是true, 返回的是new CalcitePlanner(queryState), 如果是false, 返回的是new SemanticAnalyzer(queryState),
+      // 默认值是true, 即返回CalcitePlanner(queryState), CBO（Cost Based Optimizatio）,基于成本模型的优化
       BaseSemanticAnalyzer sem = SemanticAnalyzerFactory.get(queryState, tree);
       // 获取hive.semantic.analyzer.hook, 默认为空
       List<HiveSemanticAnalyzerHook> saHooks =
