@@ -10203,6 +10203,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     }
 
     // Recurse over all the source tables
+    // 重复所有源表
     for (String alias : qb.getTabAliases()) {
       Operator op = genTablePlan(alias, qb);
       aliasToOpInfo.put(alias, op);
@@ -10800,7 +10801,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     preProcessForInsert(child, qb);
     // CalcitePlanner传递过来的plannerCtx是new PreCboCtx()
     // doPhase1方法的关键逻辑在该方法最后面的if语句中, 实际是递归处理child的各个节点. 将sql语句中涉及到的各种信息存储起来，存到QB中去，留着后面用,
-    // 正常处理成功返回true, 同时意味着QB生成成功, qb也是树形结构, 一般一个from对应一个qb
+    // 正常处理成功返回true, 同时意味着QB生成成功, qb理论上也是树形结构, 一般一个from对应一个qb, 即如果有子查询的话, 每个子查询也会对应一个qb, 保存在qb的aliasToSubq中
     if (!doPhase1(child, qb, ctx_1, plannerCtx)) {
       // if phase1Result false return
       return false;
@@ -10809,7 +10810,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
 
     // 5. Resolve Parse Tree
     // Materialization is allowed if it is not a view definition
-    // 获取元数据信息，主要是sql中涉及到的表和元数据的关联
+    // 获取元数据信息，主要是sql中涉及到的表和元数据的关联, 第4步中生成了qb, 但是qb中没有对应的元数据, getMetaData方法的作用就是获取元数据
     getMetaData(qb, createVwDesc == null);
     LOG.info("Completed getting MetaData in Semantic Analysis");
 
@@ -10870,7 +10871,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     }
 
     // 2. Gen OP Tree from resolved Parse Tree
-    // 生成Operator Tree, Operator是一个抽象类
+    // 生成Operator Tree, Operator是一个抽象类, sinkOp是一个有向无环图
     Operator sinkOp = genOPTree(ast, plannerCtx);
 
     if (!unparseTranslator.isEnabled() && tableMask.isEnabled()) {

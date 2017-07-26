@@ -162,6 +162,7 @@ public class UDFToDouble extends UDF {
    * @return DoubleWritable
    */
   public DoubleWritable evaluate(Text i) {
+    // 有三种情况会返回null
     if (i == null) {
       return null;
     } else {
