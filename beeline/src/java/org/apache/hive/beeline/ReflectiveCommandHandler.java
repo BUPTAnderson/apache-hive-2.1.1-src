@@ -42,6 +42,7 @@ public class ReflectiveCommandHandler extends AbstractCommandHandler {
    * @param completer
    */
   public ReflectiveCommandHandler(BeeLine beeLine, String[] cmds, Completer[] completer) {
+    // 如果cmds[0]是connect, loc方法返回的是: Open a new connection to the database.
     super(beeLine, cmds, beeLine.loc("help-" + cmds[0]), completer);
     this.beeLine = beeLine;
   }
@@ -49,6 +50,7 @@ public class ReflectiveCommandHandler extends AbstractCommandHandler {
   public boolean execute(String line) {
     lastException = null;
     try {
+      // getName返回的是cmds[0], 比如connect, 即获取Commands的connect(String line)方法, 进行调用, 即执行 new Commands(this).connect(line)方法, 建立连接的话返回true
       Object ob = beeLine.getCommands().getClass().getMethod(getName(),
           new Class[] {String.class})
           .invoke(beeLine.getCommands(), new Object[] {line});

@@ -144,16 +144,18 @@ public class SQLOperation extends ExecuteStatementOperation {
 
   /**
    * Compile the query and extract metadata
-   * @param sqlOperationConf
+   * @param queryState
    * @throws HiveSQLException
    */
   public void prepare(QueryState queryState) throws HiveSQLException {
     setState(OperationState.RUNNING);
     try {
+      // 实例化driver
       driver = new Driver(queryState, getParentSession().getUserName());
 
       // Start the timer thread for cancelling the query when query timeout is reached
       // queryTimeout == 0 means no timeout
+      // 当达到查询超时时启动定时器线程取消查询, 如果queryTimeout为0, 则表示不存在超时
       if (queryTimeout > 0) {
         timeoutExecutor = new ScheduledThreadPoolExecutor(1);
         Runnable timeoutTask = new Runnable() {
@@ -188,11 +190,13 @@ public class SQLOperation extends ExecuteStatementOperation {
       // For now, we disable the test attempts.
       driver.setTryCount(Integer.MAX_VALUE);
 
+      // 编译statement, 生成执行计划
       response = driver.compileAndRespond(statement);
       if (0 != response.getResponseCode()) {
         throw toSQLException("Error while compiling statement", response);
       }
 
+      // 上面在执行driver的compileAndRespond方法的过程中会设置schema
       mResultSchema = driver.getSchema();
 
       // hasResultSet should be true only if the query has a FetchTask
@@ -268,14 +272,18 @@ public class SQLOperation extends ExecuteStatementOperation {
   public void runInternal() throws HiveSQLException {
     setState(OperationState.PENDING);
 
+    // runAsync默认是false
     boolean runAsync = shouldRunAsync();
+    // 默认是false
     final boolean asyncPrepare = runAsync
       && HiveConf.getBoolVar(queryState.getConf(),
         HiveConf.ConfVars.HIVE_SERVER2_ASYNC_EXEC_ASYNC_COMPILE);
+    // asyncPrepare是false, 所以执行prepare方法, 会对hql进行编译生成执行计划
     if (!asyncPrepare) {
       prepare(queryState);
     }
     if (!runAsync) {
+      // 执行查询
       runQuery();
     } else {
       // We'll pass ThreadLocals in the background thread from the foreground (handler) thread.

@@ -18,6 +18,8 @@
 
 package org.apache.hive.jdbc;
 
+import org.apache.hive.jdbc.Utils.JdbcConnectionParams;
+
 import java.io.IOException;
 import java.net.URL;
 import java.sql.Connection;
@@ -30,8 +32,6 @@ import java.util.jar.Attributes;
 import java.util.jar.Manifest;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
-
-import org.apache.hive.jdbc.Utils.JdbcConnectionParams;
 
 
 /**
@@ -104,6 +104,7 @@ public class HiveDriver implements Driver {
    */
   @Override
   public Connection connect(String url, Properties info) throws SQLException {
+    // 调用acceptsURL方法, 正常返回true, 然后调用new HiveConnection(url, info), HiveConnection是Connection的子类
     return acceptsURL(url) ? new HiveConnection(url, info) : null;
   }
 

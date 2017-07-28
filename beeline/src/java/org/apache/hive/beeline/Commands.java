@@ -22,11 +22,15 @@
  */
 package org.apache.hive.beeline;
 
+import org.apache.hadoop.hive.common.cli.ShellCmdExecutor;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.conf.HiveVariableSource;
 import org.apache.hadoop.hive.conf.SystemVariables;
 import org.apache.hadoop.hive.conf.VariableSubstitution;
 import org.apache.hadoop.io.IOUtils;
+import org.apache.hive.jdbc.HiveStatement;
+import org.apache.hive.jdbc.Utils;
+import org.apache.hive.jdbc.Utils.JdbcConnectionParams;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -46,8 +50,8 @@ import java.sql.DatabaseMetaData;
 import java.sql.Driver;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.sql.SQLWarning;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -58,11 +62,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
-
-import org.apache.hadoop.hive.common.cli.ShellCmdExecutor;
-import org.apache.hive.jdbc.HiveStatement;
-import org.apache.hive.jdbc.Utils;
-import org.apache.hive.jdbc.Utils.JdbcConnectionParams;
 
 
 public class Commands {
@@ -703,6 +702,7 @@ public class Commands {
       isoldesc = "UNKNOWN";
     }
 
+    // 输出信息: Transaction isolation: TRANSACTION_REPEATABLE_READ
     beeLine.info(beeLine.loc("isolation-status", isoldesc));
     return true;
   }
@@ -978,6 +978,7 @@ public class Commands {
           stmnt = beeLine.getDatabaseConnection().getConnection().prepareCall(sql);
           hasResults = ((CallableStatement) stmnt).execute();
         } else {
+          // 创建Statement
           stmnt = beeLine.createStatement();
           if (beeLine.getOpts().isSilent()) {
             hasResults = stmnt.execute(sql);
@@ -985,6 +986,7 @@ public class Commands {
             logThread = new Thread(createLogRunnable(stmnt));
             logThread.setDaemon(true);
             logThread.start();
+            // 执行hql
             hasResults = stmnt.execute(sql);
             logThread.interrupt();
             logThread.join(DEFAULT_QUERY_PROGRESS_THREAD_TIMEOUT);
@@ -1309,6 +1311,7 @@ public class Commands {
     String example = "Usage: connect <url> <username> <password> [driver]"
         + BeeLine.getSeparator();
 
+    // 以空格分割line
     String[] parts = beeLine.split(line);
     if (parts == null) {
       return false;
@@ -1326,13 +1329,16 @@ public class Commands {
     Properties props = new Properties();
     if (url != null) {
       String saveUrl = getUrlToUse(url);
+      // 设置url, 比如: jdbc:hive2://bds-test-001:10000/default
       props.setProperty(JdbcConnectionParams.PROPERTY_URL, url);
     }
 
     String value = null;
     if (driver != null) {
+      // 设置driver
       props.setProperty(JdbcConnectionParams.PROPERTY_DRIVER, driver);
     } else {
+      // 判断url中是否有设置driver, 比如:connect jdbc:hive2://bds-test-001:10000/default;driver=org.apache.hive.jdbc.HiveDriver, 则会返回org.apache.hive.jdbc.HiveDriver
       value = Utils.parsePropertyFromUrl(url, JdbcConnectionParams.PROPERTY_DRIVER);
       if (value != null) {
         props.setProperty(JdbcConnectionParams.PROPERTY_DRIVER, value);
@@ -1361,6 +1367,7 @@ public class Commands {
     if (value != null) {
       props.setProperty(JdbcConnectionParams.AUTH_TYPE, value);
     }
+    // 继续调用
     return connect(props);
   }
 
@@ -1436,7 +1443,9 @@ public class Commands {
     if (url == null || url.length() == 0) {
       return beeLine.error("Property \"url\" is required");
     }
+    // 默认情况下driver是null, 会执行下面逻辑
     if (driver == null || driver.length() == 0) {
+      // 调用scanForDriver方法扫描driver, 传入url, 比如: jdbc:hive2://bds-test-001:10000/default, 正常会扫描到org.apache.hive.jdbc.HiveDriver, 返回true
       if (!beeLine.scanForDriver(url)) {
         return beeLine.error(beeLine.loc("no-driver", url));
       }
@@ -1450,13 +1459,16 @@ public class Commands {
       }
     }
 
+    // 打印输出, 比如: Connecting to jdbc:hive2://192.168.177.77:10000/default
     beeLine.info("Connecting to " + url);
+    // 如果url中不包含principal, 则必须要保证username和password不为空, 否则提示用户输入, 如果url中包含principal则username和password可以为null, 比如: jdbc:hive2://bds-test-001:10000/default;principal=hive/_HOST@HADOOP.JD;
     if (Utils.parsePropertyFromUrl(url, JdbcConnectionParams.AUTH_PRINCIPAL) == null) {
       if (username == null) {
         username = beeLine.getConsoleReader().readLine("Enter username for " + url + ": ");
       }
       props.setProperty(JdbcConnectionParams.AUTH_USER, username);
       if (password == null) {
+        // 请求用户输入密码, 输入的字符会用'*'显示
         password = beeLine.getConsoleReader().readLine("Enter password for " + url + ": ",
           new Character('*'));
       }
@@ -1464,13 +1476,17 @@ public class Commands {
     }
 
     try {
+      // getDatabaseConnections方法返回的是new DatabaseConnections(), 创建一个DatabaseConnection对象
+      // 然后调用DatabaseConnections的setConnection方法, 将创建的DatabaseConnection对象传进去
       beeLine.getDatabaseConnections().setConnection(
           new DatabaseConnection(beeLine, driver, url, props));
+      // 实际是获取上面刚刚创建的DatabaseConnection对象, 然后调用该对象的getConnection方法
       beeLine.getDatabaseConnection().getConnection();
 
       if (!beeLine.isBeeLine()) {
         beeLine.updateOptsForCli();
       }
+      // 调用runInit方法
       beeLine.runInit();
 
       beeLine.setCompletions();

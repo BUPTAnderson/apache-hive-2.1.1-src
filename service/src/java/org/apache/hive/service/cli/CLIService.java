@@ -187,6 +187,7 @@ public class CLIService extends CompositeService implements ICLIService {
 
   public SessionHandle openSession(TProtocolVersion protocol, String username, String password, String ipAddress,
       Map<String, String> configuration) throws HiveSQLException {
+    // 调用sessionManager的openSession方法
     SessionHandle sessionHandle = sessionManager.openSession(protocol, username, password, ipAddress, configuration, false, null);
     LOG.debug(sessionHandle + ": openSession()");
     return sessionHandle;
@@ -275,6 +276,7 @@ public class CLIService extends CompositeService implements ICLIService {
   @Override
   public OperationHandle executeStatement(SessionHandle sessionHandle, String statement,
       Map<String, String> confOverlay, long queryTimeout) throws HiveSQLException {
+    // 通过查看SessionHandle代码可知, 当SessionHandle的handleId相同时, 则认为这两个SessionHandle相等
     OperationHandle opHandle =
         sessionManager.getSession(sessionHandle).executeStatement(statement, confOverlay,
             queryTimeout);

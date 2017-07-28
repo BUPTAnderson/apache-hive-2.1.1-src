@@ -313,6 +313,7 @@ public class Driver implements CommandProcessor {
     this.maxRows = maxRows;
   }
 
+  // cli调用的时候会执行该构造方法, 可以看到userName是null
   public Driver() {
     this(new QueryState((SessionState.get() != null) ?
         SessionState.get().getConf() : new HiveConf()), null);
@@ -326,6 +327,7 @@ public class Driver implements CommandProcessor {
     this(new QueryState(conf), userName);
   }
 
+  // 通过beeline调用的时候, 在SQLOperation中会直接调用该构造方法
   public Driver(QueryState queryState, String userName) {
     this.queryState = queryState;
     // Drive的conf使用的是queryState的conf, 多了一个queryid属性 <hive.query.id, "zhangsan_20170714110522_f9001412-2aa0-4775-ad7a-f8e49aae3515">

@@ -22,6 +22,12 @@
  */
 package org.apache.hive.beeline;
 
+import jline.Terminal;
+import jline.TerminalFactory;
+import jline.console.completer.Completer;
+import jline.console.completer.StringsCompleter;
+import org.apache.hadoop.hive.conf.HiveConf;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -40,12 +46,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
-
-import jline.Terminal;
-import jline.TerminalFactory;
-import jline.console.completer.Completer;
-import jline.console.completer.StringsCompleter;
-import org.apache.hadoop.hive.conf.HiveConf;
 
 class BeeLineOpts implements Completer {
   public static final int DEFAULT_MAX_WIDTH = 80;
@@ -103,7 +103,9 @@ class BeeLineOpts implements Completer {
   private String authType = null;
   private char delimiterForDSV = DEFAULT_DELIMITER_FOR_DSV;
 
+  // 存放通过--hivevar设置的变量
   private Map<String, String> hiveVariables = new HashMap<String, String>();
+  // 存放通过--hiveconf设置的参数
   private Map<String, String> hiveConfVariables = new HashMap<String, String>();
   private boolean helpAsked;
 

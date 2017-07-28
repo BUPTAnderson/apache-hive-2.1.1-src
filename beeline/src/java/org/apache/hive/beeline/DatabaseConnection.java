@@ -22,6 +22,10 @@
  */
 package org.apache.hive.beeline;
 
+import jline.console.completer.ArgumentCompleter;
+import jline.console.completer.Completer;
+import org.apache.hive.jdbc.HiveConnection;
+
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -36,11 +40,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
-
-import org.apache.hive.jdbc.HiveConnection;
-
-import jline.console.completer.ArgumentCompleter;
-import jline.console.completer.Completer;
 
 class DatabaseConnection {
   private static final String HIVE_VAR_PREFIX = "hivevar:";
@@ -64,6 +63,7 @@ class DatabaseConnection {
     this.beeLine = beeLine;
     this.driver = driver;
     this.url = url;
+    // info中包含url, user, password等信息
     this.info = info;
   }
 
@@ -116,11 +116,13 @@ class DatabaseConnection {
 
     boolean isDriverRegistered = false;
     try {
+      // 在Commands的connect(Properties props)方法中, 已经注册了org.apache.hive.jdbc.HiveDriver, 所以DriverManager.getDriver(getUrl())不为null, isDriverRegistered设置为true
       isDriverRegistered = DriverManager.getDriver(getUrl()) != null;
     } catch (Exception e) {
     }
 
     try {
+      // 如果当前连接未关闭, 关闭连接
       close();
     } catch (Exception e) {
       return beeLine.error(e);
@@ -129,6 +131,7 @@ class DatabaseConnection {
     Map<String, String> hiveVars = beeLine.getOpts().getHiveVariables();
     if (hiveVars != null){
       for (Map.Entry<String, String> var : hiveVars.entrySet()) {
+        // 每个key加前缀"hivevar:"
         info.put(HIVE_VAR_PREFIX + var.getKey(), var.getValue());
       }
     }
@@ -136,20 +139,25 @@ class DatabaseConnection {
     Map<String, String> hiveConfVars = beeLine.getOpts().getHiveConfVariables();
     if (hiveConfVars != null){
       for (Map.Entry<String, String> var : hiveConfVars.entrySet()) {
+        // 每个key加前缀"hiveconf:"
         info.put(HIVE_CONF_PREFIX + var.getKey(), var.getValue());
       }
     }
 
+    // isDriverRegistered设置为true
     if (isDriverRegistered) {
       // if the driver registered in the driver manager, get the connection via the driver manager
+      // 实际是调用HiveDriver的connect(String url, Properties info)方法, 返回一个new HiveConnection(url, info)
       setConnection(DriverManager.getConnection(getUrl(), info));
     } else {
       beeLine.debug("Use the driver from local added jar file.");
       setConnection(getConnectionFromLocalDriver(getUrl(), info));
     }
+    // 调用HiveConnection的getMetaData()方法
     setDatabaseMetaData(getConnection().getMetaData());
 
     try {
+      // 输出信息: Connected to: Apache Hive (version 2.1.1)
       beeLine.info(beeLine.loc("connected", new Object[] {
           getDatabaseMetaData().getDatabaseProductName(),
           getDatabaseMetaData().getDatabaseProductVersion()}));
@@ -158,6 +166,7 @@ class DatabaseConnection {
     }
 
     try {
+      // 输出信息: Driver: Hive JDBC (version 2.1.1)
       beeLine.info(beeLine.loc("driver", new Object[] {
           getDatabaseMetaData().getDriverName(),
           getDatabaseMetaData().getDriverVersion()}));
@@ -166,6 +175,7 @@ class DatabaseConnection {
     }
 
     try {
+      // autoCommit默认为false
       getConnection().setAutoCommit(beeLine.getOpts().getAutoCommit());
       // TODO: Setting autocommit should not generate an exception as long as it is set to false
       // beeLine.autocommitStatus(getConnection());
@@ -174,6 +184,7 @@ class DatabaseConnection {
     }
 
     try {
+      // isolation默认值为: "TRANSACTION_REPEATABLE_READ"
       beeLine.getCommands().isolation("isolation: " + beeLine.getOpts().getIsolation());
     } catch (Exception e) {
       beeLine.handleException(e);
@@ -203,9 +214,11 @@ class DatabaseConnection {
   }
 
   public Connection getConnection() throws SQLException {
+    // 初次调用connection为null
     if (connection != null) {
       return connection;
     }
+    // 调用connect方法进行连接
     connect();
     return connection;
   }

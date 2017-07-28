@@ -17,18 +17,18 @@
  */
 package org.apache.hadoop.hive.schshim;
 
-import java.io.IOException;
-import java.util.concurrent.atomic.AtomicReference;
-
 import org.apache.commons.lang.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.shims.SchedulerShim;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.AllocationConfiguration;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.AllocationFileLoaderService;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.QueuePlacementPolicy;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class FairSchedulerShim implements SchedulerShim {
   private static final Logger LOG = LoggerFactory.getLogger(FairSchedulerShim.class);
@@ -49,6 +49,7 @@ public class FairSchedulerShim implements SchedulerShim {
       }
     });
     try {
+      // 调用reloadAllocations方法
       allocsLoader.reloadAllocations();
     } catch (Exception ex) {
       throw new IOException("Failed to load queue allocations", ex);
@@ -58,10 +59,13 @@ public class FairSchedulerShim implements SchedulerShim {
     }
     QueuePlacementPolicy queuePolicy = allocConf.get().getPlacementPolicy();
     if (queuePolicy != null) {
+      // requestedQueue变为: root.default
       requestedQueue = queuePolicy.assignAppToQueue(requestedQueue, userName);
       if (StringUtils.isNotBlank(requestedQueue)) {
+        // 打印日志, 比如: Setting queue name to root.default for user datajingdo_m
         LOG.debug("Setting queue name to " + requestedQueue + " for user "
             + userName);
+        // 增加设置项: <"mapreduce.job.queuename", "root.default">
         conf.set(MR2_JOB_QUEUE_PROPERTY, requestedQueue);
       }
     }

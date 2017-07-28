@@ -17,11 +17,6 @@
  */
 package org.apache.hive.service.auth;
 
-import java.io.IOException;
-import java.util.Map;
-
-import javax.security.sasl.SaslException;
-
 import org.apache.hadoop.hive.shims.ShimLoader;
 import org.apache.hadoop.hive.thrift.HadoopThriftAuthBridge;
 import org.apache.hadoop.hive.thrift.HadoopThriftAuthBridge.Server;
@@ -32,6 +27,11 @@ import org.apache.thrift.TProcessor;
 import org.apache.thrift.TProcessorFactory;
 import org.apache.thrift.transport.TSaslClientTransport;
 import org.apache.thrift.transport.TTransport;
+
+import javax.security.sasl.SaslException;
+
+import java.io.IOException;
+import java.util.Map;
 
 public final class KerberosSaslHelper {
 
@@ -44,11 +44,13 @@ public final class KerberosSaslHelper {
     TTransport underlyingTransport, Map<String, String> saslProps, boolean assumeSubject)
     throws SaslException {
     try {
+      // 要包含三部分, 比如: hive/_HOST@HADOOP.JD
       String[] names = principal.split("[/@]");
       if (names.length != 3) {
         throw new IllegalArgumentException("Kerberos principal should have 3 parts: " + principal);
       }
 
+      // 如果是Kerberos, 一般设置是kerberosAuthType=kerberos, 这时assumeSubject是false, 执行else中的逻辑
       if (assumeSubject) {
         return createSubjectAssumedTransport(principal, underlyingTransport, saslProps);
       } else {

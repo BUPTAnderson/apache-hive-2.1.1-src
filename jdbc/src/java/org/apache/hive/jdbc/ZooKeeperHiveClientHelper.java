@@ -18,12 +18,6 @@
 
 package org.apache.hive.jdbc;
 
-import java.nio.charset.Charset;
-import java.util.List;
-import java.util.Random;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.retry.ExponentialBackoffRetry;
@@ -31,6 +25,12 @@ import org.apache.hive.jdbc.Utils.JdbcConnectionParams;
 import org.apache.zookeeper.Watcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.nio.charset.Charset;
+import java.util.List;
+import java.util.Random;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 class ZooKeeperHiveClientHelper {
   static final Logger LOG = LoggerFactory.getLogger(ZooKeeperHiveClientHelper.class.getName());
@@ -47,33 +47,57 @@ class ZooKeeperHiveClientHelper {
 
   static void configureConnParams(JdbcConnectionParams connParams)
       throws ZooKeeperHiveClientException {
+    // 获得zooKeeperEnsemble, 例如: zkNode1:2181,zkNode2:2181,zkNode3:2181, 也即是hive-site.xml中hive.zookeeper.quorum的值
     String zooKeeperEnsemble = connParams.getZooKeeperEnsemble();
+    // 获取zooKeeperNamespace, 比如: hiveserver2_zk, 也即是hive-site.xml中hive.server2.zookeeper.namespace的值
     String zooKeeperNamespace =
         connParams.getSessionVars().get(JdbcConnectionParams.ZOOKEEPER_NAMESPACE);
+    // 如果为null或为空, 设置为默认的namespace: hiveserver2
     if ((zooKeeperNamespace == null) || (zooKeeperNamespace.isEmpty())) {
       zooKeeperNamespace = JdbcConnectionParams.ZOOKEEPER_DEFAULT_NAMESPACE;
     }
     List<String> serverHosts;
     Random randomizer = new Random();
     String serverNode;
+    // 构造zooKeeperClient
     CuratorFramework zooKeeperClient =
         CuratorFrameworkFactory.builder().connectString(zooKeeperEnsemble)
             .retryPolicy(new ExponentialBackoffRetry(1000, 3)).build();
     try {
+      // 启动client
       zooKeeperClient.start();
       serverHosts = zooKeeperClient.getChildren().forPath("/" + zooKeeperNamespace);
       // Remove the znodes we've already tried from this list
+      // 移除不需要的节点, 即移除丢弃的hiveserve2节点, 默认为空
       serverHosts.removeAll(connParams.getRejectedHostZnodePaths());
       if (serverHosts.isEmpty()) {
         throw new ZooKeeperHiveClientException(
             "Tried all existing HiveServer2 uris from ZooKeeper.");
       }
       // Now pick a server node randomly
+      // 一般配置了几个hiveServer2到zookeeper, serverHosts.size()就为多少, 这里是随机选择一个hiveServer2节点
+      // 比如我们配置了两个节点, 分别是: serverUri=BDS-TEST-002:10000;version=1.2.1;sequence=0000000019 serverUri=BDS-TEST-001:10000;version=1.2.1;sequence=0000000025
       serverNode = serverHosts.get(randomizer.nextInt(serverHosts.size()));
+      // 将选中的hiveserver2节点设置给currentHostZnodePath
       connParams.setCurrentHostZnodePath(serverNode);
       // Read data from the znode for this server node
       // This data could be either config string (new releases) or server end
       // point (old releases)
+      // 这里比如我们获取的是BDS-TEST-002对应的节点, dataStr值为:
+      /*
+        BDS-TEST-002:10000
+        cZxid = 0xa002ea844
+        ctime = Fri Dec 23 11:39:25 CST 2016
+        mZxid = 0xa002ea844
+        mtime = Fri Dec 23 11:39:25 CST 2016
+        pZxid = 0xa002ea844
+        cversion = 0
+        dataVersion = 0
+        aclVersion = 0
+        ephemeralOwner = 0x258d78d9ed70018
+        dataLength = 18
+        numChildren = 0
+      */
       String dataStr =
           new String(
               zooKeeperClient.getData().forPath("/" + zooKeeperNamespace + "/" + serverNode),
@@ -90,6 +114,7 @@ class ZooKeeperHiveClientHelper {
         connParams.setHost(split[0]);
         connParams.setPort(Integer.parseInt(split[1]));
       } else {
+        // 对dataStr中的key value对进行分析设置给connParams
         applyConfs(dataStr, connParams);
       }
     } catch (Exception e) {

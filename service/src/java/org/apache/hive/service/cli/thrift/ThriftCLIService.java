@@ -307,9 +307,13 @@ public abstract class ThriftCLIService extends AbstractService implements TCLISe
 
   @Override
   public TOpenSessionResp OpenSession(TOpenSessionReq req) throws TException {
+    // 打印version: HIVE_CLI_SERVICE_PROTOCOL_V9
     LOG.info("Client protocol version: " + req.getClient_protocol());
     TOpenSessionResp resp = new TOpenSessionResp();
     try {
+      // 前提条件, hiveServer2中配置的TProcessorFactory是SQLPlainProcessorFactory(具体可见ThriftBinaryCLIService的run方法)
+      // 任何请求发送过来, 会先调用SQLPlainProcessorFactory的getProcessor方法获得TProcessor, 这里获得是TSetIpAddressProcessor, 然后调用TSetIpAddressProcessor的process方法
+      // 之后才会根据调用的是哪个方法,调用ThriftBinaryCLIService/ThriftCLIService的具体方法
       SessionHandle sessionHandle = getSessionHandle(req, resp);
       resp.setSessionHandle(sessionHandle.toTSessionHandle());
       // TODO: set real configuration map
@@ -318,6 +322,7 @@ public abstract class ThriftCLIService extends AbstractService implements TCLISe
       ThriftCLIServerContext context =
         (ThriftCLIServerContext)currentServerContext.get();
       if (context != null) {
+        LOG.info(context.);
         context.setSessionHandle(sessionHandle);
       }
     } catch (Exception e) {
@@ -341,6 +346,7 @@ public abstract class ThriftCLIService extends AbstractService implements TCLISe
       }
       // NOSASL
       else {
+        // 默认调用下面方法获取ip
         clientIpAddress = TSetIpAddressProcessor.getUserIpAddress();
       }
     }
@@ -361,24 +367,29 @@ public abstract class ThriftCLIService extends AbstractService implements TCLISe
   private String getUserName(TOpenSessionReq req) throws HiveSQLException, IOException {
     String userName = null;
 
+    // isSASLWithKerberizedHadoop()方法默认是false
     if (hiveAuthFactory != null && hiveAuthFactory.isSASLWithKerberizedHadoop()) {
       userName = hiveAuthFactory.getRemoteUser();
     }
     // NOSASL
+    // 执行下面的逻辑, 获取userName, TSetIpAddressProcessor的process方法中已经解析过请求中的userName了, 所以调用TSetIpAddressProcessor.getUserName()可以获取到userName, 比如: datajingdo_m
     if (userName == null) {
       userName = TSetIpAddressProcessor.getUserName();
     }
     // Http transport mode.
     // We set the thread local username, in ThriftHttpServlet.
+    // 默认是thrift模式, 不是http模式
     if (cliService.getHiveConf().getVar(
         ConfVars.HIVE_SERVER2_TRANSPORT_MODE).equalsIgnoreCase("http")) {
       userName = SessionManager.getUserName();
     }
     if (userName == null) {
+      // 默认情况下, req中没有设置userName
       userName = req.getUsername();
     }
-
+    // 获取getShortName, 默认还是原来的名字, 比如: datajingdo_m
     userName = getShortName(userName);
+    // getIpAddress获取到ip, 比如: 192.168.177.80, 默认情况下getProxyUser返回的还是传入的userName
     String effectiveClientUser = getProxyUser(userName, req.getConfiguration(), getIpAddress());
     LOG.debug("Client's username: " + effectiveClientUser);
     return effectiveClientUser;
@@ -413,17 +424,21 @@ public abstract class ThriftCLIService extends AbstractService implements TCLISe
    */
   SessionHandle getSessionHandle(TOpenSessionReq req, TOpenSessionResp res)
       throws HiveSQLException, LoginException, IOException {
+    // 获取用户名和ip地址
     String userName = getUserName(req);
     String ipAddress = getIpAddress();
+    // 获取SERVER_VERSION和req.getClient_protocol()中小的一个version
     TProtocolVersion protocol = getMinVersion(CLIService.SERVER_VERSION,
         req.getClient_protocol());
     SessionHandle sessionHandle;
+    // hive.server2.enable.doAs设置为false, hql将以启动hiveserver2的用户来执行. 如果设置为true, HiveServer2以提交查询的用户执行查询, 实际中我们设置为false
     if (cliService.getHiveConf().getBoolVar(ConfVars.HIVE_SERVER2_ENABLE_DOAS) &&
         (userName != null)) {
       String delegationTokenStr = getDelegationToken(userName);
       sessionHandle = cliService.openSessionWithImpersonation(protocol, userName,
           req.getPassword(), ipAddress, req.getConfiguration(), delegationTokenStr);
     } else {
+      // 传入的参数Map<String, String> configuration是req.getConfiguration()
       sessionHandle = cliService.openSession(protocol, userName, req.getPassword(),
           ipAddress, req.getConfiguration());
     }
@@ -498,11 +513,17 @@ public abstract class ThriftCLIService extends AbstractService implements TCLISe
   public TExecuteStatementResp ExecuteStatement(TExecuteStatementReq req) throws TException {
     TExecuteStatementResp resp = new TExecuteStatementResp();
     try {
+      // 构造agiel新的sessionHandle
       SessionHandle sessionHandle = new SessionHandle(req.getSessionHandle());
+      // 获取statement, 即hql
       String statement = req.getStatement();
+      // 获取confOverlay
       Map<String, String> confOverlay = req.getConfOverlay();
+      // 是否异步执行, 默认false
       Boolean runAsync = req.isRunAsync();
+      // 超时时间
       long queryTimeout = req.getQueryTimeout();
+      // 同步执行的话调用cliService.executeStatement
       OperationHandle operationHandle =
           runAsync ? cliService.executeStatementAsync(sessionHandle, statement, confOverlay,
               queryTimeout) : cliService.executeStatement(sessionHandle, statement, confOverlay,
@@ -762,18 +783,21 @@ public abstract class ThriftCLIService extends AbstractService implements TCLISe
     String proxyUser = null;
     // Http transport mode.
     // We set the thread local proxy username, in ThriftHttpServlet.
+    // 是否是http 模式, 默认false
     if (cliService.getHiveConf().getVar(
         ConfVars.HIVE_SERVER2_TRANSPORT_MODE).equalsIgnoreCase("http")) {
       proxyUser = SessionManager.getProxyUserName();
       LOG.debug("Proxy user from query string: " + proxyUser);
     }
 
+    // 判断调用端传过来的sessionConf是否包含hive.server2.proxy.user, 默认为false, 当使用kerberos时会设置该值
     if (proxyUser == null && sessionConf != null && sessionConf.containsKey(HiveAuthFactory.HS2_PROXY_USER)) {
       String proxyUserFromThriftBody = sessionConf.get(HiveAuthFactory.HS2_PROXY_USER);
       LOG.debug("Proxy user from thrift body: " + proxyUserFromThriftBody);
       proxyUser = proxyUserFromThriftBody;
     }
 
+    // 还为null, 直接返回realUser
     if (proxyUser == null) {
       return realUser;
     }

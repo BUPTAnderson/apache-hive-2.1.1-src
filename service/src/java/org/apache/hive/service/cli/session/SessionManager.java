@@ -289,6 +289,7 @@ public class SessionManager extends CompositeService {
     HiveSession session;
     // If doAs is set to true for HiveServer2, we will create a proxy object for the session impl.
     // Within the proxy object, we wrap the method call in a UserGroupInformation#doAs
+    // doAs设置为true的话, withImpersonation为true, 这里我们按false来处理
     if (withImpersonation) {
       HiveSessionImplwithUGI hiveSessionUgi;
       if (sessionImplWithUGIclassName == null) {
@@ -308,7 +309,9 @@ public class SessionManager extends CompositeService {
       session = HiveSessionProxy.getProxy(hiveSessionUgi, hiveSessionUgi.getSessionUgi());
       hiveSessionUgi.setProxySession(session);
     } else {
+      // sessionImplclassName默认值为null
       if (sessionImplclassName == null) {
+        // 这里session是HiveSessionImpl, hiveConf是SessionManager的属性
         session = new HiveSessionImpl(sessionHandle, protocol, username, password, hiveConf,
           ipAddress);
       } else {
@@ -324,8 +327,10 @@ public class SessionManager extends CompositeService {
       }
     }
     session.setSessionManager(this);
+    // 重要的一步, 将operationManager设置给HiveSessionImpl的operationManager
     session.setOperationManager(operationManager);
     try {
+      // 调用open方法, 这里的sessionConf是req.getConfiguration(), 即从调用端传过来的
       session.open(sessionConf);
     } catch (Exception e) {
       LOG.warn("Failed to open session", e);
@@ -352,7 +357,9 @@ public class SessionManager extends CompositeService {
       session = null;
       throw new HiveSQLException("Failed to execute session hooks: " + e.getMessage(), e);
     }
+    // 重要的一步, 将<SessionHandle, session>放入到handleToSession, 即session是可以复用的
     handleToSession.put(session.getSessionHandle(), session);
+    // 打印日志, 比如: INFO [HiveServer2-Handler-Pool: Thread-212] service.CompositeService: Session opened, SessionHandle [74669a05-ba6e-484d-b6d5-b255b8e361c8], current sessions:1
     LOG.info("Session opened, " + session.getSessionHandle() + ", current sessions:" + getOpenSessionCount());
     return session;
   }

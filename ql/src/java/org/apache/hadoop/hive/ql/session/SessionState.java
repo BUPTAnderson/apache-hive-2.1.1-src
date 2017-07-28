@@ -370,8 +370,10 @@ public class SessionState {
     this.userName = userName;
     this.registry = new Registry(false);
     if (LOG.isDebugEnabled()) {
+      // 打印日志, 比如: session.SessionState: SessionState user: datajingdo_m
       LOG.debug("SessionState user: " + userName);
     }
+    // 默认值为false
     isSilent = conf.getBoolVar(HiveConf.ConfVars.HIVESESSIONSILENT);
     ls = new LineageState();
     // 初始化resourceMaps
@@ -381,6 +383,7 @@ public class SessionState {
     overriddenConfigurations.putAll(HiveConf.getConfSystemProperties());
     // 设置参数hive.session.id的值, 实际是一个UUID
     // if there isn't already a session name, go ahead and create it.
+    // 如果是HiveSessionImpl调用的该构造方法, hive.session.id是不为空的, 如果是CLI调用的
     if (StringUtils.isEmpty(conf.getVar(HiveConf.ConfVars.HIVESESSIONID))) {
       conf.setVar(HiveConf.ConfVars.HIVESESSIONID, makeSessionId());
     }
@@ -390,7 +393,7 @@ public class SessionState {
     // Make sure that each session has its own UDFClassloader. For details see {@link UDFClassLoader}
     final ClassLoader currentLoader = Utilities.createUDFClassLoader((URLClassLoader) parentLoader, new String[]{});
     this.sessionConf.setClassLoader(currentLoader);
-    // 初始化资源下载resourceDownloader
+    // 初始化资源下载resourceDownloader, 创建目录, 比如: /tmp/98f4a59c-2eab-4918-a0dd-3018510700ed_resources
     resourceDownloader = new ResourceDownloader(conf,
         HiveConf.getVar(conf, ConfVars.DOWNLOADED_RESOURCES_DIR));
   }
@@ -529,6 +532,7 @@ public class SessionState {
    * when switching from one session to another.
    */
   public static SessionState start(SessionState startSs) {
+    // false是指是同步, 不是异步
     start(startSs, false, null);
     return startSs;
   }

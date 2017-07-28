@@ -18,20 +18,6 @@
 
 package org.apache.hive.service.cli.session;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.Future;
-import java.util.concurrent.FutureTask;
-import java.util.concurrent.Semaphore;
-
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.hive.common.cli.HiveFileProcessor;
@@ -77,6 +63,20 @@ import org.apache.hive.service.server.ThreadWithGarbageCleanup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.Semaphore;
+
 /**
  * HiveSession
  *
@@ -120,9 +120,12 @@ public class HiveSessionImpl implements HiveSession {
     this.username = username;
     this.password = password;
     creationTime = System.currentTimeMillis();
+    // 构造一个新的SessionHandle(会调用父类Handle的构造方法创建一个handleId)
     this.sessionHandle = sessionHandle != null ? sessionHandle : new SessionHandle(protocol);
+    // 这里sessionConf是该session独有的, 是将SessionManager的hiveConf复制一份给当前session
     this.sessionConf = new HiveConf(serverConf);
     this.ipAddress = ipAddress;
+    // 是否允许在一个会话中进行多个并行操作（如SQL语句）。默认为true
     this.operationLock = serverConf.getBoolVar(
         ConfVars.HIVE_SERVER2_PARALLEL_OPS_IN_SESSION) ? null : new Semaphore(1);
     try {
@@ -130,16 +133,20 @@ public class HiveSessionImpl implements HiveSession {
       // if fair scheduler is configured.
       if (! sessionConf.getBoolVar(ConfVars.HIVE_SERVER2_ENABLE_DOAS) &&
         sessionConf.getBoolVar(ConfVars.HIVE_SERVER2_MAP_FAIR_SCHEDULER_QUEUE)) {
+        // 调用Hadoop23Shims的refreshDefaultQueue方法, 会给sessionConf增加一个配置项: <"mapreduce.job.queuename", "root.default">
         ShimLoader.getHadoopShims().refreshDefaultQueue(sessionConf, username);
       }
     } catch (IOException e) {
       LOG.warn("Error setting scheduler queue: " + e, e);
     }
     // Set an explicit session name to control the download directory name
+    // 设置sessionId, 比如: 98f4a59c-2eab-4918-a0dd-3018510700ed, 增加配置项<"hive.session.id", "98f4a59c-2eab-4918-a0dd-3018510700ed">
     sessionConf.set(ConfVars.HIVESESSIONID.varname,
         this.sessionHandle.getHandleIdentifier().toString());
     // Use thrift transportable formatter
+    // 增加配置项: <"list.sink.output.formatter", "org.apache.hadoop.hive.serde2.thrift.ThriftFormatter">
     sessionConf.set(SerDeUtils.LIST_SINK_OUTPUT_FORMATTER, ThriftFormatter.class.getName());
+    // 增加配置项: <"list.sink.output.protocol", "8">
     sessionConf.setInt(SerDeUtils.LIST_SINK_OUTPUT_PROTOCOL, protocol.getValue());
   }
 
@@ -160,13 +167,19 @@ public class HiveSessionImpl implements HiveSession {
    * That's why it is important to create SessionState here rather than in the constructor.
    */
   public void open(Map<String, String> sessionConfMap) throws HiveSQLException {
+    // 构建SessionState
     sessionState = new SessionState(sessionConf, username);
     sessionState.setUserIpAddress(ipAddress);
     sessionState.setIsHiveServerQuery(true);
     sessionState.setForwardedAddresses(SessionManager.getForwardedAddresses());
+    LOG.info("--> forwardedAddresses:" + SessionManager.getForwardedAddresses());
     sessionState.setIsUsingThriftJDBCBinarySerDe(updateIsUsingThriftJDBCBinarySerDe());
+    LOG.info("---> isUsingThriftJDBCBinarySerDe:" + updateIsUsingThriftJDBCBinarySerDe());
+    // 把sessionState设置给当前线程的SessionStates, 其中SessionStates的sessionState就是传入的sessionState, SessionStates里面的conf就是传入的sessionState的conf, 也就是HiveSessionImpl的sessionConf
+    // 该start方法中同时会创建该线程对应的Hive, 并在Hive中创建到metastore的client, 与metastore建立连接
     SessionState.start(sessionState);
     try {
+      // 重新加载hive.reloadable.aux.jars.path配置的jars
       sessionState.reloadAuxJars();
     } catch (IOException e) {
       String msg = "Failed to load reloadable jar file path: " + e;
@@ -181,6 +194,7 @@ public class HiveSessionImpl implements HiveSession {
     // Process global init file: .hiverc
     processGlobalInitFile();
     if (sessionConfMap != null) {
+      // 处理传入的参数
       configureSession(sessionConfMap);
     }
     lastAccessTime = System.currentTimeMillis();
@@ -419,6 +433,7 @@ public class HiveSessionImpl implements HiveSession {
 
   @Override
   public HiveConf getHiveConf() {
+    // <"hive.fetch.output.serde", "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe">
     sessionConf.setVar(HiveConf.ConfVars.HIVEFETCHOUTPUTSERDE, FETCH_WORK_SERDE_CLASS);
     return sessionConf;
   }
@@ -493,9 +508,13 @@ public class HiveSessionImpl implements HiveSession {
     ExecuteStatementOperation operation = null;
     OperationHandle opHandle = null;
     try {
+      // SessionManager的createSession方法中已经将SessionManager的operationManager设置给了HiveSessionImpl
+      // 调用newExecuteStatementOperation获取ExecuteStatementOperation, 正常的hql查询, 返回的是SQLOperation
       operation = getOperationManager().newExecuteStatementOperation(getSession(), statement,
           confOverlay, runAsync, queryTimeout);
+      // 如果是SQLOperation, 获取的opHandle是new OperationHandle(OperationType.EXECUTE_STATEMENT, this.getProtocolVersion())
       opHandle = operation.getHandle();
+      // 调用Operation的run方法, 然后调用SQLOperation的runInternal()方法
       operation.run();
       addOpHandle(opHandle);
       return opHandle;

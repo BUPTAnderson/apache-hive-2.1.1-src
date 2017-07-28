@@ -62,6 +62,7 @@ public class TSetIpAddressProcessor<I extends Iface> extends TCLIService.Process
 
   private void setUserName(final TProtocol in) {
     TTransport transport = in.getTransport();
+    // 只有当客户端transport是TSaslServerTransport或其子类时, 才设置userName, beeline默认使用的就是TSaslClientTransport, 与之匹配
     if (transport instanceof TSaslServerTransport) {
       String userName = ((TSaslServerTransport) transport).getSaslServer().getAuthorizationID();
       THREAD_LOCAL_USER_NAME.set(userName);
@@ -74,6 +75,7 @@ public class TSetIpAddressProcessor<I extends Iface> extends TCLIService.Process
     if (tSocket == null) {
       LOGGER.warn("Unknown Transport, cannot determine ipAddress");
     } else {
+      // 获取请求端的ip, 比如: 192.168.177.80
       THREAD_LOCAL_IP_ADDRESS.set(tSocket.getSocket().getInetAddress().getHostAddress());
     }
   }

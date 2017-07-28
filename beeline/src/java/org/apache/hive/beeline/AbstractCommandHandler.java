@@ -22,12 +22,12 @@
  */
 package org.apache.hive.beeline;
 
+import jline.console.completer.Completer;
+import jline.console.completer.NullCompleter;
+
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
-
-import jline.console.completer.Completer;
-import jline.console.completer.NullCompleter;
 
 /**
  * An abstract implementation of CommandHandler.
@@ -53,6 +53,7 @@ public abstract class AbstractCommandHandler implements CommandHandler {
     } else {
       List<Completer> c = new LinkedList<Completer>(Arrays.asList(completors));
       c.add(new NullCompleter());
+      // toArray(T[] a)方法中, 当T的长度不足以容纳list的元素时, 会生成一个新的数组, 长度为等于list的size
       parameterCompleters = c.toArray(new Completer[0]);
     }
   }

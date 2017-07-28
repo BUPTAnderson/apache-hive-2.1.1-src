@@ -22,6 +22,26 @@
  */
 package org.apache.hive.beeline;
 
+import jline.console.ConsoleReader;
+import jline.console.completer.Completer;
+import jline.console.completer.FileNameCompleter;
+import jline.console.completer.StringsCompleter;
+import jline.console.history.FileHistory;
+import jline.console.history.History;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.GnuParser;
+import org.apache.commons.cli.OptionBuilder;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.io.IOUtils;
+import org.apache.hive.beeline.cli.CliOptionsProcessor;
+import org.apache.hive.jdbc.Utils;
+import org.apache.hive.jdbc.Utils.JdbcConnectionParams;
+import org.apache.thrift.transport.TTransportException;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
@@ -51,8 +71,8 @@ import java.sql.SQLWarning;
 import java.sql.Statement;
 import java.text.ChoiceFormat;
 import java.text.MessageFormat;
-import java.util.Arrays;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
@@ -74,28 +94,6 @@ import java.util.jar.Attributes;
 import java.util.jar.Manifest;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
-
-import jline.console.completer.Completer;
-import jline.console.completer.StringsCompleter;
-import jline.console.completer.FileNameCompleter;
-import jline.console.ConsoleReader;
-import jline.console.history.History;
-import jline.console.history.FileHistory;
-
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.GnuParser;
-import org.apache.commons.cli.OptionBuilder;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.io.IOUtils;
-import org.apache.hive.beeline.cli.CliOptionsProcessor;
-
-import org.apache.hive.jdbc.Utils;
-import org.apache.hive.jdbc.Utils.JdbcConnectionParams;
-import org.apache.thrift.transport.TTransportException;
 
 /**
  * A console SQL shell with command completion.
@@ -499,6 +497,7 @@ public class BeeLine implements Closeable {
   public static void mainWithInputRedirection(String[] args, InputStream inputStream)
       throws IOException {
     BeeLine beeLine = new BeeLine();
+    // 进入begin方法
     int status = beeLine.begin(args, inputStream);
 
     if (!Boolean.getBoolean(BeeLineOpts.PROPERTY_NAME_EXIT)) {
@@ -729,11 +728,13 @@ public class BeeLine implements Closeable {
     }
 
     Properties hiveVars = cl.getOptionProperties("hivevar");
+    // 将--hivevar设置的变量保存到opts的hiveVariables中
     for (String key : hiveVars.stringPropertyNames()) {
       getOpts().getHiveVariables().put(key, hiveVars.getProperty(key));
     }
 
     Properties hiveConfs = cl.getOptionProperties("hiveconf");
+    // 将--hiveconf设置的参数保存到opts的hiveConfVariables中
     for (String key : hiveConfs.stringPropertyNames()) {
       setHiveConfVar(key, hiveConfs.getProperty(key));
     }
@@ -747,6 +748,8 @@ public class BeeLine implements Closeable {
     } else {
       pass = cl.getOptionValue("p");
     }
+    // 实例, 如: beeline -u "jdbc:hive2://hadoop1:10000/hamza_group_1" --hivevar hamza.usr="hamza_group" --hivevar hamza.passwd="hMyLXJ6uddQSy1WU" --color=true;
+    // 或: beeline -u jdbc:hive2://hadoop1:10000/hamza_group_1 --hivevar hamza.usr=hamza_group --hivevar hamza.passwd=hMyLXJ6uddQSy1WU
     url = cl.getOptionValue("u");
     if ((url == null) && cl.hasOption("reconnect")){
       // If url was not specified with -u, but -r was present, use that.
@@ -768,6 +771,7 @@ public class BeeLine implements Closeable {
     }
     */
 
+    // 如果启动的时候就指定了url
     if (url != null) {
       if (user == null) {
         user = Utils.parsePropertyFromUrl(url, JdbcConnectionParams.AUTH_USER);
@@ -777,9 +781,11 @@ public class BeeLine implements Closeable {
         pass = Utils.parsePropertyFromUrl(url, JdbcConnectionParams.AUTH_PASSWD);
       }
 
+      // constructCmd会将url, user, pass组装成连接串, 比如: !connect jdbc:hive2://bds-test-001:10000/default datajingdo_m 123 org.apache.hive.jdbc.HiveDriver
       String com = constructCmd(url, user, pass, driver, false);
       String comForDebug = constructCmd(url, user, pass, driver, true);
       debug("issuing: " + comForDebug);
+      // 建立连接
       dispatch(com);
     }
 
@@ -859,6 +865,7 @@ public class BeeLine implements Closeable {
 
     try {
       if (isBeeLine) {
+        // 处理启动命令中的参数
         int code = initArgs(args);
         if (code != 0) {
           return code;
@@ -878,11 +885,13 @@ public class BeeLine implements Closeable {
         return executeFile(getOpts().getScriptFile());
       }
       try {
+        // 在终端输出信息, 如: Beeline version 1.2.1 by Apache Hive
         info(getApplicationTitle());
       } catch (Exception e) {
         // ignore
       }
       ConsoleReader reader = getConsoleReader(inputStream);
+      // 调用execute
       return execute(reader, false);
     } finally {
         close();
@@ -961,10 +970,12 @@ public class BeeLine implements Closeable {
 
   private int execute(ConsoleReader reader, boolean exitOnError) {
     int lastExecutionResult = ERRNO_OK;
+    // 循环读取输入进行处理
     while (!exit) {
       try {
         // Execute one instruction; terminate on executing a script if there is an error
         // in silent mode, prevent the query and prompt being echoed back to terminal
+        // 默认不是silent模式, 执行reader.readLine(getPrompt()), getPrompt方法是返回jline输出的提示符, 实际就是输出提示符, 同时从命令行读取用户输入的命令
         String line = (getOpts().isSilent() && getOpts().getScriptFile() != null) ? reader
             .readLine(null, ConsoleReader.NULL_MASK) : reader.readLine(getPrompt());
 
@@ -973,8 +984,10 @@ public class BeeLine implements Closeable {
           line = line.trim();
         }
 
+        // dispatch方法的作用是将指定的行发送到相应的CommandHandler。 line(hql)执行成功返回true, 这样就不停的执行hql
         if (!dispatch(line)) {
           lastExecutionResult = ERRNO_OTHER;
+          // 传入的exitOnError为false, 即出错后不跳出
           if (exitOnError) break;
         } else if (line != null) {
           lastExecutionResult = ERRNO_OK;
@@ -1082,10 +1095,14 @@ public class BeeLine implements Closeable {
    */
   public boolean execCommandWithPrefix(String line) {
     Map<String, CommandHandler> cmdMap = new TreeMap<String, CommandHandler>();
+    // 将line去掉!
     line = line.substring(1);
     for (int i = 0; i < commandHandlers.length; i++) {
+      // line以空格切分后, commandHandlers中只要都字符串与切分后的line匹配, 则返回匹配的字符串
+      // 如果是connect jdbc://hive2:192.168.177.77:10000, 返回connect
       String match = commandHandlers[i].matches(line);
       if (match != null) {
+        // 将匹配的字符串与commandHandler放入cmdMap中
         cmdMap.put(match, commandHandlers[i]);
       }
     }
@@ -1093,14 +1110,17 @@ public class BeeLine implements Closeable {
     if (cmdMap.size() == 0) {
       return error(loc("unknown-command", line));
     }
+    // 如果cmdMap size大于1
     if (cmdMap.size() > 1) {
-      // any exact match?
+      // any exact match? 判断line是否是单个命令, 比如quit
       CommandHandler handler = cmdMap.get(line);
       if (handler == null) {
         return error(loc("multiple-matches", cmdMap.keySet().toString()));
       }
       return handler.execute(line);
     }
+    // 对于cmdMap size为1的情况, 获取里面的CommandHandler调用该CommandHandler的execute来执行line
+    // 这里我们参考new ReflectiveCommandHandler(this, new String[] {"connect", "open"}, new Completer[] {new StringsCompleter(getConnectionURLExamples())})
     return cmdMap.values().iterator().next().execute(line);
   }
 
@@ -1138,10 +1158,12 @@ public class BeeLine implements Closeable {
     }
 
     if (isBeeLine) {
+      // 如果是以!开头并且不是以;结尾, 比如 !connect jdbc://hive2:192.168.177.77:10000
       if (line.startsWith(COMMAND_PREFIX)) {
         // handle SQLLine command in beeline which starts with ! and does not end with ;
         return execCommandWithPrefix(line);
       } else {
+        // 其它的说明是hql, 执行该hql, entireLineAsCommand, 即是否把一行看作一条hql, 默认值为false
         return commands.sql(line, getOpts().getEntireLineAsCommand());
       }
     } else {
@@ -1577,6 +1599,7 @@ public class BeeLine implements Closeable {
     int index = 0;
     while (tok.hasMoreTokens()) {
       String t = tok.nextToken();
+      // dequote方法的作用是去除t前后的'或"
       t = dequote(t);
       ret[index++] = t;
     }
@@ -1802,13 +1825,16 @@ public class BeeLine implements Closeable {
   boolean scanForDriver(String url) {
     try {
       // already registered
+      // 该开始是没有Driver注册的, 返回null, 继续往下执行
       if (findRegisteredDriver(url) != null) {
         return true;
       }
 
       // first try known drivers...
+      // 扫描Driver, 会注册: org.apache.hive.jdbc.HiveDriver
       scanDrivers(true);
 
+      // 上面已经注册了org.apache.hive.jdbc.HiveDriver, 则返回不为null, 返回true
       if (findRegisteredDriver(url) != null) {
         return true;
       }
@@ -1924,6 +1950,7 @@ public class BeeLine implements Closeable {
       } catch (Throwable t) {
       }
     }
+    // 打印到控制台, 比如: scan complete in 1ms
     info("scan complete in "
         + (System.currentTimeMillis() - start) + "ms");
     return (Driver[]) driverClasses.toArray(new Driver[0]);

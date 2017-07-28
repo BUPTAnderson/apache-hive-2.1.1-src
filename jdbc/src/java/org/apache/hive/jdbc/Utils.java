@@ -18,6 +18,14 @@
 
 package org.apache.hive.jdbc;
 
+import org.apache.hive.service.cli.HiveSQLException;
+import org.apache.hive.service.rpc.thrift.TStatus;
+import org.apache.hive.service.rpc.thrift.TStatusCode;
+import org.apache.http.client.CookieStore;
+import org.apache.http.cookie.Cookie;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.net.URI;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -28,14 +36,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import org.apache.hive.service.cli.HiveSQLException;
-import org.apache.hive.service.rpc.thrift.TStatus;
-import org.apache.hive.service.rpc.thrift.TStatusCode;
-import org.apache.http.client.CookieStore;
-import org.apache.http.cookie.Cookie;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class Utils {
   static final Logger LOG = LoggerFactory.getLogger(Utils.class.getName());
@@ -299,6 +299,7 @@ public class Utils {
 
     // For URLs with no other configuration
     // Don't parse them, but set embedded mode as true
+    // 如果uri为 "jdbc:hive2://", 则设置嵌入式模式为true
     if (uri.equalsIgnoreCase(URL_PREFIX)) {
       connParams.setEmbeddedMode(true);
       return connParams;
@@ -311,15 +312,22 @@ public class Utils {
     // To parse the intermediate URI as a Java URI, we'll give a dummy authority(dummy:00000).
     // Later, we'll substitute the dummy authority for a resolved authority.
     String dummyAuthorityString = "dummyhost:00000";
+    // getAuthorities会返回uri中的ip和端口, 比如"jdbc:hive2://bds-test-001:10000/default", 返回bds-test-001:10000
+    // "jdbc:hive2://zkNode1:2181,zkNode2:2181,zkNode3:2181/default;serviceDiscoveryMode=zooKeeper;zooKeeperNamespace=hiveserver2_zk", 返回zkNode1:2181,zkNode2:2181,zkNode3:2181
     String suppliedAuthorities = getAuthorities(uri, connParams);
     if ((suppliedAuthorities == null) || (suppliedAuthorities.isEmpty())) {
       // Given uri of the form:
       // jdbc:hive2:///dbName;sess_var_list?hive_conf_list#hive_var_list
+      // 获取不到ip和端口信息则设置为嵌入式模式
       connParams.setEmbeddedMode(true);
     } else {
+      // 打印日志信息, 如: 17/07/26 20:20:01 [main]: INFO jdbc.Utils: Supplied authorities: bds-test-001:10000
       LOG.info("Supplied authorities: " + suppliedAuthorities);
+      // 将suppliedAuthorities以","分割为list, 设置给connParams的authorityList
       String[] authorityList = suppliedAuthorities.split(",");
       connParams.setSuppliedAuthorityList(authorityList);
+      // uri中的ip和端口替换为dummyhost:00000, 比如:jdbc:hive2://bds-test-001:10000/default, 替换为: jdbc:hive2://dummyhost:00000/default
+      // "jdbc:hive2://zkNode1:2181,zkNode2:2181,zkNode3:2181/default;serviceDiscoveryMode=zooKeeper;zooKeeperNamespace=hiveserver2_zk", 替换为"jdbc:hive2://dummyhost:00000/default;serviceDiscoveryMode=zooKeeper;zooKeeperNamespace=hiveserver2_zk"
       uri = uri.replace(suppliedAuthorities, dummyAuthorityString);
     }
 
@@ -330,21 +338,29 @@ public class Utils {
     Pattern pattern = Pattern.compile("([^;]*)=([^;]*)[;]?");
 
     // dbname and session settings
+    // getPath返回的是ip和端口后面的数据, 比如jdbc:hive2://dummyhost:00000/default, 返回的是/default
+    // jdbc:hive2://dummyhost:00000/default;serviceDiscoveryMode=zooKeeper;zooKeeperNamespace=hiveserver2_zk, 返回的是/default;serviceDiscoveryMode=zooKeeper;zooKeeperNamespace=hiveserver2_zk
     String sessVars = jdbcURI.getPath();
     if ((sessVars != null) && !sessVars.isEmpty()) {
       String dbName = "";
       // removing leading '/' returned by getPath()
+      // 去除sessVars最前面的'/', 比如/default, 变为default; /default;serviceDiscoveryMode=zooKeeper;zooKeeperNamespace=hiveserver2_zk变为default;serviceDiscoveryMode=zooKeeper;zooKeeperNamespace=hiveserver2_zk
       sessVars = sessVars.substring(1);
+      // 如果sessVars中不包含";", 说明是数据库, 直接赋值给dbName, 比如上面的default
       if (!sessVars.contains(";")) {
         // only dbname is provided
         dbName = sessVars;
       } else {
         // we have dbname followed by session parameters
+        // 如果sessVars中包含";", 说明不只有数据库, 还有session参数, 比如上面的default;serviceDiscoveryMode=zooKeeper;zooKeeperNamespace=hiveserver2_zk
+        // 先获取数据库名, 如default
         dbName = sessVars.substring(0, sessVars.indexOf(';'));
+        // 在获取session参数, 比如serviceDiscoveryMode=zooKeeper;zooKeeperNamespace=hiveserver2_zk
         sessVars = sessVars.substring(sessVars.indexOf(';') + 1);
         if (sessVars != null) {
           Matcher sessMatcher = pattern.matcher(sessVars);
           while (sessMatcher.find()) {
+            // 获取到sessVars中的key value对, 设置到connParams的sessionVars中, 比如这里是serviceDiscoveryMode=zooKeeper, zooKeeperNamespace=hiveserver2_zk两个key value对
             if (connParams.getSessionVars().put(sessMatcher.group(1), sessMatcher.group(2)) != null) {
               throw new JdbcUriParseException("Bad URL format: Multiple values for property "
                   + sessMatcher.group(1));
@@ -352,12 +368,14 @@ public class Utils {
           }
         }
       }
+      // 如果解析到了dbName, 设置到connParams中, 当然, uri中可以不带数据库名, 比如: "jdbc:hive2://zkNode1:2181,zkNode2:2181,zkNode3:2181/;serviceDiscoveryMode=zooKeeper;zooKeeperNamespace=hiveserver2_zk"
       if (!dbName.isEmpty()) {
         connParams.setDbName(dbName);
       }
     }
 
     // parse hive conf settings
+    // 解析hiveconf参数, 即在url中?后面以;分割的key value对, 设置给hiveConfs
     String confStr = jdbcURI.getQuery();
     if (confStr != null) {
       Matcher confMatcher = pattern.matcher(confStr);
@@ -367,6 +385,7 @@ public class Utils {
     }
 
     // parse hive var settings
+    // 解析hive变量, 即在url中#后面以;分割的key value对, 设置给hiveVars
     String varStr = jdbcURI.getFragment();
     if (varStr != null) {
       Matcher varMatcher = pattern.matcher(varStr);
@@ -376,6 +395,7 @@ public class Utils {
     }
     
     // Apply configs supplied in the JDBC connection properties object
+    // 解析info中的hive var和hive conf参数, 分别设置给hiveVars和hiveConfs
     for (Map.Entry<Object, Object> kv : info.entrySet()) {
       if ((kv.getKey() instanceof String)) {
         String key = (String) kv.getKey();
@@ -390,6 +410,7 @@ public class Utils {
     }
     // Extract user/password from JDBC connection properties if its not supplied
     // in the connection URL
+    // 如果connParams的sessionVars中没有user值, 则从info中获取user和password设置到session变量sessionVars中
     if (!connParams.getSessionVars().containsKey(JdbcConnectionParams.AUTH_USER)) {
         if (info.containsKey(JdbcConnectionParams.AUTH_USER)) {
             connParams.getSessionVars().put(JdbcConnectionParams.AUTH_USER,
@@ -401,6 +422,7 @@ public class Utils {
         }
     }
 
+    // 如果info中包含auth值, 设置到connParams的session变量sessionVars中
     if (info.containsKey(JdbcConnectionParams.AUTH_TYPE)) {
       connParams.getSessionVars().put(JdbcConnectionParams.AUTH_TYPE,
           info.getProperty(JdbcConnectionParams.AUTH_TYPE));
@@ -411,20 +433,24 @@ public class Utils {
     String usageUrlBase = "jdbc:hive2://<host>:<port>/dbName;";
     // Handle deprecation of AUTH_QOP_DEPRECATED
     newUsage = usageUrlBase + JdbcConnectionParams.AUTH_QOP + "=<qop_value>";
+    // 判断connParams的sessionVars中是否包含sasl.qop, 如果包含, 获取该key的值, 添加一个新的key:saslQop, value为sasl.qop对应的value, 添加到connParams的sessionVars中
     handleParamDeprecation(connParams.getSessionVars(), connParams.getSessionVars(),
         JdbcConnectionParams.AUTH_QOP_DEPRECATED, JdbcConnectionParams.AUTH_QOP, newUsage);
 
     // Handle deprecation of TRANSPORT_MODE_DEPRECATED
+    // 原理同上, 判断connParams的hiveConfs中是否包含hive.server2.transport.mode, 使用新的key:transportMode, 连同原来的value设置到connParams的sessionVars中
     newUsage = usageUrlBase + JdbcConnectionParams.TRANSPORT_MODE + "=<transport_mode_value>";
     handleParamDeprecation(connParams.getHiveConfs(), connParams.getSessionVars(),
         JdbcConnectionParams.TRANSPORT_MODE_DEPRECATED, JdbcConnectionParams.TRANSPORT_MODE,
         newUsage);
 
     // Handle deprecation of HTTP_PATH_DEPRECATED
+    // 判断connParams的hiveConfs中是否包含hive.server2.thrift.http.path, 使用新的key:httpPath, 连同原来的value设置到connParams的sessionVars中
     newUsage = usageUrlBase + JdbcConnectionParams.HTTP_PATH + "=<http_path_value>";
     handleParamDeprecation(connParams.getHiveConfs(), connParams.getSessionVars(),
         JdbcConnectionParams.HTTP_PATH_DEPRECATED, JdbcConnectionParams.HTTP_PATH, newUsage);
     // Extract host, port
+    // 先判断是否是嵌入式模式, 默认为false, 执行else中的逻辑
     if (connParams.isEmbeddedMode()) {
       // In case of embedded mode we were supplied with an empty authority.
       // So we never substituted the authority with a dummy one.
@@ -433,10 +459,14 @@ public class Utils {
     } else {
       // Configure host, port and params from ZooKeeper if used,
       // and substitute the dummy authority with a resolved one
+      // 下的方法主要是判断连接是什么方式zookeeper还是正常方式, zookeeper方式的话进行相应的设置, 正常连接的话设置host和port值, 进入configureConnParams方法
       configureConnParams(connParams);
       // We check for invalid host, port while configuring connParams with configureConnParams()
+      // 获取host port, 拼接成字符串, 比如: bds-test-001:10000
       String authorityStr = connParams.getHost() + ":" + connParams.getPort();
+      // 打印日志输出, 如: 17/07/26 20:20:01 [main]: INFO jdbc.Utils: Resolved authority: bds-test-001:10000
       LOG.info("Resolved authority: " + authorityStr);
+      // 下面是将uri中的dummyhost:00000复原为原来的ip和端口, 再设置给connParams的jdbcUriString, 比如 jdbc:hive2://bds-test-001:10000/default
       uri = uri.replace(dummyAuthorityString, authorityStr);
       connParams.setJdbcUriString(uri);
     }
@@ -505,22 +535,29 @@ public class Utils {
 
   private static void configureConnParams(JdbcConnectionParams connParams)
       throws JdbcUriParseException, ZooKeeperHiveClientException {
+    // 判断connParams的sessionVars中是否设置了serviceDiscoveryMode
     String serviceDiscoveryMode =
         connParams.getSessionVars().get(JdbcConnectionParams.SERVICE_DISCOVERY_MODE);
+    // 如果sessionVars中设置了serviceDiscoveryMode, 并且值为zooKeeper
     if ((serviceDiscoveryMode != null)
         && (JdbcConnectionParams.SERVICE_DISCOVERY_MODE_ZOOKEEPER
             .equalsIgnoreCase(serviceDiscoveryMode))) {
       // Set ZooKeeper ensemble in connParams for later use
+      // 将authorityList每个ip:port用','连接起了, 赋值给connParams的zooKeeperEnsemble, 比如: zkNode1:2181,zkNode2:2181,zkNode3:2181
       connParams.setZooKeeperEnsemble(joinStringArray(connParams.getAuthorityList(), ","));
       // Configure using ZooKeeper
+      // 配置使用zookeeper
       ZooKeeperHiveClientHelper.configureConnParams(connParams);
     } else {
+      // 不是要zookeeper, 通常是连接一个hiveServer2, 所以authorityList size为1, 取出authorityList的第一个值, 比如bds-test-001:10000
       String authority = connParams.getAuthorityList()[0];
+      // 创建URI, 比如: hive2://bds-test-001:10000
       URI jdbcURI = URI.create(URI_HIVE_PREFIX + "//" + authority);
       // Check to prevent unintentional use of embedded mode. A missing "/"
       // to separate the 'path' portion of URI can result in this.
       // The missing "/" common typo while using secure mode, eg of such url -
       // jdbc:hive2://localhost:10000;principal=hive/HiveServer2Host@YOUR-REALM.COM
+      // 下面的逻辑是解析出jdbcURI中的host和port, 校验, 然后设置给connParams的host和port
       if (jdbcURI.getAuthority() != null) {
         String host = jdbcURI.getHost();
         int port = jdbcURI.getPort();
