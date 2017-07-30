@@ -3272,7 +3272,6 @@ private void constructOneLBLocationMap(FileStatus fSta,
    * @param fs FileSystem to use
    * @param f path of directory
    * @param conf hive configuration
-   * @param forceDelete whether to force delete files if trashing does not succeed
    * @return true if deletion successful
    * @throws IOException
    */
@@ -3407,13 +3406,14 @@ private void constructOneLBLocationMap(FileStatus fSta,
     if (metaStoreClient == null || forceCreate) {
       try {
         owner = UserGroupInformation.getCurrentUser();
+        LOG.info("====> owner:" + owner);
       } catch(IOException e) {
         String msg = "Error getting current user: " + e.getMessage();
         LOG.error(msg, e);
         throw new MetaException(msg + "\n" + StringUtils.stringifyException(e));
       }
       try {
-        // 获取通过动态代理创建的IMetaStoreClient对象
+        // 获取通过动态代理创建的IMetaStoreClient对象, 实际是SessionHiveMetaStoreClient对象，该类是IMetaStoreClient接口的子类
         metaStoreClient = createMetaStoreClient(allowEmbedded);
       } catch (RuntimeException ex) {
         Throwable t = ex.getCause();

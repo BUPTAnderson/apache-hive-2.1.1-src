@@ -129,6 +129,7 @@ public class RetryingMetaStoreClient implements InvocationHandler {
       Object[] constructorArgs, ConcurrentHashMap<String, Long> metaCallTimeMap,
       String mscClassName) throws MetaException {
 
+    // 通过反射构造SessionHiveMetaStore
     @SuppressWarnings("unchecked")
     Class<? extends IMetaStoreClient> baseClass =
         (Class<? extends IMetaStoreClient>)MetaStoreUtils.getClass(mscClassName);

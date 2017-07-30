@@ -508,6 +508,8 @@ public class HiveMetaStoreClient implements IMetaStoreClient {
             try {
               UserGroupInformation ugi = Utils.getUGI();
               client.set_ugi(ugi.getUserName(), Arrays.asList(ugi.getGroupNames()));
+              LOG.info("++++> userName:" + ugi.getUserName());
+              LOG.info("+++++> groupNames:" + Arrays.asList(ugi.getGroupNames()));
             } catch (LoginException e) {
               LOG.warn("Failed to do login. set_ugi() is not successful, " +
                        "Continuing without it.", e);

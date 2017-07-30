@@ -157,10 +157,11 @@ public class SetProcessor implements CommandProcessor {
     }
     varname = varname.trim();
     String nonErrorMessage = null;
+    // 以env:开头的变量
     if (varname.startsWith(ENV_PREFIX)){
       ss.err.println("env:* variables can not be set.");
       return new CommandProcessorResponse(1); // Should we propagate the error message properly?
-    } else if (varname.startsWith(SYSTEM_PREFIX)){
+    } else if (varname.startsWith(SYSTEM_PREFIX)){ // 以system:开头的变量
       String propName = varname.substring(SYSTEM_PREFIX.length());
       System.getProperties()
           .setProperty(propName, new VariableSubstitution(new HiveVariableSource() {
@@ -169,10 +170,10 @@ public class SetProcessor implements CommandProcessor {
               return SessionState.get().getHiveVariables();
             }
           }).substitute(ss.getConf(), varvalue));
-    } else if (varname.startsWith(HIVECONF_PREFIX)){
+    } else if (varname.startsWith(HIVECONF_PREFIX)){ // 以hiveconf:开头的变量
       String propName = varname.substring(HIVECONF_PREFIX.length());
       nonErrorMessage = setConf(varname, propName, varvalue, false);
-    } else if (varname.startsWith(HIVEVAR_PREFIX)) {
+    } else if (varname.startsWith(HIVEVAR_PREFIX)) { // 以hivevar:开头的变量， 设置给SessionState的hiveVariables
       String propName = varname.substring(HIVEVAR_PREFIX.length());
       ss.getHiveVariables().put(propName, new VariableSubstitution(new HiveVariableSource() {
         @Override
@@ -206,15 +207,19 @@ public class SetProcessor implements CommandProcessor {
         throws IllegalArgumentException {
     String result = null;
     HiveConf conf = SessionState.get().getConf();
+    // 首先对varvalue中的变量进行变量替换
     String value = new VariableSubstitution(new HiveVariableSource() {
       @Override
       public Map<String, String> getHiveVariable() {
         return SessionState.get().getHiveVariables();
       }
     }).substitute(conf, varvalue);
+    // hive.conf.validation默认为true
     if (conf.getBoolVar(HiveConf.ConfVars.HIVECONFVALIDATION)) {
+      // 判断HiveConf中是否有与key名称相同的设置项
       HiveConf.ConfVars confVars = HiveConf.getConfVars(key);
       if (confVars != null) {
+        // 判断值value是否与对应配置项的value类型相同，比如， HiveConf中有配置项"hive.exec.max.created.files", 100000L， 则需要验证value是不是可以转换成Long型数值
         if (!confVars.isType(value)) {
           StringBuilder message = new StringBuilder();
           message.append("'SET ").append(varname).append('=').append(varvalue);
@@ -229,10 +234,11 @@ public class SetProcessor implements CommandProcessor {
           message.append("' FAILED in validation : ").append(fail).append('.');
           throw new IllegalArgumentException(message.toString());
         }
-      } else if (!removedConfigs.contains(key) && key.startsWith("hive.")) {
+      } else if (!removedConfigs.contains(key) && key.startsWith("hive.")) { // 如果就的配置项里面没有对应的配置项，且配置项以"hive."开头， 则抛出异常， 这里我们知道如果想设置自定义的配置项，一定不要以"hive."开头，否则保证，以"hive."开头的只能用来设置HiveConf存在的配置项
         throw new IllegalArgumentException("hive configuration " + key + " does not exists.");
       }
     }
+    // 验证配置项是不是运行时配置项，运行时配置项在运行过程中是不能更改的，如果是运行时配置项，抛出异常
     conf.verifyAndSet(key, value);
     if (HiveConf.ConfVars.HIVE_EXECUTION_ENGINE.varname.equals(key)) {
       if (!"spark".equals(value)) {

@@ -327,10 +327,10 @@ public class SessionManager extends CompositeService {
       }
     }
     session.setSessionManager(this);
-    // 重要的一步, 将operationManager设置给HiveSessionImpl的operationManager
+    // 重要的一步, 将operationManager设置给HiveSessionImpl的operationManager， 以后具体的hql的执行需要由operationManager来执行
     session.setOperationManager(operationManager);
     try {
-      // 调用open方法, 这里的sessionConf是req.getConfiguration(), 即从调用端传过来的
+      // 调用HiveSessionImpl的open方法, 这里的sessionConf是req.getConfiguration(), 即从调用端传过来的， 非常重要的一个方法， 该方法会为当前的connect创建一个HiveSerer2 session --> SessionState
       session.open(sessionConf);
     } catch (Exception e) {
       LOG.warn("Failed to open session", e);

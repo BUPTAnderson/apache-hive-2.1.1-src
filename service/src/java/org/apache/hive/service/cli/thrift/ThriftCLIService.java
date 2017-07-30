@@ -322,7 +322,7 @@ public abstract class ThriftCLIService extends AbstractService implements TCLISe
       ThriftCLIServerContext context =
         (ThriftCLIServerContext)currentServerContext.get();
       if (context != null) {
-        LOG.info(context.);
+        LOG.info("*********> context:" + context.getSessionHandle().toString());
         context.setSessionHandle(sessionHandle);
       }
     } catch (Exception e) {
@@ -336,6 +336,7 @@ public abstract class ThriftCLIService extends AbstractService implements TCLISe
     String clientIpAddress;
     // Http transport mode.
     // We set the thread local ip address, in ThriftHttpServlet.
+    // 先判断是不是http模式， 默认false， 执行else中的逻辑
     if (cliService.getHiveConf().getVar(
         ConfVars.HIVE_SERVER2_TRANSPORT_MODE).equalsIgnoreCase("http")) {
       clientIpAddress = SessionManager.getIpAddress();

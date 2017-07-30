@@ -381,9 +381,9 @@ public class SessionState {
     // Must be deterministic order map for consistent q-test output across Java versions
     overriddenConfigurations = new LinkedHashMap<String, String>();
     overriddenConfigurations.putAll(HiveConf.getConfSystemProperties());
-    // 设置参数hive.session.id的值, 实际是一个UUID
+    // 创建hive.session.id, 实际是一个UUID
     // if there isn't already a session name, go ahead and create it.
-    // 如果是HiveSessionImpl调用的该构造方法, hive.session.id是不为空的, 如果是CLI调用的
+    // 如果是HiveSessionImpl调用的该构造方法, hive.session.id是不为空的, 不必创建， 如果是CLI调用的， sessionId是空， 需要在这里设置sessionId的值
     if (StringUtils.isEmpty(conf.getVar(HiveConf.ConfVars.HIVESESSIONID))) {
       conf.setVar(HiveConf.ConfVars.HIVESESSIONID, makeSessionId());
     }
@@ -569,6 +569,8 @@ public class SessionState {
       // shared with SessionState, other parts of the code might update the config, but
       // Hive.get(HiveConf) would not recognize the case when it needs refreshing
       // 获取当前线程对应的Hive实例,没有的话创建一个,同时调用Hive实例的getMSC()来获取当前线程的Hive实例内部的metaStoreClient对象,如果为null,则构造一个到MetaStore的client, 该client会打开到metastore的连接
+      // 注意这里传入的HiveConf是copy的当前SessionState的sessionConf， 并不是直接把sessionConf传给了Hive.get()方法， 获取Hive实例是根据当前线程获取的，并不是根据传入的HiveConf获取的， HiveConf只是在Hive不存在时用来构造Hive使用的
+      // 即HiveSessionImpl和SessionState是同一份HiveConf， 对应的Hive类里是该HiveConf的复制，增加了一个设置<"fs.scheme.class", "dfs">
       Hive.get(new HiveConf(startSs.sessionConf)).getMSC();
       UserGroupInformation sessionUGI = Utils.getUGI();
       FileSystem.get(startSs.sessionConf);

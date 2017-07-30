@@ -125,7 +125,7 @@ public class HiveSessionImpl implements HiveSession {
     // 这里sessionConf是该session独有的, 是将SessionManager的hiveConf复制一份给当前session
     this.sessionConf = new HiveConf(serverConf);
     this.ipAddress = ipAddress;
-    // 是否允许在一个会话中进行多个并行操作（如SQL语句）。默认为true
+    // 是否允许在一个会话中进行多个并行操作（如SQL语句）。默认为true， 创建一个Semaphore对象
     this.operationLock = serverConf.getBoolVar(
         ConfVars.HIVE_SERVER2_PARALLEL_OPS_IN_SESSION) ? null : new Semaphore(1);
     try {
@@ -140,7 +140,7 @@ public class HiveSessionImpl implements HiveSession {
       LOG.warn("Error setting scheduler queue: " + e, e);
     }
     // Set an explicit session name to control the download directory name
-    // 设置sessionId, 比如: 98f4a59c-2eab-4918-a0dd-3018510700ed, 增加配置项<"hive.session.id", "98f4a59c-2eab-4918-a0dd-3018510700ed">
+    // 设置sessionId, 实际是一个UUID， 比如: 98f4a59c-2eab-4918-a0dd-3018510700ed, 增加配置项<"hive.session.id", "98f4a59c-2eab-4918-a0dd-3018510700ed">
     sessionConf.set(ConfVars.HIVESESSIONID.varname,
         this.sessionHandle.getHandleIdentifier().toString());
     // Use thrift transportable formatter
@@ -167,7 +167,7 @@ public class HiveSessionImpl implements HiveSession {
    * That's why it is important to create SessionState here rather than in the constructor.
    */
   public void open(Map<String, String> sessionConfMap) throws HiveSQLException {
-    // 构建SessionState
+    // 构建SessionState, HiveConf使用的是当前类的sessionConf，即当HiveSessionImpl和SessionState使用的是同一个sessionConf，即每个会话对应一个HiveSessionImpl和SessionState
     sessionState = new SessionState(sessionConf, username);
     sessionState.setUserIpAddress(ipAddress);
     sessionState.setIsHiveServerQuery(true);
@@ -194,7 +194,7 @@ public class HiveSessionImpl implements HiveSession {
     // Process global init file: .hiverc
     processGlobalInitFile();
     if (sessionConfMap != null) {
-      // 处理传入的参数
+      // 处理传入的参数, set:hiveconf:, set:hivevar:,use:database
       configureSession(sessionConfMap);
     }
     lastAccessTime = System.currentTimeMillis();
@@ -266,6 +266,7 @@ public class HiveSessionImpl implements HiveSession {
     SessionState.setCurrentSessionState(sessionState);
     for (Map.Entry<String, String> entry : sessionConfMap.entrySet()) {
       String key = entry.getKey();
+      // 针对set:hiveconf:, set:hivevar:
       if (key.startsWith("set:")) {
         try {
           SetProcessor.setVariable(key.substring(4), entry.getValue());
@@ -273,8 +274,10 @@ public class HiveSessionImpl implements HiveSession {
           throw new HiveSQLException(e);
         }
       } else if (key.startsWith("use:")) {
+        // 设置当前使用的数据库
         SessionState.get().setCurrentDatabase(entry.getValue());
       } else {
+        // 其它设置， 比如: <"hive.server2.proxy.user", "datajingdo_m">
         sessionConf.verifyAndSet(key, entry.getValue());
       }
     }
