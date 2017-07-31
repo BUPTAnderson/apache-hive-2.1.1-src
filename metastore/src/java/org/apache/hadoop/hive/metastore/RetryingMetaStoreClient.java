@@ -81,7 +81,7 @@ public class RetryingMetaStoreClient implements InvocationHandler {
 
     reloginExpiringKeytabUser();
     // 创建IMetaStoreClient对象, msClientClass为SessionHiveMetaStoreClient, 调用SessionHiveMetaStoreClient的构造方法, 实际又调用的父类HiveMetaStoreClient的构造方法
-    // HiveMetaStoreClient的构造方法中会实例化client, 即base实际是SessionHiveMetaStoreClient对象
+    // HiveMetaStoreClient的构造方法中会实例化client, 建立到metastore的连接, 即base实际是SessionHiveMetaStoreClient对象
     this.base = (IMetaStoreClient) MetaStoreUtils.newInstance(
         msClientClass, constructorArgTypes, constructorArgs);
   }
@@ -129,12 +129,13 @@ public class RetryingMetaStoreClient implements InvocationHandler {
       Object[] constructorArgs, ConcurrentHashMap<String, Long> metaCallTimeMap,
       String mscClassName) throws MetaException {
 
-    // 通过反射构造SessionHiveMetaStore
+    // 通过反射构造SessionHiveMetaStore对应的class对象
     @SuppressWarnings("unchecked")
     Class<? extends IMetaStoreClient> baseClass =
         (Class<? extends IMetaStoreClient>)MetaStoreUtils.getClass(mscClassName);
 
-    // 构造一个RetryingMetaStoreClient对象(该类继承自InvocationHandler), 构造方法中会创建一个IMetaStoreClient对象(对象名为base, invoke中使用该base), baseClass是SessionHiveMetaStoreClient
+    // 构造一个RetryingMetaStoreClient对象(该类继承自InvocationHandler),
+    // 构造方法中会创建一个IMetaStoreClient对象(对象名为base, invoke中使用该base), 是使用上面的baseClass调用newInstance()方法创建的SessionHiveMetaStoreClient对象
     RetryingMetaStoreClient handler =
         new RetryingMetaStoreClient(hiveConf, constructorArgTypes, constructorArgs,
             metaCallTimeMap, baseClass);

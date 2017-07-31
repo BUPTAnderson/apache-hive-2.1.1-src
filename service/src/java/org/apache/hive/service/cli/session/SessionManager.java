@@ -342,7 +342,9 @@ public class SessionManager extends CompositeService {
       session = null;
       throw new HiveSQLException("Failed to open new session: " + e.getMessage(), e);
     }
+    // 初始化SessionManager的过程中该值为true
     if (isOperationLogEnabled) {
+      // operationLogRootDir默认值为:"${system:java.io.tmpdir}/${system:user.name}/operation_logs", 比如: /tmp/hadoop/operation_logs/, 调用HiveSessionImpl的setOperationLogSessionDir方法
       session.setOperationLogSessionDir(operationLogRootDir);
     }
     try {

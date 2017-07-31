@@ -18,43 +18,9 @@
 
 package org.apache.hadoop.hive.ql.metadata;
 
-import static org.apache.hadoop.hive.metastore.api.hive_metastoreConstants.META_TABLE_STORAGE;
-import static org.apache.hadoop.hive.serde.serdeConstants.COLLECTION_DELIM;
-import static org.apache.hadoop.hive.serde.serdeConstants.ESCAPE_CHAR;
-import static org.apache.hadoop.hive.serde.serdeConstants.FIELD_DELIM;
-import static org.apache.hadoop.hive.serde.serdeConstants.LINE_DELIM;
-import static org.apache.hadoop.hive.serde.serdeConstants.MAPKEY_DELIM;
-import static org.apache.hadoop.hive.serde.serdeConstants.SERIALIZATION_FORMAT;
-import static org.apache.hadoop.hive.serde.serdeConstants.STRING_TYPE_NAME;
-
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.PrintStream;
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.ConcurrentHashMap;
-
 import com.google.common.collect.ImmutableMap;
-
-import javax.jdo.JDODataStoreException;
-
+import com.google.common.collect.Sets;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -80,7 +46,6 @@ import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.Warehouse;
 import org.apache.hadoop.hive.metastore.api.AggrStats;
 import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
-import org.apache.hadoop.hive.metastore.api.ColumnStatistics;
 import org.apache.hadoop.hive.metastore.api.ColumnStatisticsObj;
 import org.apache.hadoop.hive.metastore.api.CompactionType;
 import org.apache.hadoop.hive.metastore.api.Database;
@@ -99,8 +64,8 @@ import org.apache.hadoop.hive.metastore.api.HiveObjectType;
 import org.apache.hadoop.hive.metastore.api.Index;
 import org.apache.hadoop.hive.metastore.api.InsertEventRequestData;
 import org.apache.hadoop.hive.metastore.api.InvalidOperationException;
-import org.apache.hadoop.hive.metastore.api.MetadataPpdResult;
 import org.apache.hadoop.hive.metastore.api.MetaException;
+import org.apache.hadoop.hive.metastore.api.MetadataPpdResult;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Order;
 import org.apache.hadoop.hive.metastore.api.PrimaryKeysRequest;
@@ -144,8 +109,40 @@ import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.Sets;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import javax.jdo.JDODataStoreException;
+
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import static org.apache.hadoop.hive.metastore.api.hive_metastoreConstants.META_TABLE_STORAGE;
+import static org.apache.hadoop.hive.serde.serdeConstants.COLLECTION_DELIM;
+import static org.apache.hadoop.hive.serde.serdeConstants.ESCAPE_CHAR;
+import static org.apache.hadoop.hive.serde.serdeConstants.FIELD_DELIM;
+import static org.apache.hadoop.hive.serde.serdeConstants.LINE_DELIM;
+import static org.apache.hadoop.hive.serde.serdeConstants.MAPKEY_DELIM;
+import static org.apache.hadoop.hive.serde.serdeConstants.SERIALIZATION_FORMAT;
+import static org.apache.hadoop.hive.serde.serdeConstants.STRING_TYPE_NAME;
 
 /**
  * This class has functions that implement meta data/DDL operations using calls
@@ -3405,8 +3402,8 @@ private void constructOneLBLocationMap(FileStatus fSta,
       boolean allowEmbedded, boolean forceCreate) throws MetaException {
     if (metaStoreClient == null || forceCreate) {
       try {
+        // 这里获取的owner应该是启动HiveServer2服务的用户, 比如: hadoop
         owner = UserGroupInformation.getCurrentUser();
-        LOG.info("====> owner:" + owner);
       } catch(IOException e) {
         String msg = "Error getting current user: " + e.getMessage();
         LOG.error(msg, e);

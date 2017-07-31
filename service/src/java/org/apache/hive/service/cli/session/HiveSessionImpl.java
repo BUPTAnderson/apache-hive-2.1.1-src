@@ -171,10 +171,10 @@ public class HiveSessionImpl implements HiveSession {
     sessionState = new SessionState(sessionConf, username);
     sessionState.setUserIpAddress(ipAddress);
     sessionState.setIsHiveServerQuery(true);
+    // 在http模式下才会设置threadLocalForwardedAddresses, 所以默认thrift模式下返回null
     sessionState.setForwardedAddresses(SessionManager.getForwardedAddresses());
-    LOG.info("--> forwardedAddresses:" + SessionManager.getForwardedAddresses());
+    // updateIsUsingThriftJDBCBinarySerDe方法默认返回false
     sessionState.setIsUsingThriftJDBCBinarySerDe(updateIsUsingThriftJDBCBinarySerDe());
-    LOG.info("---> isUsingThriftJDBCBinarySerDe:" + updateIsUsingThriftJDBCBinarySerDe());
     // 把sessionState设置给当前线程的SessionStates, 其中SessionStates的sessionState就是传入的sessionState, SessionStates里面的conf就是传入的sessionState的conf, 也就是HiveSessionImpl的sessionConf
     // 该start方法中同时会创建该线程对应的Hive, 并在Hive中创建到metastore的client, 与metastore建立连接
     SessionState.start(sessionState);
@@ -192,6 +192,7 @@ public class HiveSessionImpl implements HiveSession {
       throw new HiveSQLException("Failed to get metastore connection", e);
     }
     // Process global init file: .hiverc
+    // 处理 hive_conf/.hiverc文件, 默认没有该文件
     processGlobalInitFile();
     if (sessionConfMap != null) {
       // 处理传入的参数, set:hiveconf:, set:hivevar:,use:database
@@ -241,10 +242,12 @@ public class HiveSessionImpl implements HiveSession {
     IHiveFileProcessor processor = new GlobalHivercFileProcessor();
 
     try {
+      // 获取配置项:hive.server2.global.init.file.location的值, 默认为:${env:HIVE_CONF_DIR}, 不为null
       String hiverc = sessionConf.getVar(ConfVars.HIVE_SERVER2_GLOBAL_INIT_FILE_LOCATION);
       if (hiverc != null) {
         File hivercFile = new File(hiverc);
         if (hivercFile.isDirectory()) {
+          // ${HIVE_CONF_DIR}/.hiverc
           hivercFile = new File(hivercFile, SessionManager.HIVERCFILE);
         }
         if (hivercFile.isFile()) {
@@ -254,6 +257,7 @@ public class HiveSessionImpl implements HiveSession {
             LOG.error("Failed on initializing global .hiverc file");
           }
         } else {
+          // 默认不存在该文件, 输出日志, 如: session.HiveSessionImpl: Global init file /export/App/apache-hive-2.1.1-bin/conf/.hiverc does not exist
           LOG.debug("Global init file " + hivercFile + " does not exist");
         }
       }
@@ -290,6 +294,7 @@ public class HiveSessionImpl implements HiveSession {
 
   @Override
   public void setOperationLogSessionDir(File operationLogRootDir) {
+    // SessionManager初始化的时候已经创建过了, 所以是存在的
     if (!operationLogRootDir.exists()) {
       LOG.warn("The operation log root directory is removed, recreating:" +
           operationLogRootDir.getAbsolutePath());
@@ -298,19 +303,24 @@ public class HiveSessionImpl implements HiveSession {
             operationLogRootDir.getAbsolutePath());
       }
     }
+    // 是可写的
     if (!operationLogRootDir.canWrite()) {
       LOG.warn("The operation log root directory is not writable: " +
           operationLogRootDir.getAbsolutePath());
     }
+    // sessionLogDir为: operationLogRootDir/sessionId, 比如: /tmp/hadoop/operation_logs/a3efaa36-80de-4b6f-9845-3e0e7f3fd73f
     sessionLogDir = new File(operationLogRootDir, sessionHandle.getHandleIdentifier().toString());
     isOperationLogEnabled = true;
+    // 这是目录还不存在, exists方法返回false
     if (!sessionLogDir.exists()) {
+      // 可否创建sessionLogDir对应的目录, 默认是可以的, 并且会创建
       if (!sessionLogDir.mkdir()) {
         LOG.warn("Unable to create operation log session directory: " +
             sessionLogDir.getAbsolutePath());
         isOperationLogEnabled = false;
       }
     }
+    // 打印日志输出, 比如: session.HiveSessionImpl: Operation log session directory is created: /tmp/hadoop/operation_logs/a3efaa36-80de-4b6f-9845-3e0e7f3fd73f
     if (isOperationLogEnabled) {
       LOG.info("Operation log session directory is created: " + sessionLogDir.getAbsolutePath());
     }

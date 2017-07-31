@@ -74,6 +74,7 @@ class DatabaseConnection {
 
 
   void setCompletions(boolean skipmeta) throws SQLException, IOException {
+    // HiveDatabaseMetaData的getExtraNameCharacters返回的是""
     final String extraNameCharacters =
         getDatabaseMetaData() == null || getDatabaseMetaData().getExtraNameCharacters() == null ? ""
             : getDatabaseMetaData().getExtraNameCharacters();
@@ -148,12 +149,13 @@ class DatabaseConnection {
     if (isDriverRegistered) {
       // if the driver registered in the driver manager, get the connection via the driver manager
       // 实际是调用HiveDriver的connect(String url, Properties info)方法, 返回一个new HiveConnection(url, info)
+      // 调用new HiveConnection(url, info)构造方法会建立到HiveServer2的client并打开会话
       setConnection(DriverManager.getConnection(getUrl(), info));
     } else {
       beeLine.debug("Use the driver from local added jar file.");
       setConnection(getConnectionFromLocalDriver(getUrl(), info));
     }
-    // 调用HiveConnection的getMetaData()方法
+    // 调用HiveConnection的getMetaData()方法, 该方法并没有与hiveserver2通信, 而是返回了一个由HiveConnection构造的HiveDatabaseMetaData对象, 该对象封装了HiveConnection, client和sessHandle
     setDatabaseMetaData(getConnection().getMetaData());
 
     try {

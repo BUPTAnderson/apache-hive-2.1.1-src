@@ -118,10 +118,14 @@ public class ThriftBinaryCLIService extends ThriftCLIService {
       // TCP Server
       // TThreadPoolServer的特点是，客户端只要不从服务器上断开连接，就会一直占据服务器的一个线程，所以可能会出现阻塞问题
       server = new TThreadPoolServer(sargs);
+      // TThreadPoolServer在调用serve()方法时, 方法内会先调用eventHandler_.preServe()方法
+      // 接收到具体的请求后, 在线程处理请求的过程中, 会先调用的createContext, 然后调用processContext, 之后才会调用具体的processor.process(inputProtocol, outputProtocol)方法
+      // 最后线程关闭client的时候会调用deleteContext方法
       server.setServerEventHandler(new TServerEventHandler() {
         @Override
         public ServerContext createContext(
           TProtocol input, TProtocol output) {
+          // metrics是一个单例, 整个HiveServer2对应一个metrics
           Metrics metrics = MetricsFactory.getInstance();
           if (metrics != null) {
             try {

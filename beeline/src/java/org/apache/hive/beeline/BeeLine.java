@@ -2128,6 +2128,7 @@ public class BeeLine implements Closeable {
 
   void setCompletions() throws SQLException, IOException {
     if (getDatabaseConnection() != null) {
+      // fastConnect默认为true, getOpts().getFastConnect()返回true
       getDatabaseConnection().setCompletions(getOpts().getFastConnect());
     }
   }

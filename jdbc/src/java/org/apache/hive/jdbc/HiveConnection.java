@@ -232,6 +232,7 @@ public class HiveConnection implements java.sql.Connection {
     }
 
     // Wrap the client with a thread-safe proxy to serialize the RPC calls
+    // 对client做一层封装
     client = newSynchronizedClient(client);
   }
 

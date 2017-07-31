@@ -444,6 +444,7 @@ public class HiveMetaStoreClient implements IMetaStoreClient {
 
     for (int attempt = 0; !isConnected && attempt < retries; ++attempt) {
       for (URI store : metastoreUris) {
+        // 打印日志, 如: hive.metastore: Trying to connect to metastore with URI thrift://bds-test-004:9083
         LOG.info("Trying to connect to metastore with URI " + store);
         try {
           transport = new TSocket(store.getHost(), store.getPort(), clientSocketTimeout);
@@ -486,10 +487,11 @@ public class HiveMetaStoreClient implements IMetaStoreClient {
           } else {
             protocol = new TBinaryProtocol(transport);  // 默认
           }
-          // ThriftHiveMetastore.Client是ThriftHiveMetastore.Iface的子类
+          // ThriftHiveMetastore.Client是hive_metastore.thrift生成的客户端类, 即metastore的客户端
           client = new ThriftHiveMetastore.Client(protocol);
           try {
             transport.open(); // 打开连接
+            // 打印日志, 比如: hive.metastore: Opened a connection to metastore, current connections: 2
             LOG.info("Opened a connection to metastore, current connections: " + connCount.incrementAndGet());
             isConnected = true;
           } catch (TTransportException e) {
@@ -506,10 +508,10 @@ public class HiveMetaStoreClient implements IMetaStoreClient {
             // Call set_ugi, only in unsecure mode.
             // 调用set_ugi方法设置username和groupName
             try {
+              // 实际获取的是系统的当前用户
               UserGroupInformation ugi = Utils.getUGI();
+              // 系统用户及其所属的组, 比如: userName: hadoop, groupNames: [hadoop]
               client.set_ugi(ugi.getUserName(), Arrays.asList(ugi.getGroupNames()));
-              LOG.info("++++> userName:" + ugi.getUserName());
-              LOG.info("+++++> groupNames:" + Arrays.asList(ugi.getGroupNames()));
             } catch (LoginException e) {
               LOG.warn("Failed to do login. set_ugi() is not successful, " +
                        "Continuing without it.", e);

@@ -974,6 +974,7 @@ public class Commands {
       try {
         long start = System.currentTimeMillis();
 
+        // beeline传过来的call是false, 执行else中的逻辑
         if (call) {
           stmnt = beeLine.getDatabaseConnection().getConnection().prepareCall(sql);
           hasResults = ((CallableStatement) stmnt).execute();
@@ -1159,6 +1160,7 @@ public class Commands {
     for (int i = 0; i < cmdList.size(); i++) {
       String sql = cmdList.get(i).trim();
       if (sql.length() != 0) {
+        // 调用executeInternal执行sql, Beeline传过来的call是false
         if (!executeInternal(sql, call)) {
           return false;
         }
@@ -1480,16 +1482,18 @@ public class Commands {
       // 然后调用DatabaseConnections的setConnection方法, 将创建的DatabaseConnection对象传进去
       beeLine.getDatabaseConnections().setConnection(
           new DatabaseConnection(beeLine, driver, url, props));
-      // 实际是获取上面刚刚创建的DatabaseConnection对象, 然后调用该对象的getConnection方法
+      // 实际是获取上面刚刚创建的DatabaseConnection对象, 然后调用该对象的getConnection方法, 该方法中会建立到hiveserver2的client并打开会话
       beeLine.getDatabaseConnection().getConnection();
 
       if (!beeLine.isBeeLine()) {
         beeLine.updateOptsForCli();
       }
-      // 调用runInit方法
+      // 调用runInit方法, 如果在启动命令中通过 --i filename, 指定了初始化file, 会在runInit方法中处理这些file
       beeLine.runInit();
 
+      // 设置DatabaseConnection的sqlCompleter
       beeLine.setCompletions();
+      // 将当前url设置为opts的lastConnectedUrl
       beeLine.getOpts().setLastConnectedUrl(url);
       return true;
     } catch (SQLException sqle) {

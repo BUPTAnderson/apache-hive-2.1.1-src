@@ -319,10 +319,11 @@ public abstract class ThriftCLIService extends AbstractService implements TCLISe
       // TODO: set real configuration map
       resp.setConfiguration(new HashMap<String, String>());
       resp.setStatus(OK_STATUS);
+      // ThriftBinaryCLIService在启动的过程中已经设置了server.setServerEventHandler(new TServerEventHandler()...), 在客户端调用的过程中在TThreadPoolServer中会调用
+      // TServerEventHandler的createContext方法创建ThriftCLIServerContext对象, 创建的对象是空的, 还没有设置sessionHandle, 在这里进行设置
       ThriftCLIServerContext context =
         (ThriftCLIServerContext)currentServerContext.get();
       if (context != null) {
-        LOG.info("*********> context:" + context.getSessionHandle().toString());
         context.setSessionHandle(sessionHandle);
       }
     } catch (Exception e) {
