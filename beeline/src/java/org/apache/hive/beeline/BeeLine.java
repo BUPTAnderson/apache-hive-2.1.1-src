@@ -500,6 +500,7 @@ public class BeeLine implements Closeable {
     // 进入begin方法
     int status = beeLine.begin(args, inputStream);
 
+    // 默认false, 退出
     if (!Boolean.getBoolean(BeeLineOpts.PROPERTY_NAME_EXIT)) {
         System.exit(status);
     }
@@ -709,6 +710,7 @@ public class BeeLine implements Closeable {
     BeelineParser beelineParser;
 
     try {
+      // 使用BeelineParser, 按照规则opeions来对参数进行解析
       beelineParser = new BeelineParser();
       cl = beelineParser.parse(options, args);
     } catch (ParseException e1) {
@@ -722,7 +724,9 @@ public class BeeLine implements Closeable {
 
 
     if (cl.hasOption("help")) {
+      // 输出帮助信息
       usage();
+      // helpAsked设为true
       getOpts().setHelpAsked(true);
       return 0;
     }
@@ -755,7 +759,9 @@ public class BeeLine implements Closeable {
       // If url was not specified with -u, but -r was present, use that.
       url = getOpts().getLastConnectedUrl();
     }
+    // -i开头的文件是要用来初始化的文件
     getOpts().setInitFiles(cl.getOptionValues("i"));
+    // -f开头的是要执行的脚本文件
     getOpts().setScriptFile(cl.getOptionValue("f"));
     if (cl.getOptionValues('e') != null) {
       commands = Arrays.asList(cl.getOptionValues('e'));
@@ -858,12 +864,14 @@ public class BeeLine implements Closeable {
   public int begin(String[] args, InputStream inputStream) throws IOException {
     try {
       // load the options first, so we can override on the command line
+      // 加载 HOME/.beeline/beeline.properties文件,比如: /home/hadoop/.beeline/beeline.properties, 读取里面的设置项, 默认没有创建该文件.
       getOpts().load();
     } catch (Exception e) {
       // nothing
     }
 
     try {
+      // beeline调用该方法的话, isBeeLine是true
       if (isBeeLine) {
         // 处理启动命令中的参数
         int code = initArgs(args);
@@ -881,6 +889,7 @@ public class BeeLine implements Closeable {
       if (getOpts().isHelpAsked()) {
         return 0;
       }
+      // 如果指定了-f, 则先执行-f对应的文件中的命令, 如果执行过程中遇到错误会退出, 执行完之后也会退出
       if (getOpts().getScriptFile() != null) {
         return executeFile(getOpts().getScriptFile());
       }
@@ -890,8 +899,9 @@ public class BeeLine implements Closeable {
       } catch (Exception e) {
         // ignore
       }
+      // 获取ConsoleReader, 用来读取用户在命令行中的输入
       ConsoleReader reader = getConsoleReader(inputStream);
-      // 调用execute
+      // 调用execute, false是当遇到错误时不退出beeline, 可以继续执行后面用户输入的命令
       return execute(reader, false);
     } finally {
         close();
@@ -957,6 +967,7 @@ public class BeeLine implements Closeable {
       } else {
         initStream = new FileInputStream(fileName);
       }
+      // getOpts().getForce()默认返回false, 即执行file中的命令, 如果遇到错误就退出不再继续执行
       return execute(getConsoleReader(initStream), !getOpts().getForce());
     } catch (Throwable t) {
       handleException(t);
@@ -976,6 +987,7 @@ public class BeeLine implements Closeable {
         // Execute one instruction; terminate on executing a script if there is an error
         // in silent mode, prevent the query and prompt being echoed back to terminal
         // 默认不是silent模式, 执行reader.readLine(getPrompt()), getPrompt方法是返回jline输出的提示符, 实际就是输出提示符, 同时从命令行读取用户输入的命令
+        // 是逐行读取的
         String line = (getOpts().isSilent() && getOpts().getScriptFile() != null) ? reader
             .readLine(null, ConsoleReader.NULL_MASK) : reader.readLine(getPrompt());
 
@@ -1007,6 +1019,7 @@ public class BeeLine implements Closeable {
   }
 
   public ConsoleReader getConsoleReader(InputStream inputStream) throws IOException {
+    // beeline调用该方法时, inputStream是null
     if (inputStream != null) {
       // ### NOTE: fix for sf.net bug 879425.
       // Working around an issue in jline-2.1.2, see https://github.com/jline/jline/issues/10
@@ -1023,7 +1036,10 @@ public class BeeLine implements Closeable {
     consoleReader.setExpandEvents(false);
 
     // setup history
+    // hist是保存查询历史的类, 先判断历史文件是不是为空, 不为空的话把里面的历史记录都读取到hist中
     ByteArrayOutputStream hist = new ByteArrayOutputStream();
+    // 判断 HOME/.beeline/history对应的用来保存查询历史的文件是否存在, 比如: /home/hadoop/.beeline/history, 第一次启动的时候该文件是不存在的
+    // 之后启动的话该文件是存在的, 这时, 读取文件内容写入到hist中
     if (new File(getOpts().getHistoryFile()).isFile()) {
       try {
         // save the current contents of the history buffer. This gets
@@ -1044,11 +1060,13 @@ public class BeeLine implements Closeable {
 
     try {
       // now set the output for the history
+      // 把查询历史文件设置给consoleReader
       consoleReader.setHistory(new FileHistory(new File(getOpts().getHistoryFile())));
     } catch (Exception e) {
       handleException(e);
     }
 
+    // beeline传过来的inputStream是null
     if (inputStream instanceof FileInputStream || inputStream instanceof FSDataInputStream) {
       // from script.. no need to load history and no need of completer, either
       return consoleReader;
@@ -1058,6 +1076,7 @@ public class BeeLine implements Closeable {
       if (hist != null) {
         History h = consoleReader.getHistory();
         if (!(h instanceof FileHistory)) {
+          // 将hist读取到的历史查询记录赋值给consoleReader的history
           consoleReader.getHistory().add(hist.toString());
         }
       }
@@ -1066,6 +1085,7 @@ public class BeeLine implements Closeable {
     }
 
     // add shutdown hook to flush the history to history file
+    // 设置钩子程序, 当beeline关闭的时候将查询历史记录flush到文件HOME/.beeline/history中
     Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
         @Override
         public void run() {
@@ -1142,6 +1162,7 @@ public class BeeLine implements Closeable {
       return true;
     }
 
+    // 已#或--开头的命令认为是注释, 会被忽略
     if (isComment(line)) {
       return true;
     }
@@ -1149,10 +1170,12 @@ public class BeeLine implements Closeable {
     line = line.trim();
 
     // save it to the current script, if any
+    // scriptOutputFile默认为null
     if (scriptOutputFile != null) {
       scriptOutputFile.addLine(line);
     }
 
+    // 如果line是"?"或"help"
     if (isHelpRequest(line)) {
       line = "!help";
     }
@@ -1456,9 +1479,13 @@ public class BeeLine implements Closeable {
   }
 
   String getPromptForBeeline() {
+    // 还没建立连接, 输出提示符: "beeline> "
     if (getDatabaseConnection() == null || getDatabaseConnection().getUrl() == null) {
       return "beeline> ";
     } else {
+      // 已经建立连接, 根据连接是否关闭, 分别输出: 连接索引:url>, 或 连接索引:url(closed)>, 比如:
+      // 0: jdbc:hive2://192.168.177.77:9083/default (closed)>
+      // 1: jdbc:hive2://192.168.177.77:10000/default>
       String printClosed = getDatabaseConnection().isClosed() ? " (closed)" : "";
       return getPromptForBeeline(getDatabaseConnections().getIndex()
           + ": " + getDatabaseConnection().getUrl()) + printClosed + "> ";
@@ -2058,10 +2085,13 @@ public class BeeLine implements Closeable {
 
 
   Statement createStatement() throws SQLException {
+    // 调用HiveConnection的createStatement方法, 返回一个HiveStatement对象
     Statement stmnt = getDatabaseConnection().getConnection().createStatement();
+    // timeout默认为-1
     if (getOpts().timeout > -1) {
       stmnt.setQueryTimeout(getOpts().timeout);
     }
+    // signalHandler默认为null
     if (signalHandler != null) {
       signalHandler.setStatement(stmnt);
     }

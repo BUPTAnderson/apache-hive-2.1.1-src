@@ -931,32 +931,39 @@ public class Commands {
       return true;
     }
 
+    // 如果sql以#或--开头, 则认为是注释, 忽略
     if (beeLine.isComment(sql)) {
       //skip this and rest cmds in the line
       return true;
     }
 
     // is source CMD
+    // 如果sql是以source开头的, 则执行sourceFile方法
     if (isSourceCMD(sql)) {
       return sourceFile(sql);
     }
 
+    // 如果sql是以"!"开头的, 则执行execCommandWithPrefix方法
     if (sql.startsWith(BeeLine.COMMAND_PREFIX)) {
       return beeLine.execCommandWithPrefix(sql);
     }
 
+    // 默认call是false, prefix是"sql"
     String prefix = call ? "call" : "sql";
 
+    // 如果sql是以"sql"开头的, 截取调开头的"sql"
     if (sql.startsWith(prefix)) {
       sql = sql.substring(prefix.length());
     }
 
     // batch statements?
+    // bath默认是null
     if (beeLine.getBatch() != null) {
       beeLine.getBatch().add(sql);
       return true;
     }
 
+    // 判断是否有可用的连接, 返回true
     if (!(beeLine.assertConnection())) {
       return false;
     }
@@ -979,8 +986,9 @@ public class Commands {
           stmnt = beeLine.getDatabaseConnection().getConnection().prepareCall(sql);
           hasResults = ((CallableStatement) stmnt).execute();
         } else {
-          // 创建Statement
+          // 创建Statement, 返回的是HiveStatement对象
           stmnt = beeLine.createStatement();
+          // 默认不是silent, 执行else中的逻辑
           if (beeLine.getOpts().isSilent()) {
             hasResults = stmnt.execute(sql);
           } else {
@@ -1044,10 +1052,12 @@ public class Commands {
 
   public String handleMultiLineCmd(String line) throws IOException {
     //When using -e, console reader is not initialized and command is a single line
+    // isAllowMultiLineCommand()默认是true, 如果line不是以";"结尾
     while (beeLine.getConsoleReader() != null && !(line.trim().endsWith(";")) && beeLine.getOpts()
         .isAllowMultiLineCommand()) {
 
       StringBuilder prompt = new StringBuilder(beeLine.getPrompt());
+      // 输出提示符中把除">"以外的字符使用"."和" "替换
       if (!beeLine.getOpts().isSilent()) {
         for (int i = 0; i < prompt.length() - 1; i++) {
           if (prompt.charAt(i) != '>') {
@@ -1060,12 +1070,14 @@ public class Commands {
       if (beeLine.getOpts().isSilent() && beeLine.getOpts().getScriptFile() != null) {
         extra = beeLine.getConsoleReader().readLine(null, jline.console.ConsoleReader.NULL_MASK);
       } else {
+        // 继续输出提示符, 并读取一行输入
         extra = beeLine.getConsoleReader().readLine(prompt.toString());
       }
 
       if (extra == null) { //it happens when using -f and the line of cmds does not end with ;
         break;
       }
+      // 如果不是comment输入, 将输入连接到line = "\n"后面
       if (!beeLine.isComment(extra)) {
         line += "\n" + extra;
       }
@@ -1135,6 +1147,7 @@ public class Commands {
 
     // use multiple lines for statements not terminated by ";"
     try {
+      // handleMultiLineCmd是用来处理输入的不是完整的一行命令(即不是以";"结尾的输入), handleMultiLineCmd会继续读取输入, 直到读取到以";"结尾为止, 会将它们以"\n"拼接后返回
       line = handleMultiLineCmd(line);
     } catch (Exception e) {
       beeLine.handleException(e);
@@ -1142,6 +1155,7 @@ public class Commands {
 
     line = line.trim();
     List<String> cmdList = new ArrayList<String>();
+    // entireLineAsCommand默认是false, 执行else中的逻辑
     if (entireLineAsCommand) {
       cmdList.add(line);
     } else {
