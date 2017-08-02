@@ -1873,6 +1873,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       if (enableMaterialization) {
         getMaterializationMetadata(qb);
       }
+      // 调用getMetaData(QBExpr qbexpr, ReadEntity parentInput)
       getMetaData(qb, null);
     } catch (HiveException e) {
       // Has to use full name to make sure it does not conflict with
@@ -1898,6 +1899,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
   @SuppressWarnings("nls")
   private void getMetaData(QB qb, ReadEntity parentInput)
           throws HiveException {
+    // 打印日志, 比如: parse.CalcitePlanner: Get metadata for source tables
     LOG.info("Get metadata for source tables");
 
     // Go over the tables and populate the related structures.
@@ -1923,6 +1925,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       String cteName = tabName.toLowerCase();
 
       Table tab = db.getTable(tabName, false);
+      LOG.info("--------------------table name:" + tabName + ", cteName:" + cteName);
       if (tab == null ||
               tab.getDbName().equals(SessionState.get().getCurrentDatabase())) {
         Table materializedTab = ctx.getMaterializedTable(cteName);
@@ -1954,6 +1957,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       // Disallow INSERT INTO on bucketized tables
       boolean isAcid = AcidUtils.isAcidTable(tab);
       boolean isTableWrittenTo = qb.getParseInfo().isInsertIntoTable(tab.getDbName(), tab.getTableName());
+      LOG.info("-------------- isAcid:" + isAcid + ", isTableWrittenTo:" + isTableWrittenTo);
       if (isTableWrittenTo &&
           tab.getNumBuckets() > 0 && !isAcid) {
         throw new SemanticException(ErrorMsg.INSERT_INTO_BUCKETIZED_TABLE.
@@ -2046,9 +2050,11 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
               new ReadEntity(tab, parentViewInfo, parentViewInfo == null),mergeIsDirect);
     }
 
+    // 打印日志信息, 比如: parse.CalcitePlanner: Get metadata for subqueries
     LOG.info("Get metadata for subqueries");
     // Go over the subqueries and getMetaData for these
     for (String alias : qb.getSubqAliases()) {
+      LOG.info("++++++++++++++++ alias:" + alias);
       boolean wasView = aliasToViewInfo.containsKey(alias);
       boolean wasCTE = sqAliasToCTEName.containsKey(alias);
       ReadEntity newParentInput = null;
@@ -2070,12 +2076,14 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     RowFormatParams rowFormatParams = new RowFormatParams();
     StorageFormat storageFormat = new StorageFormat(conf);
 
+    // 打印日志, 比如: parse.CalcitePlanner: Get metadata for destination tables
     LOG.info("Get metadata for destination tables");
     // Go over all the destination structures and populate the related
     // metadata
     QBParseInfo qbp = qb.getParseInfo();
 
     for (String name : qbp.getClauseNamesForDest()) {
+      LOG.info("***************** name:" + name);
       ASTNode ast = qbp.getDestForClause(name);
       switch (ast.getToken().getType()) {
         case HiveParser.TOK_TAB: {
@@ -2115,9 +2123,11 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
         case HiveParser.TOK_DIR: {
           // This is a dfs file
           String fname = stripQuotes(ast.getChild(0).getText());
+          LOG.info("~~~~~~~~~~~~~~~~ fname:" + fname);
           if ((!qb.getParseInfo().getIsSubQ())
               && (((ASTNode) ast.getChild(0)).getToken().getType() == HiveParser.TOK_TMP_FILE)) {
 
+            LOG.info("----------> qb.isCTAS():" + qb.isCTAS());
             if (qb.isCTAS()) {
               qb.setIsQuery(false);
               ctx.setResDir(null);
@@ -2153,8 +2163,10 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
             } else {
               // This is the only place where isQuery is set to true; it defaults to false.
               qb.setIsQuery(true);
+              // 调用getStagingDirectoryPathname方法
               Path stagingPath = getStagingDirectoryPathname(qb);
               fname = stagingPath.toString();
+              LOG.info("~~~~~~~~~~++++ fname:" + fname);
               ctx.setResDir(stagingPath);
             }
           }
@@ -2170,6 +2182,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
           int numCh = ast.getChildCount();
           for (int num = 1; num < numCh ; num++){
             ASTNode child = (ASTNode) ast.getChild(num);
+            LOG.info("*********>> child is null:" + (child == null));
             if (child != null) {
               if (storageFormat.fillStorageFormat(child)) {
                 directoryDesc.setOutputFormat(storageFormat.getOutputFormat());
@@ -2340,6 +2353,8 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     // Looks for the most encrypted table location
     // It may return null if there are not tables encrypted, or are not part of HDFS
     tablePath = getStrongestEncryptedTablePath(qb);
+    // tablePath默认是null
+    LOG.info("---------- tablePath is null:" + (tablePath == null));
     if (tablePath != null) {
       // At this point, tablePath is part of HDFS and it is encrypted
       if (isPathReadOnly(tablePath)) {
@@ -2356,6 +2371,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
         stagingPath = ctx.getMRTmpPath(tablePath.toUri());
       }
     } else {
+      // 调用ctx的方法
       stagingPath = ctx.getMRTmpPath();
     }
 
@@ -3992,6 +4008,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     Operator<?> op = genSelectPlan(dest, selExprList, qb, input, inputForSelectStar, false);
 
     if (LOG.isDebugEnabled()) {
+      // 打印日志信息, 比如: parse.CalcitePlanner: genSelectPlan: input = partition_test{....
       LOG.debug("Created Select Plan for clause: " + dest);
     }
 
@@ -4003,6 +4020,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       Operator<?> inputForSelectStar, boolean outerLV) throws SemanticException {
 
     if (LOG.isDebugEnabled()) {
+      // 打印日志信息, 比如: parse.CalcitePlanner: tree: (tok_select (tok_selexpr (.
       LOG.debug("tree: " + selExprList.toStringTree());
     }
 
@@ -4259,6 +4277,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     }
 
     if (LOG.isDebugEnabled()) {
+      // 打印日志信息, 比如: parse.CalcitePlanner: Created Select Plan row schema: null{...
       LOG.debug("Created Select Plan row schema: " + out_rwsch.toString());
     }
     return output;
@@ -7034,6 +7053,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
             HiveConf.getVar(conf, HIVESTATSDBCLASS).equalsIgnoreCase(StatDB.fs.name())) {
       String statsTmpLoc = ctx.getExtTmpPathRelTo(queryTmpdir).toString();
       fileSinkDesc.setStatsTmpDir(statsTmpLoc);
+      // 打印日志信息, 比如:  parse.CalcitePlanner: Set stats collection dir : hdfs://ns1/tmp/hive/hadoop/b....
       LOG.debug("Set stats collection dir : " + statsTmpLoc);
     }
 
@@ -9351,6 +9371,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
 
           // Go over all the destination tables
           for (String dest : commonGroupByDestGroup) {
+            LOG.info("========------> dest:" + dest);
             curr = inputs.get(dest);
 
             if (qbp.getWhrForClause(dest) != null) {
@@ -9403,10 +9424,12 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
               }
             }
             if (LOG.isDebugEnabled()) {
+              // 打印日志信息, 比如:
               LOG.debug("RR before GB " + opParseCtx.get(gbySource).getRowResolver()
                   + " after GB " + opParseCtx.get(curr).getRowResolver());
             }
 
+            // 调用genPostGroupByBodyPlan
             curr = genPostGroupByBodyPlan(curr, dest, qb, aliasToOpInfo, gbySource);
           }
         } else {
@@ -9417,6 +9440,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
 
 
     if (LOG.isDebugEnabled()) {
+      // 打印日志, 比如: parse.CalcitePlanner: Created Body Plan for Query Block null
       LOG.debug("Created Body Plan for Query Block " + qb.getId());
     }
 
@@ -9468,6 +9492,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       }
     }
 
+    // 调用genSelectPlan
     curr = genSelectPlan(dest, qb, curr, gbySource);
 
     Integer limit = qbp.getDestLimit(dest);
@@ -9512,6 +9537,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     }
 
 
+    LOG.info("~~~~~~~----- qbp.getIsSubQ():" + qbp.getIsSubQ());
     if (qbp.getIsSubQ()) {
       if (limit != null) {
         // In case of order by, only 1 reducer is used, so no need of
@@ -9535,6 +9561,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
         qb.getParseInfo().setOuterQueryLimit(limit.intValue());
       }
       if (!queryState.getHiveOperation().equals(HiveOperation.CREATEVIEW)) {
+        // 调用genFileSinkPlan
         curr = genFileSinkPlan(dest, qb, curr);
       }
     }
@@ -10071,6 +10098,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     Operator output = putOpInsertMap(op, rwsch);
 
     if (LOG.isDebugEnabled()) {
+      // 打印日志信息, 如: parse.CalcitePlanner: Created Table Plan for partition_test TS[0]
       LOG.debug("Created Table Plan for " + alias + " " + op.toString());
     }
 
@@ -10205,6 +10233,8 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     // Recurse over all the source tables
     // 重复所有源表
     for (String alias : qb.getTabAliases()) {
+      LOG.info("------++> alias:" + alias);
+      // 调用genTablePlan
       Operator op = genTablePlan(alias, qb);
       aliasToOpInfo.put(alias, op);
     }
@@ -10294,6 +10324,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       srcOpInfo = lastPTFOp != null ? lastPTFOp : srcOpInfo;
     }
 
+    // 调用genBodyPlan
     Operator bodyOpInfo = genBodyPlan(qb, srcOpInfo, aliasToOpInfo);
 
     if (LOG.isDebugEnabled()) {
@@ -10806,12 +10837,15 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       // if phase1Result false return
       return false;
     }
+    // 打印日志, 比如: parse.CalcitePlanner: Completed phase 1 of Semantic Analysis
     LOG.info("Completed phase 1 of Semantic Analysis");
 
     // 5. Resolve Parse Tree
     // Materialization is allowed if it is not a view definition
     // 获取元数据信息，主要是sql中涉及到的表和元数据的关联, 第4步中生成了qb, 但是qb中没有对应的元数据, getMetaData方法的作用就是获取元数据
+    LOG.info("############## createVwDesc:" + createVwDesc);
     getMetaData(qb, createVwDesc == null);
+    // 打印日志: 比如: parse.CalcitePlanner: Completed getting MetaData in Semantic Analysis
     LOG.info("Completed getting MetaData in Semantic Analysis");
 
     plannerCtx.setParseTreeAttr(child, ctx_1);
@@ -10865,15 +10899,17 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
   void analyzeInternal(ASTNode ast, PlannerContext plannerCtx) throws SemanticException {
     // 1. Generate Resolved Parse tree from syntax tree
     // genResolvedParseTree方法的作用是将hql中的一些表信息等保存到qb中, 即生成qb(query block)
+    // 打印日志, 比如是CalcitePlanner调用的该方法, 打印日志: parse.CalcitePlanner: Starting Semantic Analysis
     LOG.info("Starting Semantic Analysis");
     if (!genResolvedParseTree(ast, plannerCtx)) {
       return;
     }
 
     // 2. Gen OP Tree from resolved Parse Tree
-    // 生成Operator Tree, Operator是一个抽象类, sinkOp是一个有向无环图
+    // 生成Operator Tree, Operator是一个抽象类, sinkOp是一个有向无环图, 如果是CalcitePlanner, 调用的是CalcitePlanner的genOPTree方法
     Operator sinkOp = genOPTree(ast, plannerCtx);
 
+    LOG.info("^^^^^^^^^^^^^^ unparseTranslator.isEnabled():" + unparseTranslator.isEnabled() + ", tableMask.isEnabled():" + tableMask.isEnabled());
     if (!unparseTranslator.isEnabled() && tableMask.isEnabled()) {
       // Here we rewrite the * and also the masking table
       ASTNode tree = rewriteASTWithMaskAndFilter(ast);

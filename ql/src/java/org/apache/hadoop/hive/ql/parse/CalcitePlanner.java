@@ -259,6 +259,8 @@ public class CalcitePlanner extends SemanticAnalyzer {
     Operator sinkOp = null;
     boolean skipCalcitePlan = false;
 
+    // runCBO默认是true
+    LOG.info("+++++++++++>> runCBO:" + runCBO);
     if (!runCBO) {
       skipCalcitePlan = true;
     } else {
@@ -281,13 +283,16 @@ public class CalcitePlanner extends SemanticAnalyzer {
         boolean reAnalyzeAST = false;
 
         try {
+          // 默认值为false, 执行else中的逻辑
           if (this.conf.getBoolVar(HiveConf.ConfVars.HIVE_CBO_RETPATH_HIVEOP)) {
+            // 执行getOptimizedHiveOPDag方法
             sinkOp = getOptimizedHiveOPDag();
             LOG.info("CBO Succeeded; optimized logical plan.");
             this.ctx.setCboInfo("Plan optimized by CBO.");
             this.ctx.setCboSucceeded(true);
           } else {
             // 1. Gen Optimized AST
+            // 执行getOptimizedAST方法, 生成优化后的Operator tree
             ASTNode newAST = getOptimizedAST();
 
             // 1.1. Fix up the query for insert/ctas
@@ -307,9 +312,11 @@ public class CalcitePlanner extends SemanticAnalyzer {
             // unfortunately making prunedPartitions immutable is not possible
             // here with SemiJoins not all tables are costed in CBO, so their
             // PartitionList is not evaluated until the run phase.
+            // 调用getMetaData方法获取metaData信息
             getMetaData(getQB());
 
             disableJoinMerge = false;
+            // 调用SemanticAnalyzer的genPlan, 对逻辑执行集合进行优化
             sinkOp = genPlan(getQB());
             LOG.info("CBO Succeeded; optimized logical plan.");
             this.ctx.setCboInfo("Plan optimized by CBO.");
@@ -720,12 +727,14 @@ public class CalcitePlanner extends SemanticAnalyzer {
     calcitePlannerAction = new CalcitePlannerAction(prunedPartitions, this.columnAccessInfo);
 
     try {
+      // 调用calcitePlannerAction的apply方法
       optimizedOptiqPlan = Frameworks.withPlanner(calcitePlannerAction, Frameworks
           .newConfigBuilder().typeSystem(new HiveTypeSystemImpl()).build());
     } catch (Exception e) {
       rethrowCalciteException(e);
       throw new AssertionError("rethrowCalciteException didn't throw for " + e.getMessage());
     }
+    // 调用convert方法
     optiqOptimizedAST = ASTConverter.convert(optimizedOptiqPlan, resultSchema,
             HiveConf.getBoolVar(conf, HiveConf.ConfVars.HIVE_COLUMN_ALIGNMENT));
 
@@ -747,6 +756,7 @@ public class CalcitePlanner extends SemanticAnalyzer {
     calcitePlannerAction = new CalcitePlannerAction(prunedPartitions, this.columnAccessInfo);
 
     try {
+      // withPlanner会调用calcitePlannerAction的apply方法
       optimizedOptiqPlan = Frameworks.withPlanner(calcitePlannerAction, Frameworks
           .newConfigBuilder().typeSystem(new HiveTypeSystemImpl()).build());
     } catch (Exception e) {
@@ -946,8 +956,10 @@ public class CalcitePlanner extends SemanticAnalyzer {
       PerfLogger perfLogger = SessionState.getPerfLogger();
 
       // 1. Gen Calcite Plan
+      // 打印日志, 比如: log.PerfLogger: <PERFLOG method=optimizer from=org.apache.hadoop.hive.ql.parse.CalcitePlanner$CalcitePlannerAction>
       perfLogger.PerfLogBegin(this.getClass().getName(), PerfLogger.OPTIMIZER);
       try {
+        // 生成逻辑执行计划
         calciteGenPlan = genLogicalPlan(getQB(), true);
         resultSchema = SemanticAnalyzer.convertRowSchemaToResultSetSchema(
             relToHiveRR.get(calciteGenPlan),
@@ -956,6 +968,7 @@ public class CalcitePlanner extends SemanticAnalyzer {
         semanticException = e;
         throw new RuntimeException(e);
       }
+      // 打印日志, 比如: log.PerfLogger: </PERFLOG method=optimizer start=1501576055680 end=1501576055682 duration=2 from=org.apache.hadoop.hive.ql.parse.CalcitePlanner$CalcitePlannerAction Calcite: Plan generation>
       perfLogger.PerfLogEnd(this.getClass().getName(), PerfLogger.OPTIMIZER, "Calcite: Plan generation");
 
       // We need to get the ColumnAccessInfo and viewToTableSchema for views.
@@ -971,12 +984,14 @@ public class CalcitePlanner extends SemanticAnalyzer {
       Executor executorProvider = new HiveRexExecutorImpl(cluster);
 
       // 2. Apply pre-join order optimizations
+      // 执行applyPreJoinOrderingTransforms方法, 会打印很多日志信息
       calcitePreCboPlan = applyPreJoinOrderingTransforms(calciteGenPlan,
               mdProvider.getMetadataProvider(), executorProvider);
 
       // 3. Apply join order optimizations: reordering MST algorithm
       //    If join optimizations failed because of missing stats, we continue with
       //    the rest of optimizations
+      LOG.info("################# > " + profilesCBO.contains(ExtendedCBOProfile.JOIN_REORDERING));
       if (profilesCBO.contains(ExtendedCBOProfile.JOIN_REORDERING)) {
         perfLogger.PerfLogBegin(this.getClass().getName(), PerfLogger.OPTIMIZER);
         try {
@@ -1023,11 +1038,13 @@ public class CalcitePlanner extends SemanticAnalyzer {
       }
 
       // 4. Run other optimizations that do not need stats
+      // 打印日志信息, 比如: log.PerfLogger: <PERFLOG method=optimizer from=org.apache.hadoop.hive.ql.parse.CalcitePlanner$CalcitePlannerAction>
       perfLogger.PerfLogBegin(this.getClass().getName(), PerfLogger.OPTIMIZER);
       calciteOptimizedPlan = hepPlan(calciteOptimizedPlan, false, mdProvider.getMetadataProvider(), null,
               HepMatchOrder.BOTTOM_UP, ProjectRemoveRule.INSTANCE, UnionMergeRule.INSTANCE,
               HiveProjectMergeRule.INSTANCE_NO_FORCE, HiveAggregateProjectMergeRule.INSTANCE,
               HiveJoinCommuteRule.INSTANCE);
+      // 打印日志信息, 比如: log.PerfLogger: </PERFLOG method=optimizer start=1501576055687 end=1501576055688 duration=1 from=org.apache.hadoop.hive.ql.parse.CalcitePlanner$CalcitePlannerAction Calcite: Optimizations without stats>
       perfLogger.PerfLogEnd(this.getClass().getName(), PerfLogger.OPTIMIZER, "Calcite: Optimizations without stats");
 
       // 5. Run aggregate-join transpose (cost based)
@@ -2585,6 +2602,7 @@ public class CalcitePlanner extends SemanticAnalyzer {
       Integer offset = (entry == null) ? 0 : entry.getKey();
       Integer fetch = (entry == null) ? null : entry.getValue();
 
+      LOG.info("-----++++++---> fetch is null:" + (fetch == null));
       if (fetch != null) {
         RexNode offsetRN = cluster.getRexBuilder().makeExactLiteral(BigDecimal.valueOf(offset));
         RexNode fetchRN = cluster.getRexBuilder().makeExactLiteral(BigDecimal.valueOf(fetch));
@@ -3103,6 +3121,8 @@ public class CalcitePlanner extends SemanticAnalyzer {
       // 0. Check if we can handle the SubQuery;
       // canHandleQbForCbo returns null if the query can be handled.
       String reason = canHandleQbForCbo(queryProperties, conf, false, LOG.isDebugEnabled(), qb);
+      LOG.info("++++>+++> reason: " + reason);
+      // reason默认是null
       if (reason != null) {
         String msg = "CBO can not handle Sub Query";
         if (LOG.isDebugEnabled()) {
@@ -3114,6 +3134,7 @@ public class CalcitePlanner extends SemanticAnalyzer {
       // 1. Build Rel For Src (SubQuery, TS, Join)
       // 1.1. Recurse over the subqueries to fill the subquery part of the plan
       for (String subqAlias : qb.getSubqAliases()) {
+        LOG.info("=======> subqAlias:" + subqAlias);
         QBExpr qbexpr = qb.getSubqForAlias(subqAlias);
         RelNode relNode = genLogicalPlan(qbexpr);
         aliasToRel.put(subqAlias, relNode);
@@ -3132,6 +3153,7 @@ public class CalcitePlanner extends SemanticAnalyzer {
 
       // 1.2 Recurse over all the source tables
       for (String tableAlias : qb.getTabAliases()) {
+        LOG.info("--->-----> tableAlias:" + tableAlias);
         RelNode op = genTableLogicalPlan(tableAlias, qb);
         aliasToRel.put(tableAlias, op);
       }
@@ -3241,6 +3263,7 @@ public class CalcitePlanner extends SemanticAnalyzer {
       }
 
       if (LOG.isDebugEnabled()) {
+        // 打印日志: 比如: parse.CalcitePlanner: Created Plan for Query Block null
         LOG.debug("Created Plan for Query Block " + qb.getId());
       }
 

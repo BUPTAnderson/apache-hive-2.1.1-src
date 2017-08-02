@@ -200,6 +200,8 @@ public class HiveStatement implements java.sql.Statement {
 
   void closeClientOperation() throws SQLException {
     try {
+      // runAsyncOnServer方法中调用该方法时, stmtHandle是null
+      connection.LOG.info("closeClientOperation ----------> stmtHandle is null:" + (stmtHandle == null));
       if (stmtHandle != null) {
         TCloseOperationReq closeReq = new TCloseOperationReq(stmtHandle);
         TCloseOperationResp closeResp = client.CloseOperation(closeReq);
@@ -247,17 +249,22 @@ public class HiveStatement implements java.sql.Statement {
 
   @Override
   public boolean execute(String sql) throws SQLException {
+    // 通过client调用hiveserver2来执行hql, 主要逻辑是获取返回的TOperationHandle赋值给stmtHandle
     runAsyncOnServer(sql);
+    // 等待hql执行完毕, 主要是用上面生成的stmtHandle, 通过client调用获取hql的执行状态
     waitForOperationToComplete();
 
     // The query should be completed by now
+    connection.LOG.info("execute----------stmtHandle.isHasResultSet():" + stmtHandle.isHasResultSet());
     if (!stmtHandle.isHasResultSet()) {
       return false;
     }
+    // 构造resultSet, 返回true, 如果没有resultSet上面会返回false, maxRows默认值是0, fetchSize默认值是1000, isScrollableResultset默认值是false
     resultSet =  new HiveQueryResultSet.Builder(this).setClient(client).setSessionHandle(sessHandle)
         .setStmtHandle(stmtHandle).setMaxRows(maxRows).setFetchSize(fetchSize)
         .setScrollable(isScrollableResultset)
         .build();
+    connection.LOG.info("+++++++++> maxRows:" + maxRows + ", fetchSize:" + fetchSize + ", isScrollableResultset" + isScrollableResultset);
     return true;
   }
 
@@ -303,11 +310,15 @@ public class HiveStatement implements java.sql.Statement {
      */
     execReq.setRunAsync(true);
     execReq.setConfOverlay(sessConf);
+    // queryTimeout默认是0
     execReq.setQueryTimeout(queryTimeout);
     try {
       TExecuteStatementResp execResp = client.ExecuteStatement(execReq);
+      // 判断返回状态是成功, 否则抛出异常HiveSQLException
       Utils.verifySuccessWithInfo(execResp.getStatus());
+      // 获取返回的TOperationHandle赋值给stmtHandle
       stmtHandle = execResp.getOperationHandle();
+      connection.LOG.info("runAsyncOnServer ******** stmtHandle is null:" + (stmtHandle == null));
       isExecuteStatementFailed = false;
     } catch (SQLException eS) {
       isExecuteStatementFailed = true;
@@ -864,6 +875,9 @@ public class HiveStatement implements java.sql.Statement {
     List<String> logs = new ArrayList<String>();
     TFetchResultsResp tFetchResultsResp = null;
     try {
+      // 第一次调用的时候(通常是前几次调用), 还未执行execute方法, 这时stmtHandle是null, 返回的logs是空的
+      // 当execute方法中通过调用client.ExecuteStatement方法后, 才会给stmtHandle赋值, 此时stmtHandle不再是null
+      connection.LOG.info("++++> stmtHandle is NULL: " + (stmtHandle == null));
       if (stmtHandle != null) {
         TFetchResultsReq tFetchResultsReq = new TFetchResultsReq(stmtHandle,
             getFetchOrientation(incremental), fetchSize);

@@ -992,11 +992,13 @@ public class Commands {
           if (beeLine.getOpts().isSilent()) {
             hasResults = stmnt.execute(sql);
           } else {
+            // 创建打印日志的线程
             logThread = new Thread(createLogRunnable(stmnt));
             logThread.setDaemon(true);
             logThread.start();
-            // 执行hql
+            // 调用HiveStatement的execute(String sql)方法执行hql, 返回值标识了是否含有resultSet
             hasResults = stmnt.execute(sql);
+            // 把执行日志打印完毕
             logThread.interrupt();
             logThread.join(DEFAULT_QUERY_PROGRESS_THREAD_TIMEOUT);
           }
@@ -1011,6 +1013,7 @@ public class Commands {
               int count = beeLine.print(rs);
               long end = System.currentTimeMillis();
 
+              // 打印执行信息, 如: 4 rows selected (3.058 seconds)
               beeLine.info(
                   beeLine.loc("rows-selected", count) + " " + beeLine.locElapsedTime(end - start));
             } finally {
@@ -1174,7 +1177,7 @@ public class Commands {
     for (int i = 0; i < cmdList.size(); i++) {
       String sql = cmdList.get(i).trim();
       if (sql.length() != 0) {
-        // 调用executeInternal执行sql, Beeline传过来的call是false
+        // 调用executeInternal执行sql, Beeline传过来的call是false, hql执行成功返回true
         if (!executeInternal(sql, call)) {
           return false;
         }
@@ -1190,12 +1193,15 @@ public class Commands {
       Runnable runnable = new Runnable() {
         @Override
         public void run() {
+          // 正常hasMoreLogs返回true
           while (hiveStatement.hasMoreLogs()) {
             try {
               // fetch the log periodically and output to beeline console
+              // 获取到log后逐行通过beeline的info方法打印到控制台
               for (String log : hiveStatement.getQueryLog()) {
                 beeLine.info(log);
               }
+              // sleep 1000ms之后继续获取log打印
               Thread.sleep(DEFAULT_QUERY_PROGRESS_INTERVAL);
             } catch (SQLException e) {
               beeLine.error(new SQLWarning(e));

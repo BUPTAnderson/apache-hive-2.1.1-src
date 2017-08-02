@@ -302,6 +302,7 @@ public class CLIService extends CompositeService implements ICLIService {
   @Override
   public OperationHandle executeStatementAsync(SessionHandle sessionHandle, String statement,
       Map<String, String> confOverlay, long queryTimeout) throws HiveSQLException {
+    // 获取sessionHandle对应的HiveSessionImpl, 调用HiveSessionImpl的executeStatementAsync方法
     OperationHandle opHandle =
         sessionManager.getSession(sessionHandle).executeStatementAsync(statement, confOverlay,
             queryTimeout);

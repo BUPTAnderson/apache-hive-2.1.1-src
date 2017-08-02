@@ -515,21 +515,23 @@ public abstract class ThriftCLIService extends AbstractService implements TCLISe
   public TExecuteStatementResp ExecuteStatement(TExecuteStatementReq req) throws TException {
     TExecuteStatementResp resp = new TExecuteStatementResp();
     try {
-      // 构造agiel新的sessionHandle
+      // 构造sessionHandle
       SessionHandle sessionHandle = new SessionHandle(req.getSessionHandle());
       // 获取statement, 即hql
       String statement = req.getStatement();
-      // 获取confOverlay
+      // 获取confOverlay, 默认confOverlay是空的, 即size为0
       Map<String, String> confOverlay = req.getConfOverlay();
-      // 是否异步执行, 默认false
+      // 是否异步执行, 默认true
       Boolean runAsync = req.isRunAsync();
-      // 超时时间
+      // 超时时间, 默认是0
       long queryTimeout = req.getQueryTimeout();
-      // 同步执行的话调用cliService.executeStatement
+      // 异步执行调用executeStatementAsync方法, 同步执行的话调用cliService.executeStatement, 通过beeline传递过来的runAsync是true, 即异步
+      LOG.info("------------ runAsync:" + runAsync);
       OperationHandle operationHandle =
           runAsync ? cliService.executeStatementAsync(sessionHandle, statement, confOverlay,
               queryTimeout) : cliService.executeStatement(sessionHandle, statement, confOverlay,
               queryTimeout);
+      // 设置TOperationHandle和状态码返回
       resp.setOperationHandle(operationHandle.toTOperationHandle());
       resp.setStatus(OK_STATUS);
     } catch (Exception e) {

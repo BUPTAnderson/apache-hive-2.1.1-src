@@ -242,6 +242,7 @@ public class Context {
       // end of query execution.
       dir = fs.makeQualified(new Path(stagingPathName + "_" + this.executionId + "-" + TaskRunner.getTaskRunnerID()));
 
+      new RuntimeException("hello world").printStackTrace();
       LOG.debug("Created staging dir = " + dir + " for path = " + inputPath);
 
       if (mkdir) {
@@ -340,6 +341,7 @@ public class Context {
 
       Path newScratchDir = getScratchDir(uri.getScheme(), uri.getAuthority(),
           !explain, uri.getPath());
+      // 打印日志, 比如: ql.Context: New scratch dir is hdfs://ns1/tmp/hive/hadoop/b151e30f-c51d-4ebc-a835-9fda0e2f199b/hive_2017-08-01_16-27-35_619_434587924439758839-1
       LOG.info("New scratch dir is " + newScratchDir);
       return newScratchDir;
     } catch (IOException e) {
@@ -423,6 +425,7 @@ public class Context {
    * @return next available path for map-red intermediate data
    */
   public Path getMRTmpPath() {
+    // 调用getMRScratchDir, 会调用hdfs接口创建历史目录
     return new Path(getMRScratchDir(), MR_PREFIX +
         nextPathId());
   }

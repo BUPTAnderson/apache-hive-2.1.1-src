@@ -448,15 +448,18 @@ public class Driver implements CommandProcessor {
       ctx.setCmd(command);
       ctx.setHDFSCleanup(true);
 
+      // 打印日志: log.PerfLogger: <PERFLOG method=parse from=org.apache.hadoop.hive.ql.Driver>
       perfLogger.PerfLogBegin(CLASS_NAME, PerfLogger.PARSE);
       ParseDriver pd = new ParseDriver();
       // 通过ParseDriver获取AST(抽象语法树)
       ASTNode tree = pd.parse(command, ctx);
       // 找到root节点, 通常tree有两个节点 child[0]是TOK_QUERY child[1]是<EOF>, 将child[0]赋给tree
       tree = ParseUtils.findRootNonNullToken(tree);
+      // 打印日志: log.PerfLogger: </PERFLOG method=parse start=1501569950372 end=1501569950374 duration=2 from=org.apache.hadoop.hive.ql.Driver>
       perfLogger.PerfLogEnd(CLASS_NAME, PerfLogger.PARSE);
 
 
+      // 打印日志: log.PerfLogger: <PERFLOG method=semanticAnalyze from=org.apache.hadoop.hive.ql.Driver>
       perfLogger.PerfLogBegin(CLASS_NAME, PerfLogger.ANALYZE);
       // queryState在Driver的无参构造方法中已经初始化过了, 会根据tree的tree.getType()来获取相应的SemanticAnalyzer, 如果是TOK_QUERY,
       // 会判断hive.cbo.enable的值, 如果是true, 返回的是new CalcitePlanner(queryState), 如果是false, 返回的是new SemanticAnalyzer(queryState),

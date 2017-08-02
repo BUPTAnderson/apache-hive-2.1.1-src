@@ -861,6 +861,7 @@ public class MetaStoreUtils {
       List<FieldSchema> fieldSchemas) {
     StringBuilder ddl = new StringBuilder();
     ddl.append("struct ");
+    // structName是表名, col.getType是获取列类型, 比如: string, col.getName是获取列名, 比如: member_id
     ddl.append(structName);
     ddl.append(" { ");
     boolean first = true;
@@ -876,6 +877,8 @@ public class MetaStoreUtils {
     }
     ddl.append("}");
 
+    // 打印日志信息, 比如: hive.log: DDL: struct partition_test { string member_id, string name}
+    new RuntimeException("hello world").printStackTrace();
     LOG.debug("DDL: " + ddl);
     return ddl.toString();
   }

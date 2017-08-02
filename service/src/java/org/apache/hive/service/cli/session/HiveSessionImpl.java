@@ -516,6 +516,7 @@ public class HiveSessionImpl implements HiveSession {
 
   private OperationHandle executeStatementInternal(String statement,
       Map<String, String> confOverlay, boolean runAsync, long queryTimeout) throws HiveSQLException {
+    // 获取锁
     acquire(true, true);
 
     ExecuteStatementOperation operation = null;
@@ -525,10 +526,12 @@ public class HiveSessionImpl implements HiveSession {
       // 调用newExecuteStatementOperation获取ExecuteStatementOperation, 正常的hql查询, 返回的是SQLOperation
       operation = getOperationManager().newExecuteStatementOperation(getSession(), statement,
           confOverlay, runAsync, queryTimeout);
+      LOG.info("+++++> operation class: " + operation.getClass().getName());
       // 如果是SQLOperation, 获取的opHandle是new OperationHandle(OperationType.EXECUTE_STATEMENT, this.getProtocolVersion())
       opHandle = operation.getHandle();
       // 调用Operation的run方法, 然后调用SQLOperation的runInternal()方法
       operation.run();
+      // 将opHandle添加到opHandleSet中
       addOpHandle(opHandle);
       return opHandle;
     } catch (HiveSQLException e) {

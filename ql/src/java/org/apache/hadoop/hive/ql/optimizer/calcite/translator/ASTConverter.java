@@ -17,12 +17,7 @@
  */
 package org.apache.hadoop.hive.ql.optimizer.calcite.translator;
 
-import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-
+import com.google.common.collect.Iterables;
 import org.apache.calcite.rel.RelFieldCollation;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelVisitor;
@@ -67,7 +62,11 @@ import org.apache.hadoop.hive.ql.parse.ParseDriver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.Iterables;
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 
 public class ASTConverter {
   private static final Logger LOG = LoggerFactory.getLogger(ASTConverter.class);
@@ -93,6 +92,7 @@ public class ASTConverter {
 
   public static ASTNode convert(final RelNode relNode, List<FieldSchema> resultSchema, boolean alignColumns)
       throws CalciteSemanticException {
+    // 调用convertOpTree方法
     RelNode root = PlanModifierForASTConv.convertOpTree(relNode, resultSchema, alignColumns);
     ASTConverter c = new ASTConverter(root, 0);
     return c.convert();
