@@ -276,6 +276,7 @@ public abstract class Operation {
    * Set up some preconditions, or configurations.
    */
   protected void beforeRun() {
+    // 创建OperationLog文件, 比如: /tmp/hadoop/operation_logs/ef609f7e-ddea-420a-962f-8475ed8675eb
     createOperationLog();
     registerLoggingContext();
   }
@@ -321,6 +322,7 @@ public abstract class Operation {
           LOG.warn("Error Reporting open operation to Metrics system", e);
         }
       }
+      // 调用子类的runInternal方法, 通常是SQLOperation的runInternal方法
       runInternal();
     } finally {
       afterRun();

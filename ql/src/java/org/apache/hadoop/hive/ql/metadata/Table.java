@@ -18,15 +18,6 @@
 
 package org.apache.hadoop.hive.ql.metadata;
 
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -66,6 +57,15 @@ import org.apache.hadoop.mapred.SequenceFileInputFormat;
 import org.apache.hive.common.util.ReflectionUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
 
 /**
  * A Hive Table: is a fundamental unit of data in Hive that shares a common schema/DDL.
@@ -258,6 +258,7 @@ public class Table implements Serializable {
 
   final public Deserializer getDeserializer() {
     if (deserializer == null) {
+      // 调用getDeserializerFromMetaStore
       deserializer = getDeserializerFromMetaStore(false);
     }
     return deserializer;
@@ -276,6 +277,7 @@ public class Table implements Serializable {
 
   final public Deserializer getDeserializerFromMetaStore(boolean skipConfError) {
     try {
+      // 调用getDeserializer方法
       return MetaStoreUtils.getDeserializer(SessionState.getSessionConf(), tTable, skipConfError);
     } catch (MetaException e) {
       throw new RuntimeException(e);

@@ -408,6 +408,7 @@ public class MetaStoreUtils {
     if (lib == null) {
       return null;
     }
+    // 调用getDeserializer方法
     return getDeserializer(conf, table, skipConfError, lib);
   }
 
@@ -421,6 +422,7 @@ public class MetaStoreUtils {
         SerDeUtils.initializeSerDeWithoutErrorCheck(deserializer, conf,
                 MetaStoreUtils.getTableMetadata(table), null);
       } else {
+        // 调用getTableMetadata方法
         SerDeUtils.initializeSerDe(deserializer, conf, MetaStoreUtils.getTableMetadata(table), null);
       }
       return deserializer;
@@ -885,6 +887,7 @@ public class MetaStoreUtils {
 
   public static Properties getTableMetadata(
       org.apache.hadoop.hive.metastore.api.Table table) {
+    // 调用getSchema方法
     return MetaStoreUtils.getSchema(table.getSd(), table.getSd(), table
         .getParameters(), table.getDbName(), table.getTableName(), table.getPartitionKeys());
   }
@@ -1099,6 +1102,7 @@ public class MetaStoreUtils {
     }
 
     if (sd.getCols() != null) {
+      // 调用getDDLFromFieldSchema方法
       schema.setProperty(
           org.apache.hadoop.hive.serde.serdeConstants.SERIALIZATION_DDL,
           getDDLFromFieldSchema(tableName, sd.getCols()));
@@ -1147,6 +1151,7 @@ public class MetaStoreUtils {
       Map<String, String> parameters, String databaseName, String tableName,
       List<FieldSchema> partitionKeys) {
 
+    // 调用getSchemaWithoutCols方法
     return addCols(getSchemaWithoutCols(sd, tblsd, parameters, databaseName, tableName, partitionKeys), tblsd.getCols());
   }
 

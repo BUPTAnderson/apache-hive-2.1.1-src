@@ -18,16 +18,6 @@
 
 package org.apache.hive.service.cli.operation;
 
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
 import org.apache.hadoop.hive.common.metrics.common.Metrics;
 import org.apache.hadoop.hive.common.metrics.common.MetricsConstant;
 import org.apache.hadoop.hive.common.metrics.common.MetricsFactory;
@@ -53,6 +43,16 @@ import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * OperationManager.
@@ -114,6 +114,7 @@ public class OperationManager extends AbstractService {
     ExecuteStatementOperation executeStatementOperation =
         ExecuteStatementOperation.newExecuteStatementOperation(parentSession, statement,
             confOverlay, runAsync, queryTimeout);
+    // 将SQLOperation加入到handleToOperation和liveSqlOperations中
     addOperation(executeStatementOperation);
     return executeStatementOperation;
   }

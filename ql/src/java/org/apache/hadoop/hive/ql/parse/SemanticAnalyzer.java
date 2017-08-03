@@ -693,10 +693,10 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       }
     }
 
-    // tableTree是根节点是TOK_TABNAME
+    // tableTree是节点是TOK_TABNAME
     ASTNode tableTree = (ASTNode) (tabref.getChild(0));
 
-    // tabIdName是 库名.表名
+    // tabIdName是 库名.表名, 比如: default.partition_test
     String tabIdName = getUnescapedName(tableTree).toLowerCase();
 
     String alias;
@@ -705,6 +705,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       alias = unescapeIdentifier(tabref.getChild(aliasIndex).getText());
     }
     else {
+      // 获取别名, 没有的话获取的是原表名, 比如:partition_test
       alias = getUnescapedUnqualifiedTableName(tableTree);
     }
 
@@ -787,8 +788,9 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       String alias_id = getAliasId(alias, qb);
       nameToSplitSample.put(alias_id, sample);
     }
-    // 将别名和表名插入到qb的aliasToTabs中
+    // 将别名和表名插入到qb的aliasToTabs中, 比如: <"partition_test", "default.partition_test">
     // Insert this map into the stats
+    LOG.info("--- alias:" + alias + ", tabIdName:" + tabIdName);
     qb.setTabAlias(alias, tabIdName);
     if (qb.isInsideView()) {
       qb.getAliasInsideView().add(alias.toLowerCase());
@@ -802,6 +804,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     // if alias to CTE contains the alias, we do not do the translation because
     // cte is actually a subquery.
     if (!this.aliasToCTEs.containsKey(alias)) {
+      // 将TOK_TABNAME和currentDatabase加入到unparseTranslator
       unparseTranslator.addTableNameTranslation(tableTree, SessionState.get().getCurrentDatabase());
       if (aliasIndex != 0) {
         unparseTranslator.addIdentifierTranslation((ASTNode) tabref.getChild(aliasIndex));
@@ -1055,6 +1058,8 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
    */
   private CTEClause findCTEFromName(QB qb, String cteName) {
     StringBuilder qId = new StringBuilder();
+    // Id默认是null
+    LOG.info("++++>++> qb.getId() is null:" + (qb.getId() == null));
     if (qb.getId() != null) {
       qId.append(qb.getId());
     }
@@ -1069,6 +1074,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       lastIndex = lastIndex < 0 ? 0 : lastIndex;
       qId.setLength(lastIndex);
     }
+    LOG.info("+++ aliasToCTEs size:" + aliasToCTEs.size());
     return aliasToCTEs.get(cteName);
   }
 
@@ -1392,6 +1398,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
 
     boolean phase1Result = true;
     QBParseInfo qbp = qb.getParseInfo();
+    // 是否跳过递归
     boolean skipRecursion = false;
 
     if (ast.getToken() != null) {
@@ -1414,8 +1421,10 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
         if ((ast.getChild(posn).getChild(0).getType() == HiveParser.TOK_TRANSFORM))
           queryProperties.setUsesScript(true);
 
+        // 处理聚合操作, 没有的话返回的aggregations size为0
         LinkedHashMap<String, ASTNode> aggregations = doPhase1GetAggregationsFromSelect(ast,
             qb, ctx_1.dest);
+        // 对于查询多个列操作会执行下面方法
         doPhase1GetColumnAliasesFromSelect(ast, qbp);
         qbp.setAggregationExprsForClause(ctx_1.dest, aggregations);
         qbp.setDistinctFuncExprsForClause(ctx_1.dest,
@@ -1456,6 +1465,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
         }
 
         // is there a insert in the subquery
+        // qbp是不是子查询
         if (qbp.getIsSubQ() && !isTmpFileDest) {
           throw new SemanticException(ErrorMsg.NO_INSERT_INSUBQUERY.getMsg(ast));
         }
@@ -1465,9 +1475,11 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
           plannerCtx.setInsertToken(ast, isTmpFileDest);
         }
 
+        // 将dest和TOK_DIR节点放入dbp中, 比如("insclause-0", TOK_DIR节点)
         qbp.setDestForClause(ctx_1.dest, (ASTNode) ast.getChild(0));
         // 对insert into foo(z,y) select a,b from bar语句进行处理
         handleInsertStatementSpecPhase1(ast, qbp, ctx_1);
+        // 判断qbp的nameToDest size是不是大于1
         if (qbp.getClauseNamesForDest().size() > 1) {
           queryProperties.setMultiDestQuery(true);
         }
@@ -1483,7 +1495,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
         // Check if this is a subquery / lateral view
         ASTNode frm = (ASTNode) ast.getChild(0);
         if (frm.getToken().getType() == HiveParser.TOK_TABREF) {
-          // 如果hql中包含别名, 将别名信息保存到qb中
+          // 将别名信息保存到qb中, 没有别名的话别名是原表名
           processTable(qb, frm);
         } else if (frm.getToken().getType() == HiveParser.TOK_VIRTUAL_TABLE) {
           // Create a temp table with the passed values in it then rewrite this portion of the
@@ -1696,6 +1708,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
         processCTE(qb, ast);
         break;
       default:
+        // 没有匹配的执行default, 将skipRecursion设为false
         skipRecursion = false;
         break;
       }
@@ -1806,6 +1819,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
 
   public void getMaterializationMetadata(QB qb) throws SemanticException {
     try {
+      // rootClause是new CTEClause(null, null)
       gatherCTEReferences(qb, rootClause);
       int threshold = HiveConf.getIntVar(conf, HiveConf.ConfVars.HIVE_CTE_MATERIALIZE_THRESHOLD);      
       for (CTEClause cte : Sets.newHashSet(aliasToCTEs.values())) {
@@ -1836,10 +1850,13 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
   // TODO: check view references, too
   private void gatherCTEReferences(QB qb, CTEClause current) throws HiveException {
     for (String alias : qb.getTabAliases()) {
+      // tabName是库名.表名或表名, 比如: default.partition_test
       String tabName = qb.getTabNameForAlias(alias);
       String cteName = tabName.toLowerCase();
+      LOG.info("====>> alias:" +  alias + ", tabName:" + tabName + ", cteName:" + cteName);
 
       CTEClause cte = findCTEFromName(qb, cteName);
+      LOG.info("----> cte is null:" + (cte == null));
       if (cte != null) {
         if (ctesExpanded.contains(cteName)) {
           throw new SemanticException("Recursive cte " + cteName +
@@ -1870,6 +1887,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
 
   public void getMetaData(QB qb, boolean enableMaterialization) throws SemanticException {
     try {
+      // enableMaterialization是true
       if (enableMaterialization) {
         getMaterializationMetadata(qb);
       }
@@ -1925,14 +1943,16 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       String cteName = tabName.toLowerCase();
 
       Table tab = db.getTable(tabName, false);
-      LOG.info("--------------------table name:" + tabName + ", cteName:" + cteName);
+      LOG.info("--------------------table name:" + tabName + ", cteName:" + cteName + ", db:" + tab.getDbName() + ",currentDb:" + SessionState.get().getCurrentDatabase());
       if (tab == null ||
               tab.getDbName().equals(SessionState.get().getCurrentDatabase())) {
         Table materializedTab = ctx.getMaterializedTable(cteName);
         if (materializedTab == null) {
+          LOG.info("+++ materializedTab is null");
           // we first look for this alias from CTE, and then from catalog.
           CTEClause cte = findCTEFromName(qb, cteName);
           if (cte != null) {
+            LOG.info("+++ cte is not null, cte.materialize:" + cte.materialize);
             if (!cte.materialize) {
               addCTEAsSubQuery(qb, cteName, alias);
               sqAliasToCTEName.put(alias, cteName);
@@ -1945,6 +1965,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
         }
       }
 
+      LOG.info("+++ tab == null:" + (tab == null));
       if (tab == null) {
         ASTNode src = qb.getParseInfo().getSrcForAlias(alias);
         if (null != src) {
@@ -2005,8 +2026,11 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
                 ErrorMsg.INVALID_INPUT_FORMAT_TYPE.getMsg()));
       }
 
+      // 将 alias和对应的Table放入qbm
       qb.getMetaData().setSrcForAlias(alias, tab);
 
+      LOG.info("+++ isAnalyzeCommand:" + qb.getParseInfo().isAnalyzeCommand());
+      // 默认是false
       if (qb.getParseInfo().isAnalyzeCommand()) {
         // allow partial partition specification for nonscan since noscan is fast.
         TableSpec ts = new TableSpec(db, conf, (ASTNode) ast.getChild(0), true, this.noscan);
@@ -2046,6 +2070,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       }
 
       ReadEntity parentViewInfo = PlanUtils.getParentViewInfo(getAliasId(alias, qb), viewAliasToInput);
+      // 加入到inputs中
       PlanUtils.addInput(inputs,
               new ReadEntity(tab, parentViewInfo, parentViewInfo == null),mergeIsDirect);
     }
@@ -2084,6 +2109,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
 
     for (String name : qbp.getClauseNamesForDest()) {
       LOG.info("***************** name:" + name);
+      // name, 比如: insclause-0, 获取对应的ASTNode
       ASTNode ast = qbp.getDestForClause(name);
       switch (ast.getToken().getType()) {
         case HiveParser.TOK_TAB: {
@@ -2121,13 +2147,14 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
         }
 
         case HiveParser.TOK_DIR: {
-          // This is a dfs file
+          // This is a dfs file, 比如: TOK_TMP_FILE
           String fname = stripQuotes(ast.getChild(0).getText());
           LOG.info("~~~~~~~~~~~~~~~~ fname:" + fname);
           if ((!qb.getParseInfo().getIsSubQ())
               && (((ASTNode) ast.getChild(0)).getToken().getType() == HiveParser.TOK_TMP_FILE)) {
 
             LOG.info("----------> qb.isCTAS():" + qb.isCTAS());
+            // 是不是create table as
             if (qb.isCTAS()) {
               qb.setIsQuery(false);
               ctx.setResDir(null);
@@ -2165,6 +2192,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
               qb.setIsQuery(true);
               // 调用getStagingDirectoryPathname方法
               Path stagingPath = getStagingDirectoryPathname(qb);
+              // fname, 示例: hdfs://ns1/tmp/hive/hadoop/b7fca867-8db2-4e65-a166-1c32edd3616c/hive_2017-08-02_15-36-28_004_3653770231138742857-1/-mr-10000
               fname = stagingPath.toString();
               LOG.info("~~~~~~~~~~++++ fname:" + fname);
               ctx.setResDir(stagingPath);
@@ -2175,6 +2203,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
           if (ast.getChildCount() >= 2 && ast.getChild(1).getText().toLowerCase().equals("local")) {
             isDfsFile = false;
           }
+          // 比如: <"insclause-0", "hdfs://ns1/tmp/hive/hadoop/b7fca867-8db2-4e65-a166-1c32edd3616c/hive_2017-08-02_15-36-28_004_3653770231138742857-1/-mr-10000", true>
           qb.getMetaData().setDestForAlias(name, fname, isDfsFile);
 
           CreateTableDesc directoryDesc = new CreateTableDesc();
@@ -2214,6 +2243,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
               }
             }
           }
+          LOG.info("++++ directoryDescIsSet:" + directoryDescIsSet);
           if (directoryDescIsSet){
             qb.setDirectoryDesc(directoryDesc);
           }
@@ -4005,6 +4035,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
   private Operator<?> genSelectPlan(String dest, QB qb, Operator<?> input,
       Operator<?> inputForSelectStar) throws SemanticException {
     ASTNode selExprList = qb.getParseInfo().getSelForClause(dest);
+    // 调用genSelectPlan方法
     Operator<?> op = genSelectPlan(dest, selExprList, qb, input, inputForSelectStar, false);
 
     if (LOG.isDebugEnabled()) {
@@ -4131,6 +4162,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     }
 
     if (LOG.isDebugEnabled()) {
+      // 打印日志信息
       LOG.debug("genSelectPlan: input = " + inputRR + " starRr = " + starRR);
     }
 
@@ -6608,6 +6640,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     ListBucketingCtx lbCtx = null;
     Map<String, String> partSpec = null;
 
+    LOG.info("+++++ dest_type.intValue():" + dest_type.intValue());
     switch (dest_type.intValue()) {
     case QBMetaData.DEST_TABLE: {
 
@@ -7327,6 +7360,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
         inputRR);
 
     if (LOG.isDebugEnabled()) {
+      // 打印日志信息
       LOG.debug("Created LimitOperator Plan for clause: " + dest
           + " row schema: " + inputRR.toString());
     }
@@ -7436,10 +7470,13 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     // A better approach would be to
     // write into a local file and then have a map-only job.
     // Add the limit operator to get the value fields
+    // 调用genLimitPlan
     Operator curr = genLimitPlan(dest, qb, input, offset, limit);
 
     // the client requested that an extra map-reduce step be performed
+    // hive.groupby.limit.extrastep默认值是true
     if (!extraMRStep  || !HiveConf.getBoolVar(conf, HiveConf.ConfVars.HIVE_GROUPBY_LIMIT_EXTRASTEP)){
+      LOG.info("+++++ >>>>> extraMRStep:" + extraMRStep);
       return curr;
     }
 
@@ -9555,7 +9592,8 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
             qbp.getSortByForClause(dest) == null) {
           extraMRStep = false;
         }
-
+        LOG.info("++++++ extraMRStep:" + extraMRStep);
+        // 调用genLimitMapRedPlan
         curr = genLimitMapRedPlan(dest, qb, curr, offset.intValue(),
             limit.intValue(), extraMRStep);
         qb.getParseInfo().setOuterQueryLimit(limit.intValue());
@@ -9872,6 +9910,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
   }
 
   protected String getAliasId(String alias, QB qb) {
+    LOG.info("+++++ qb.getId():" + qb.getId());
     return (qb.getId() == null ? alias : qb.getId() + ":" + alias).toLowerCase();
   }
 
@@ -9885,11 +9924,13 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     // is the table already present
     TableScanOperator top = topOps.get(alias_id);
 
+    LOG.info("++++ top is null:" + (top == null) + ", alias_id:" + alias_id);
     if (top == null) {
       // Determine row schema for TSOP.
       // Include column names from SerDe, the partition and virtual columns.
       rwsch = new RowResolver();
       try {
+        // 调用getDeserializer方法
         StructObjectInspector rowObjectInspector = (StructObjectInspector) tab
             .getDeserializer().getObjectInspector();
         List<? extends StructField> fields = rowObjectInspector
@@ -9963,6 +10004,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     // check if this table is sampled and needs more than input pruning
     Operator<? extends OperatorDesc> op = top;
     TableSample ts = qb.getParseInfo().getTabSample(alias);
+    LOG.info("++++++ ts is null:" + (ts == null));
     if (ts != null) {
       TableScanOperator tableScanOp = top;
       tableScanOp.getConf().setTableSample(ts);
@@ -10213,6 +10255,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     // 在子查询上重新填充计划的子查询部分
     for (String alias : qb.getSubqAliases()) {
       QBExpr qbexpr = qb.getSubqForAlias(alias);
+      // 调用genPlan
       Operator operator = genPlan(qb, qbexpr);
       aliasToOpInfo.put(alias, operator);
       if (qb.getViewToTabSchema().containsKey(alias)) {
@@ -10239,6 +10282,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       aliasToOpInfo.put(alias, op);
     }
 
+    LOG.info("+++++++ aliasToOpInfo.isEmpty():" + aliasToOpInfo.isEmpty());
     if (aliasToOpInfo.isEmpty()) {
       qb.getMetaData().setSrcForAlias(DUMMY_TABLE, getDummyTable());
       TableScanOperator op = (TableScanOperator) genTablePlan(DUMMY_TABLE, qb);
@@ -10251,6 +10295,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     Operator srcOpInfo = null;
     Operator lastPTFOp = null;
 
+    LOG.info("++++++++ queryProperties.hasPTF():" + queryProperties.hasPTF());
     if(queryProperties.hasPTF()){
       //After processing subqueries and source tables, process
       // partitioned table functions
@@ -10282,6 +10327,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
 
 
     // process join
+    LOG.info("++++++++ qb.getParseInfo().getJoinExpr():" + (qb.getParseInfo().getJoinExpr() == null));
     if (qb.getParseInfo().getJoinExpr() != null) {
       ASTNode joinExpr = qb.getParseInfo().getJoinExpr();
 
@@ -10321,6 +10367,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       srcOpInfo = aliasToOpInfo.values().iterator().next();
       // with ptfs, there maybe more (note for PTFChains:
       // 1 ptf invocation may entail multiple PTF operators)
+      LOG.info("+++++++++ lastPTFOp is null:" + (lastPTFOp == null));
       srcOpInfo = lastPTFOp != null ? lastPTFOp : srcOpInfo;
     }
 
@@ -10409,6 +10456,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       throws SemanticException {
     Map<String, ArrayList<ASTNode>> aliasToLateralViews = qb.getParseInfo()
         .getAliasToLateralViews();
+    LOG.info("+++++++ aliasToLateralViews:" + aliasToLateralViews.size());
     for (Entry<String, Operator> e : aliasToOpInfo.entrySet()) {
       String alias = e.getKey();
       // See if the alias has a lateral view. If so, chain the lateral view
@@ -10824,6 +10872,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
 
     // masking and filtering should be created here
     // the basic idea is similar to unparseTranslator.
+    // 构造TableMask对象, 里面会调用SessionState的getAuthorizerV2()获取HiveAuthorizer authorizer
     tableMask = new TableMask(this, conf, ctx);
     
     // 4. continue analyzing from the child ASTNode.
@@ -10842,7 +10891,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
 
     // 5. Resolve Parse Tree
     // Materialization is allowed if it is not a view definition
-    // 获取元数据信息，主要是sql中涉及到的表和元数据的关联, 第4步中生成了qb, 但是qb中没有对应的元数据, getMetaData方法的作用就是获取元数据
+    // 获取元数据信息，主要是sql中涉及到的表和元数据的关联, 第4步中生成了qb, 但是qb中没有对应的元数据, getMetaData方法的作用就是获取元数据, createVwDesc默认是null
     LOG.info("############## createVwDesc:" + createVwDesc);
     getMetaData(qb, createVwDesc == null);
     // 打印日志: 比如: parse.CalcitePlanner: Completed getting MetaData in Semantic Analysis
@@ -10895,7 +10944,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
   }
 
   // 该方法是最核心的地方, 输入ast -> 输出mapreduce作业
-  // 该方法在两个地方被调用, 如果是SemanticAnalyzer调用的该方法, 传入的是new PlannerContext, 如果是CAlcitePlanner调用的该方法, 传入的是new PreCboCtx(), PreCboCtx是PlannerContext的子类
+  // 该方法在两个地方被调用, 如果是SemanticAnalyzer调用的该方法, 传入的是new PlannerContext, 如果是CalcitePlanner调用的该方法, 传入的是new PreCboCtx(), PreCboCtx是PlannerContext的子类
   void analyzeInternal(ASTNode ast, PlannerContext plannerCtx) throws SemanticException {
     // 1. Generate Resolved Parse tree from syntax tree
     // genResolvedParseTree方法的作用是将hql中的一些表信息等保存到qb中, 即生成qb(query block)
@@ -10906,7 +10955,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     }
 
     // 2. Gen OP Tree from resolved Parse Tree
-    // 生成Operator Tree, Operator是一个抽象类, sinkOp是一个有向无环图, 如果是CalcitePlanner, 调用的是CalcitePlanner的genOPTree方法
+    // 生成Operator Tree, Operator是一个抽象类, sinkOp是一个有向无环图DAG, 如果是CalcitePlanner, 调用的是CalcitePlanner的genOPTree方法
     Operator sinkOp = genOPTree(ast, plannerCtx);
 
     LOG.info("^^^^^^^^^^^^^^ unparseTranslator.isEnabled():" + unparseTranslator.isEnabled() + ", tableMask.isEnabled():" + tableMask.isEnabled());
@@ -10925,6 +10974,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     }
 
     // 3. Deduce Resultset Schema
+    LOG.info("++++++ createVwDesc is null:" + (createVwDesc == null) + ", resultSchema is null:" + (resultSchema == null));
     if (createVwDesc != null) {
       resultSchema = convertRowSchemaToViewSchema(opParseCtx.get(sinkOp).getRowResolver());
     } else {
@@ -10952,6 +11002,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
         analyzeRewrite, tableDesc, queryProperties, viewProjectToTableSchema, acidFileSinks);
 
     // 5. Take care of view creation
+    LOG.info("+++++++ createVwDesc is null:" + (createVwDesc == null));
     if (createVwDesc != null) {
       saveViewDefinition();
 
@@ -10986,18 +11037,20 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     }
 
     // 6. Generate table access stats if required
+    // 默认值为false
     if (HiveConf.getBoolVar(this.conf, HiveConf.ConfVars.HIVE_STATS_COLLECT_TABLEKEYS)) {
       TableAccessAnalyzer tableAccessAnalyzer = new TableAccessAnalyzer(pCtx);
       setTableAccessInfo(tableAccessAnalyzer.analyzeTableAccess());
     }
 
-    // 7. Perform Logical optimization
+    // 7. Perform Logical optimization, 开始执行逻辑优化
     if (LOG.isDebugEnabled()) {
       LOG.debug("Before logical optimization\n" + Operator.toString(pCtx.getTopOps().values()));
     }
     Optimizer optm = new Optimizer();
     optm.setPctx(pCtx);
     optm.initialize(conf);
+    // 执行optimize方法
     pCtx = optm.optimize();
     if (pCtx.getColumnAccessInfo() != null) {
       // set ColumnAccessInfo for view column authorization

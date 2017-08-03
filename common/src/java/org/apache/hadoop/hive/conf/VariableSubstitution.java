@@ -61,6 +61,7 @@ public class VariableSubstitution extends SystemVariables {
     }
     // 是否允许变量置换, 默认值为true
     if (HiveConf.getBoolVar(conf, HiveConf.ConfVars.HIVEVARIABLESUBSTITUTE)) {
+      // 打印日志, 比如: conf.VariableSubstitution: Substitution is on: select * from default.partition_test limit 10
       l4j.debug("Substitution is on: " + expr);
     } else {
       return expr;

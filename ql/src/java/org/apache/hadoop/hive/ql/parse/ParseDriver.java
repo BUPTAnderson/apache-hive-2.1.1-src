@@ -185,6 +185,7 @@ public class ParseDriver {
   public ASTNode parse(String command, Context ctx, boolean setTokenRewriteStream)
       throws ParseException {
     if (LOG.isDebugEnabled()) {
+      // 打印日志, 比如: parse.ParseDriver: Parsing command: select * from default.partition_test limit 10
       LOG.debug("Parsing command: " + command);
     }
 
@@ -213,6 +214,7 @@ public class ParseDriver {
     }
 
     if (lexer.getErrors().size() == 0 && parser.errors.size() == 0) {
+      // 打印日志, 比如: parse.ParseDriver: Parse Completed
       LOG.debug("Parse Completed");
     } else if (lexer.getErrors().size() != 0) {
       throw new ParseException(lexer.getErrors());

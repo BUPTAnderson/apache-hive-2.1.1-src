@@ -156,6 +156,7 @@ public class SQLOperation extends ExecuteStatementOperation {
       // Start the timer thread for cancelling the query when query timeout is reached
       // queryTimeout == 0 means no timeout
       // 当达到查询超时时启动定时器线程取消查询, 如果queryTimeout为0, 则表示不存在超时
+      LOG.info("-----******>>> queryTimeout:" + queryTimeout);
       if (queryTimeout > 0) {
         timeoutExecutor = new ScheduledThreadPoolExecutor(1);
         Runnable timeoutTask = new Runnable() {
@@ -181,8 +182,10 @@ public class SQLOperation extends ExecuteStatementOperation {
       // set the operation handle information in Driver, so that thrift API users
       // can use the operation handle they receive, to lookup query information in
       // Yarn ATS
+      // 设置OperationId, 比如: KtahFvbXQYGKzFUH40h5fA
       String guid64 = Base64.encodeBase64URLSafeString(getHandle().getHandleIdentifier()
           .toTHandleIdentifier().getGuid()).trim();
+      LOG.info("++++++++>> operationId:" + guid64);
       driver.setOperationId(guid64);
 
       // In Hive server mode, we are not able to retry in the FetchTask
@@ -190,7 +193,7 @@ public class SQLOperation extends ExecuteStatementOperation {
       // For now, we disable the test attempts.
       driver.setTryCount(Integer.MAX_VALUE);
 
-      // 编译statement, 生成执行计划
+      // 编译statement, 生成执行计划, 核心的地方
       response = driver.compileAndRespond(statement);
       if (0 != response.getResponseCode()) {
         throw toSQLException("Error while compiling statement", response);
@@ -202,6 +205,7 @@ public class SQLOperation extends ExecuteStatementOperation {
       // hasResultSet should be true only if the query has a FetchTask
       // "explain" is an exception for now
       if(driver.getPlan().getFetchTask() != null) {
+        LOG.info("+++++-----++++> getFetchTask() != null");
         //Schema has to be set
         if (mResultSchema == null || !mResultSchema.isSetFieldSchemas()) {
           throw new HiveSQLException("Error compiling query: Schema and FieldSchema " +
@@ -216,6 +220,7 @@ public class SQLOperation extends ExecuteStatementOperation {
       // TODO explain should use a FetchTask for reading
       for (Task<? extends Serializable> task: driver.getPlan().getRootTasks()) {
         if (task.getClass() == ExplainTask.class) {
+          LOG.info("------>>> mResultSchema:" + mResultSchema);
           resultSchema = new TableSchema(mResultSchema);
           setHasResultSet(true);
           break;
@@ -272,12 +277,13 @@ public class SQLOperation extends ExecuteStatementOperation {
   public void runInternal() throws HiveSQLException {
     setState(OperationState.PENDING);
 
-    // runAsync默认是false
+    // runAsync通过beeline调用的话是true
     boolean runAsync = shouldRunAsync();
-    // 默认是false
+    // runAsync按true处理, hive.server2.async.exec.async.compile默认是false, 所以asyncPrepare是false
     final boolean asyncPrepare = runAsync
       && HiveConf.getBoolVar(queryState.getConf(),
         HiveConf.ConfVars.HIVE_SERVER2_ASYNC_EXEC_ASYNC_COMPILE);
+    LOG.info("++++>>>+++>>> runAsync:" + runAsync + ", asyncPrePare:" + asyncPrepare);
     // asyncPrepare是false, 所以执行prepare方法, 会对hql进行编译生成执行计划
     if (!asyncPrepare) {
       prepare(queryState);

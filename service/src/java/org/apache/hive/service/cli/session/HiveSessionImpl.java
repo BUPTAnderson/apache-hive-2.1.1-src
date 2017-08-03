@@ -371,6 +371,7 @@ public class HiveSessionImpl implements HiveSession {
     }
     boolean success = false;
     try {
+      // 执行acquireAfterOpLock方法
       acquireAfterOpLock(userAccess);
       success = true;
     } finally {
@@ -390,6 +391,7 @@ public class HiveSessionImpl implements HiveSession {
       lastAccessTime = System.currentTimeMillis();
     }
     // set the thread name with the logging prefix.
+    // 更新ThreadName
     sessionState.updateThreadName();
     Hive.set(sessionHive);
   }
@@ -523,7 +525,7 @@ public class HiveSessionImpl implements HiveSession {
     OperationHandle opHandle = null;
     try {
       // SessionManager的createSession方法中已经将SessionManager的operationManager设置给了HiveSessionImpl
-      // 调用newExecuteStatementOperation获取ExecuteStatementOperation, 正常的hql查询, 返回的是SQLOperation
+      // 调用newExecuteStatementOperation获取ExecuteStatementOperation, 正常的hql查询, 返回的是new SQLOperation(getSession(), statement, confOverlay, runAsync, queryTimeout)
       operation = getOperationManager().newExecuteStatementOperation(getSession(), statement,
           confOverlay, runAsync, queryTimeout);
       LOG.info("+++++> operation class: " + operation.getClass().getName());

@@ -17,10 +17,6 @@
  */
 package org.apache.hadoop.hive.ql.ppd;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.Map;
-
 import org.apache.hadoop.hive.ql.exec.CommonJoinOperator;
 import org.apache.hadoop.hive.ql.exec.FilterOperator;
 import org.apache.hadoop.hive.ql.exec.LateralViewForwardOperator;
@@ -45,6 +41,10 @@ import org.apache.hadoop.hive.ql.parse.ParseContext;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class SimplePredicatePushDown extends Transform {
 
@@ -99,9 +99,13 @@ public class SimplePredicatePushDown extends Transform {
     // Create a list of topop nodes
     ArrayList<Node> topNodes = new ArrayList<Node>();
     topNodes.addAll(pGraphContext.getTopOps().values());
+    // 会调用opRules的各个NodeProcessor的process方法根据对应的Rule对topNodes进行处理, NodeProcessor有很多,
+    // 比如SimpleFilterPPD, limit对应的ScriptPPD
     ogw.startWalking(topNodes, null);
 
     if (LOG.isDebugEnabled()) {
+      // 打印日志, 比如: ppd.SimplePredicatePushDown: After PPD:
+      // TS[0]-SEL[1]-LIM[2]-FS[3]
       LOG.debug("After PPD:\n" + Operator.toString(pctx.getTopOps().values()));
     }
     return pGraphContext;

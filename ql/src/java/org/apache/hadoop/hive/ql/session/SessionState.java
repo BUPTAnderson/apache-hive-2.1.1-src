@@ -415,10 +415,13 @@ public class SessionState {
 
   public void updateThreadName() {
     final String sessionId = getSessionId();
+    // logPrefix, 比如: ef609f7e-ddea-420a-962f-8475ed8675eb
     final String logPrefix = getConf().getLogIdVar(sessionId);
+    // currThreadName, 比如: HiveServer2-Handler-Pool: Thread-45
     final String currThreadName = Thread.currentThread().getName();
     if (!currThreadName.contains(logPrefix)) {
       final String newThreadName = logPrefix + " " + currThreadName;
+      // 打印日志,比如:session.SessionState: Updating thread name to ef609f7e-ddea-420a-962f-8475ed8675eb HiveServer2-Handler-Pool: Thread-45
       LOG.info("Updating thread name to {}", newThreadName);
       Thread.currentThread().setName(newThreadName);
     }
@@ -890,7 +893,7 @@ public class SessionState {
             : CLIENT_TYPE.HIVECLI);
         authzContextBuilder.setSessionString(getSessionId());
 
-        // 返回HiveAuthorizerImpl对象
+        // 返回HiveAuthorizerImpl对象, 具体看SQLStdConfOnlyAuthorizerFactory的createHiveAuthorizer方法
         authorizerV2 = authorizerFactory.createHiveAuthorizer(new HiveMetastoreClientFactoryImpl(),
             sessionConf, authenticator, authzContextBuilder.build());
         // 设置一下权限验证的钩子类,有一个逻辑是将hive.security.authorization.createtable.owner.grants设置为INSERT,SELECT,UPDATE,DELETE
@@ -908,6 +911,7 @@ public class SessionState {
 
     if(LOG.isDebugEnabled()){
       Object authorizationClass = getActiveAuthorizer();
+      // 打印日志, 比如: session.SessionState: Session is using authorization class class org.apache.hadoop.hive.ql.security.authorization.plugin.HiveAuthorizerImpl
       LOG.debug("Session is using authorization class " + authorizationClass.getClass());
     }
     return;

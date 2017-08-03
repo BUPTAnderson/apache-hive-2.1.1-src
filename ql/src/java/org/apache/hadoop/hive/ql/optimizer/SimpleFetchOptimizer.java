@@ -18,17 +18,6 @@
 
 package org.apache.hadoop.hive.ql.optimizer;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.hadoop.fs.ContentSummary;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -46,7 +35,6 @@ import org.apache.hadoop.hive.ql.exec.ScriptOperator;
 import org.apache.hadoop.hive.ql.exec.SelectOperator;
 import org.apache.hadoop.hive.ql.exec.TableScanOperator;
 import org.apache.hadoop.hive.ql.exec.TaskFactory;
-import org.apache.hadoop.hive.ql.exec.UDTFOperator;
 import org.apache.hadoop.hive.ql.exec.Utilities;
 import org.apache.hadoop.hive.ql.hooks.ReadEntity;
 import org.apache.hadoop.hive.ql.io.ContentSummaryInputFormat;
@@ -82,6 +70,17 @@ import org.apache.hadoop.hive.ql.udf.generic.GenericUDFToUtcTimestamp;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFToVarchar;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.JobConf;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Tries to convert simple fetch query to single fetch task, which fetches rows directly
@@ -101,6 +100,7 @@ public class SimpleFetchOptimizer extends Transform {
       String alias = (String) pctx.getTopOps().keySet().toArray()[0];
       TableScanOperator topOp = pctx.getTopOps().values().iterator().next();
       try {
+        // 调用optimize方法
         FetchTask fetchTask = optimize(pctx, alias, topOp);
         if (fetchTask != null) {
           pctx.setFetchTask(fetchTask);
@@ -122,6 +122,7 @@ public class SimpleFetchOptimizer extends Transform {
   @SuppressWarnings("unchecked")
   private FetchTask optimize(ParseContext pctx, String alias, TableScanOperator source)
       throws Exception {
+    // 默认值为more
     String mode = HiveConf.getVar(
         pctx.getConf(), HiveConf.ConfVars.HIVEFETCHTASKCONVERSION);
 

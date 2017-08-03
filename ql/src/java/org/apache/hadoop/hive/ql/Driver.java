@@ -365,7 +365,9 @@ public class Driver implements CommandProcessor {
   // runInternal, which defers the close to the called in that method.
   public int compile(String command, boolean resetTaskIds, boolean deferClose) {
     PerfLogger perfLogger = SessionState.getPerfLogger(true);
+    // 打印日志, 比如: log.PerfLogger: <PERFLOG method=Driver.run from=org.apache.hadoop.hive.ql.Driver>
     perfLogger.PerfLogBegin(CLASS_NAME, PerfLogger.DRIVER_RUN);
+    // 打印日志, 比如: log.PerfLogger: <PERFLOG method=compile from=org.apache.hadoop.hive.ql.Driver>
     perfLogger.PerfLogBegin(CLASS_NAME, PerfLogger.COMPILE);
     stateLock.lock();
     try {
@@ -413,6 +415,7 @@ public class Driver implements CommandProcessor {
     this.queryDisplay.setQueryStr(queryStr);
     this.queryDisplay.setQueryId(queryId);
 
+    // 打印日志, 比如: ql.Driver: Compiling command(queryId=hadoop_20170802090430_c660b098-0254-4ab9-b5eb-cbda977bc2f4): select * from default.partition_test limit 10
     LOG.info("Compiling command(queryId=" + queryId + "): " + queryStr);
 
     SessionState.get().setupQueryCurrentTimestamp();
@@ -493,7 +496,7 @@ public class Driver implements CommandProcessor {
           hook.postAnalyze(hookCtx, sem.getAllRootTasks());
         }
       } else {
-        // 调用BaseSemanticAnalyzer的analyze方法
+        // 一般HQL对应的sem是CalcitePlanner, 调用CalcitePlanner的analyze方法, 实际是调用父类BaseSemanticAnalyzer的analyze方法
         sem.analyze(tree, ctx);
       }
       // Record any ACID compliant FileSinkOperators we saw so we can add our transaction ID to
@@ -1248,6 +1251,7 @@ public class Driver implements CommandProcessor {
   }
 
   public CommandProcessorResponse compileAndRespond(String command) {
+    // 调用compileInternal方法
     return createProcessorResponse(compileInternal(command, false));
   }
 
@@ -1262,9 +1266,9 @@ public class Driver implements CommandProcessor {
     }
 
     try {
-      // 继续调用compile, compile用来完成语法和语义的分析，生成执行计划
+      // 继续调用compile, compile用来完成语法和语义的分析，生成执行计划, 核心方法
       ret = compile(command, true, deferClose);
-
+      LOG.info("++++++ ret:" + ret);
     } finally {
       compileLock.unlock();
     }

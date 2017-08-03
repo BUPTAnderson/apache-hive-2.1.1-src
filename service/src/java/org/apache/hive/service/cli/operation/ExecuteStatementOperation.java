@@ -52,7 +52,7 @@ public abstract class ExecuteStatementOperation extends Operation {
     }
     if (processor == null) {
       // runAsync, queryTimeout makes sense only for a SQLOperation
-      // 所以正常的hql查询, 返回的是SQLOperation
+      // 所以正常的hql查询, 返回的是SQLOperation, SQLOperation的构造方法中会调用父类的构造方法来构造OperationHandle对象
       return new SQLOperation(parentSession, statement, confOverlay, runAsync, queryTimeout);
     }
     return new HiveCommandOperation(parentSession, statement, processor, confOverlay);

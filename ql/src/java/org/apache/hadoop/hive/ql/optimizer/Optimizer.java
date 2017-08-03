@@ -18,10 +18,9 @@
 
 package org.apache.hadoop.hive.ql.optimizer;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-
+import com.google.common.base.Splitter;
+import com.google.common.base.Strings;
+import com.google.common.collect.Sets;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.optimizer.calcite.translator.HiveOpConverterPostProc;
 import org.apache.hadoop.hive.ql.optimizer.correlation.CorrelationOptimizer;
@@ -43,9 +42,9 @@ import org.apache.hadoop.hive.ql.ppd.SyntheticJoinPredicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Splitter;
-import com.google.common.base.Strings;
-import com.google.common.collect.Sets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 
 /**
  * Implementation of the optimizer.
@@ -238,6 +237,11 @@ public class Optimizer {
    */
   public ParseContext optimize() throws SemanticException {
     for (Transform t : transformations) {
+      // 打印日志信息, t有很多, 按日志打印顺序有:HiveOpConverterPostProc, PartitionColumnsSeparator, SyntheticJoinPredicate, SimplePredicatePushDown
+      // RedundantDynamicPruningConditionsRemoval, PartitionPruner, PartitionConditionRemover, GroupByOptimizer,ColumnPruner
+      // SamplePruner, MapJoinProcessor, BucketingSortingReduceSinkOptimizer, UnionProcessor, JoinReorder, ReduceSinkDeDuplication
+      // NonBlockingOpDeDupProc, IdentityProjectRemover, LimitPushdownOptimizer, SimpleFetchOptimizer
+      // 重点关注SimplePredicatePushDown
       t.beginPerfLogging();
       pctx = t.transform(pctx);
       t.endPerfLogging(t.toString());

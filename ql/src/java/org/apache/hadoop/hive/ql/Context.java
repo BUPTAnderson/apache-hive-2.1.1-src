@@ -243,10 +243,13 @@ public class Context {
       dir = fs.makeQualified(new Path(stagingPathName + "_" + this.executionId + "-" + TaskRunner.getTaskRunnerID()));
 
       new RuntimeException("hello world").printStackTrace();
+      // 打印日志, 比如: ql.Context: Created staging dir = hdfs://ns1/tmp/hive/hadoop/b7fca867-8db2-4e65-a166-1c32edd3616c/hive_2017-08-02_15-36-28_004_3653770231138742857-1/-mr-10001/.hive-staging_hive_2017-08-02_15-36-28_004_3653770231138742857-1
+      // for path = hdfs://ns1/tmp/hive/hadoop/b7fca867-8db2-4e65-a166-1c32edd3616c/hive_2017-08-02_15-36-28_004_3653770231138742857-1/-mr-10001
       LOG.debug("Created staging dir = " + dir + " for path = " + inputPath);
 
       if (mkdir) {
         try {
+          // 调用mkdir方法
           if (!FileUtils.mkdir(fs, dir, true, conf)) {
             throw new IllegalStateException("Cannot create staging directory  '" + dir.toString() + "'");
           }

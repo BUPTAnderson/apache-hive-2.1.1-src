@@ -18,6 +18,13 @@
 
 package org.apache.hadoop.hive.ql.parse;
 
+import org.antlr.runtime.tree.Tree;
+import org.apache.hadoop.hive.ql.parse.BaseSemanticAnalyzer.AnalyzeRewriteContext;
+import org.apache.hadoop.hive.ql.parse.BaseSemanticAnalyzer.TableSpec;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -26,13 +33,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.AbstractMap.SimpleEntry;
-
-import org.antlr.runtime.tree.Tree;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.apache.hadoop.hive.ql.parse.BaseSemanticAnalyzer.AnalyzeRewriteContext;
-import org.apache.hadoop.hive.ql.parse.BaseSemanticAnalyzer.TableSpec;
 
 /**
  * Implementation of the parse information related to a query block.
@@ -44,9 +44,10 @@ public class QBParseInfo {
   private final String alias;
   private ASTNode joinExpr;
   private ASTNode hints;
+  // 里面存放的是<alias, TOK_TABNAME节点的tree>, 如果没有别名, alias是原表名, 存放的是要查询的表的别名和对应的ASTNode信息
   private final HashMap<String, ASTNode> aliasToSrc;
   /**
-   * insclause-0 -> TOK_TAB ASTNode
+   * insclause-0 -> TOK_TAB ASTNode, 比如"insclause-0" -> TOK_DIR ASTNode
    */
   private final HashMap<String, ASTNode> nameToDest;
   /**
@@ -56,6 +57,7 @@ public class QBParseInfo {
   private final Map<String, List<String>> nameToDestSchema;
   private final HashMap<String, TableSample> nameToSample;
   private final Map<ASTNode, String> exprToColumnAlias;
+  // 表示ctx_1.dest -> ast, 比如: "insclause-0" -> TOK_SELECT ASTNode
   private final Map<String, ASTNode> destToSelExpr;
   private final HashMap<String, ASTNode> destToWhereExpr;
   private final HashMap<String, ASTNode> destToGroupby;
@@ -105,11 +107,14 @@ public class QBParseInfo {
   // Use SimpleEntry to save the offset and rowcount of limit clause
   // KEY of SimpleEntry: offset
   // VALUE of SimpleEntry: rowcount
+  // 设置查询的limit值,比如 < "insclause-0", <0, 10>> 即从0到10
   private final HashMap<String, SimpleEntry<Integer, Integer>> destToLimit;
   private int outerQueryLimit;
 
   // used by GroupBy
+  // 比如: <"insclause-0", size为0的LinkedHashMap>
   private final LinkedHashMap<String, LinkedHashMap<String, ASTNode>> destToAggregationExprs;
+  // 比如: <"insclause-0", size为0的List>
   private final HashMap<String, List<ASTNode>> destToDistinctFuncExprs;
 
   // used by Windowing

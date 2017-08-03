@@ -44,20 +44,23 @@ public class QB {
 
   private final int numJoins = 0;
   private final int numGbys = 0;
+  // 表示select的个数, 比如1
   private int numSels = 0;
   private int numSelDi = 0;
-  // alias -> 表名的映射
+  // alias -> 库名.表名/表名 的映射, 比如: <"partition_test", "default.partition_test">
   private HashMap<String, String> aliasToTabs;
   // alias -> 子查询的映射, QBExpr又包含QB对象, 也就是说如果有子查询的话, 子查询又有对应的qb
   private HashMap<String, QBExpr> aliasToSubq;
   private HashMap<String, Table> viewAliasToViewSchema;
   private HashMap<String, Map<String, String>> aliasToProps;
-  // 当前包含的别名, 主要是为了判断多个别名不可以重复
+  // 当前包含的别名, 主要是为了判断多个别名不可以重复, 如果没有别名, 加入的是原表名
   private List<String> aliases;
   private QBParseInfo qbp;
+  // 里面存储了alias和Table的对应关系
   private QBMetaData qbm;
   private QBJoinTree qbjoin;
   private String id;
+  // 是不是query
   private boolean isQuery;
   private boolean isAnalyzeRewrite;
   private CreateTableDesc tblDesc = null; // table descriptor of the final
@@ -124,6 +127,7 @@ public class QB {
     if (alias != null) {
       alias = alias.toLowerCase();
     }
+    // 初始化qbp, alias是null, isSubQ是false
     qbp = new QBParseInfo(alias, isSubQ);
     qbm = new QBMetaData();
     // Must be deterministic order maps - see HIVE-8707
