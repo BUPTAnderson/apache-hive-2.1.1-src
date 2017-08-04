@@ -17,20 +17,6 @@
  */
 package org.apache.hadoop.hive.ql.security.authorization.plugin.sqlstd;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.ListIterator;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Set;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -62,6 +48,20 @@ import org.apache.hadoop.hive.ql.security.authorization.plugin.HivePrivilege;
 import org.apache.hadoop.hive.ql.security.authorization.plugin.HivePrivilegeObject;
 import org.apache.hadoop.hive.ql.security.authorization.plugin.HivePrivilegeObject.HivePrivilegeObjectType;
 import org.apache.thrift.TException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.ListIterator;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 
 public class SQLAuthorizationUtils {
 
@@ -209,6 +209,7 @@ public class SQLAuthorizationUtils {
     RequiredPrivileges privs = getRequiredPrivsFromThrift(thrifPrivs);
 
     // add owner privilege if user is owner of the object
+    // 判断是不是owner, 调用isOwner方法
     if (isOwner(metastoreClient, userName, curRoles, hivePrivObject)) {
       privs.addPrivilege(SQLPrivTypeGrant.OWNER_PRIV);
     }
@@ -266,11 +267,13 @@ public class SQLAuthorizationUtils {
     case TABLE_OR_VIEW: {
       Table thriftTableObj = null;
       try {
+        // 如果是表, 通过调用metastore获取表对象
         thriftTableObj = metastoreClient.getTable(hivePrivObject.getDbname(),
             hivePrivObject.getObjectName());
       } catch (Exception e) {
         throwGetObjErr(e, hivePrivObject);
       }
+      // 判断表的所有者与当前session连接的user是不是相同
       return userName.equals(thriftTableObj.getOwner());
     }
     case DATABASE: {
@@ -279,6 +282,7 @@ public class SQLAuthorizationUtils {
       }
       Database db = null;
       try {
+        // 通过调用metastore获取库对象
         db = metastoreClient.getDatabase(hivePrivObject.getDbname());
       } catch (Exception e) {
         throwGetObjErr(e, hivePrivObject);

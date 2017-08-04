@@ -193,7 +193,7 @@ public class SQLOperation extends ExecuteStatementOperation {
       // For now, we disable the test attempts.
       driver.setTryCount(Integer.MAX_VALUE);
 
-      // 编译statement, 生成执行计划, 核心的地方
+      // 编译statement, 生成执行计划, 权限校验, 核心的地方
       response = driver.compileAndRespond(statement);
       if (0 != response.getResponseCode()) {
         throw toSQLException("Error while compiling statement", response);
@@ -290,7 +290,7 @@ public class SQLOperation extends ExecuteStatementOperation {
       prepare(queryState);
     }
     LOG.info("+++++++ prepare finished!");
-    // runAsync是true执行else中的逻辑, 即执行查询计划
+    // runAsync是true执行else中的逻辑, 即异步执行查询计划
     if (!runAsync) {
       runQuery();
     } else {

@@ -78,10 +78,11 @@ public class SQLStdHiveAuthorizationValidator implements HiveAuthorizationValida
     // 调用的是Hive.get().getMSC();来获取client
     IMetaStoreClient metastoreClient = metastoreClientFactory.getHiveMetastoreClient();
 
-    // 检查输入输出的权限
     // check privileges on input and output objects
     List<String> deniedMessages = new ArrayList<String>();
+    // 检查输入输出的权限, 进入checkPrivileges方法
     checkPrivileges(hiveOpType, inputHObjs, metastoreClient, userName, IOType.INPUT, deniedMessages);
+    // 检查输出的权限, 如果是查询的话不会有输出
     checkPrivileges(hiveOpType, outputHObjs, metastoreClient, userName, IOType.OUTPUT, deniedMessages);
 
     // 如果deniedMessages size不为0， 打印错误信息， 抛出HiveAccessControlException
@@ -109,7 +110,7 @@ public class SQLStdHiveAuthorizationValidator implements HiveAuthorizationValida
         continue;
       }
 
-      // 根据HivePrivilegeObjectType类型来获取可用的权限
+      // 根据HivePrivilegeObjectType类型来获取可用的权限, 通常是default
       // find available privileges
       RequiredPrivileges availPrivs = new RequiredPrivileges(); //start with an empty priv set;
       switch (hiveObj.getType()) {
@@ -132,6 +133,7 @@ public class SQLStdHiveAuthorizationValidator implements HiveAuthorizationValida
         }
         break;
       default:
+        // 调用getPrivilegesFromMetaStore方法
         availPrivs = SQLAuthorizationUtils.getPrivilegesFromMetaStore(metastoreClient, userName,
             hiveObj, privController.getCurrentRoleNames(), privController.isUserAdmin());
       }

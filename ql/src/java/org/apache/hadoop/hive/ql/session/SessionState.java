@@ -381,6 +381,7 @@ public class SessionState {
     // Must be deterministic order map for consistent q-test output across Java versions
     overriddenConfigurations = new LinkedHashMap<String, String>();
     overriddenConfigurations.putAll(HiveConf.getConfSystemProperties());
+    LOG.info("+++++++++++++++++++++ overriddenConfigurations size:" + overriddenConfigurations.size());
     // 创建hive.session.id, 实际是一个UUID
     // if there isn't already a session name, go ahead and create it.
     // 如果是HiveSessionImpl调用的该构造方法, hive.session.id是不为空的, 不必创建， 如果是CLI调用的， sessionId是空， 需要在这里设置sessionId的值

@@ -541,6 +541,7 @@ public class Driver implements CommandProcessor {
         try {
           // 打印日志
           perfLogger.PerfLogBegin(CLASS_NAME, PerfLogger.DO_AUTHORIZATION);
+          // 进行权限校验
           doAuthorization(queryState.getHiveOperation(), sem, command);
         } catch (AuthorizationException authExp) {
           console.printError("Authorization failed:" + authExp.getMessage()
@@ -720,6 +721,7 @@ public class Driver implements CommandProcessor {
     Set<ReadEntity> inputs = Sets.union(sem.getInputs(), additionalInputs);
     Set<WriteEntity> outputs = Sets.union(sem.getOutputs(), additionalOutputs);
 
+    // 如果配置了权限校验, 一般是V2 mode
     if (ss.isAuthorizationModeV2()) {
       // get mapping of tables to columns used
       ColumnAccessInfo colAccessInfo = sem.getColumnAccessInfo();
@@ -728,6 +730,7 @@ public class Driver implements CommandProcessor {
           .getTableToColumnAccessMap() : null;
       Map<String, List<String>> updateTab2Cols = sem.getUpdateColumnAccessInfo() != null ?
           sem.getUpdateColumnAccessInfo().getTableToColumnAccessMap() : null;
+      // 执行V2权限校验
       doAuthorizationV2(ss, op, inputs, outputs, command, selectTab2Cols, updateTab2Cols);
      return;
     }
@@ -941,6 +944,7 @@ public class Driver implements CommandProcessor {
     List<HivePrivilegeObject> inputsHObjs = getHivePrivObjects(inputs, tab2cols);
     List<HivePrivilegeObject> outputHObjs = getHivePrivObjects(outputs, updateTab2Cols);
 
+    // 检查权限, 调用checkPrivileges方法, 实现类是HiveAuthorizerImpl
     ss.getAuthorizerV2().checkPrivileges(hiveOpType, inputsHObjs, outputHObjs, authzContextBuilder.build());
   }
 

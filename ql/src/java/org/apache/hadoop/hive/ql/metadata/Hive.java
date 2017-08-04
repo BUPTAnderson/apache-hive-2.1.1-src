@@ -286,6 +286,7 @@ public class Hive {
     Hive db = hiveDB.get();
     if (db == null || !db.isCurrentUserOwner() || needsRefresh
         || (c != null && db.metaStoreClient != null && !isCompatible(db, c, isFastCheck))) {
+      new RuntimeException("hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh").printStackTrace();
       return create(c, false, db, doRegisterAllFns);
     }
     if (c != null) {

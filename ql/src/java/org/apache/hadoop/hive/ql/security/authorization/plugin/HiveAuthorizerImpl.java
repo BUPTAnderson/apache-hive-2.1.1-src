@@ -83,6 +83,7 @@ public class HiveAuthorizerImpl extends AbstractHiveAuthorizer {
   public void checkPrivileges(HiveOperationType hiveOpType, List<HivePrivilegeObject> inputHObjs,
       List<HivePrivilegeObject> outputHObjs, HiveAuthzContext context)
       throws HiveAuthzPluginException, HiveAccessControlException {
+    // 调用SQLStdHiveAuthorizationValidator的checkPrivileges方法
     authValidator.checkPrivileges(hiveOpType, inputHObjs, outputHObjs, context);
   }
 

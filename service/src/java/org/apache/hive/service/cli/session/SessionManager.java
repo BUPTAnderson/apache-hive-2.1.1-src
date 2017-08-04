@@ -312,7 +312,7 @@ public class SessionManager extends CompositeService {
     } else {
       // sessionImplclassName默认值为null
       if (sessionImplclassName == null) {
-        // 这里session是HiveSessionImpl, hiveConf是SessionManager的属性
+        // 这里session是HiveSessionImpl, hiveConf是SessionManager的属性, 在HiveSessionImpl的构造方法中会复制一份该hiveConf来作HiveSessionImpl的sessionConf
         session = new HiveSessionImpl(sessionHandle, protocol, username, password, hiveConf,
           ipAddress);
       } else {

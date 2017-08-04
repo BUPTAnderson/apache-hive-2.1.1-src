@@ -187,6 +187,7 @@ public class HiveSessionImpl implements HiveSession {
       throw new HiveSQLException(msg, e);
     }
     try {
+      // 获取当前
       sessionHive = Hive.get(getHiveConf());
     } catch (HiveException e) {
       throw new HiveSQLException("Failed to get metastore connection", e);
