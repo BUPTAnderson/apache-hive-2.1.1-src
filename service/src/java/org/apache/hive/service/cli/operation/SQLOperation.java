@@ -212,6 +212,7 @@ public class SQLOperation extends ExecuteStatementOperation {
               "should be set when query plan has a FetchTask");
         }
         resultSchema = new TableSchema(mResultSchema);
+        // 设置hasResultSet为true, 同时设置OperationHandle的hasResultSet为true, OperationHandle这个值是客户端用来判断是否有result的标识位
         setHasResultSet(true);
       } else {
         setHasResultSet(false);
@@ -288,8 +289,9 @@ public class SQLOperation extends ExecuteStatementOperation {
     if (!asyncPrepare) {
       prepare(queryState);
     }
+    LOG.info("+++++++ prepare finished!");
+    // runAsync是true执行else中的逻辑, 即执行查询计划
     if (!runAsync) {
-      // 执行查询
       runQuery();
     } else {
       // We'll pass ThreadLocals in the background thread from the foreground (handler) thread.

@@ -433,8 +433,11 @@ public class SessionState {
     final String currThreadName = Thread.currentThread().getName();
     if (currThreadName.contains(logPrefix)) {
       final String[] names = currThreadName.split(logPrefix);
+      // 打印日志, 比如: session.SessionState: Resetting thread name to  HiveServer2-Handler-Pool: Thread-44
+      LOG.info("+++++++ Thread name : " + Thread.currentThread().getName());
       LOG.info("Resetting thread name to {}", names[names.length - 1]);
       Thread.currentThread().setName(names[names.length - 1].trim());
+      LOG.info("+++++++>>>> Thread name : " + Thread.currentThread().getName());
     }
   }
 

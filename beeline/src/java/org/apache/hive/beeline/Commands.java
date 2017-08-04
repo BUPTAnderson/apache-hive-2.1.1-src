@@ -1008,8 +1008,10 @@ public class Commands {
 
         if (hasResults) {
           do {
+            // 调用HiveStatement的getResultSet方法, 返回HiveStatement构造的HiveQueryResultSet
             ResultSet rs = stmnt.getResultSet();
             try {
+              // 将结果打印到控制台
               int count = beeLine.print(rs);
               long end = System.currentTimeMillis();
 
@@ -1028,6 +1030,7 @@ public class Commands {
         } else {
           int count = stmnt.getUpdateCount();
           long end = System.currentTimeMillis();
+          // 打印日志信息, 比如: 4 rows selected (3.165 seconds)
           beeLine.info(
               beeLine.loc("rows-affected", count) + " " + beeLine.locElapsedTime(end - start));
         }

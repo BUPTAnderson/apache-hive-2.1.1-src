@@ -37,8 +37,10 @@ class BufferedRows extends Rows {
   BufferedRows(BeeLine beeLine, ResultSet rs) throws SQLException {
     super(beeLine, rs);
     list = new LinkedList<Row>();
+    // 获取列的个数
     int count = rsMeta.getColumnCount();
     list.add(new Row(count));
+    // 调用HiveQueryResultSet的next方法, 该方法会调用server的FetchResults方法获取数据
     while (rs.next()) {
       list.add(new Row(count, rs));
     }

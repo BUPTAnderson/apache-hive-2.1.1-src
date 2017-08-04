@@ -126,10 +126,13 @@ public class SimpleFetchOptimizer extends Transform {
     String mode = HiveConf.getVar(
         pctx.getConf(), HiveConf.ConfVars.HIVEFETCHTASKCONVERSION);
 
+    // 值为true
     boolean aggressive = "more".equals(mode);
     final int limit = pctx.getQueryProperties().getOuterQueryLimit();
+    // 获取FetchData对象
     FetchData fetch = checkTree(aggressive, pctx, alias, source);
     if (fetch != null && checkThreshold(fetch, limit, pctx)) {
+      // 调用convertToWork方法
       FetchWork fetchWork = fetch.convertToWork();
       FetchTask fetchTask = (FetchTask) TaskFactory.get(fetchWork, pctx.getConf());
       fetchWork.setSink(fetch.completed(pctx, fetchWork));
@@ -192,6 +195,7 @@ public class SimpleFetchOptimizer extends Transform {
       return null;
     }
     ReadEntity parent = PlanUtils.getParentViewInfo(alias, pctx.getViewAliasToInput());
+    // 是否是分区表
     if (!table.isPartitioned()) {
       FetchData fetch = new FetchData(ts, parent, table, splitSample);
       return checkOperators(fetch, aggressive, false);
@@ -208,12 +212,14 @@ public class SimpleFetchOptimizer extends Transform {
       return null;
     }
     PrunedPartitionList partitions = pctx.getPrunedPartitions(alias, ts);
+    // 构造FetchData对象
     FetchData fetch = new FetchData(ts, parent, table, partitions, splitSample, bypassFilter);
     return checkOperators(fetch, aggressive, bypassFilter);
   }
 
   private FetchData checkOperators(FetchData fetch, boolean aggressive, boolean bypassFilter) {
     if (aggressive) {
+      LOG.info("+++++ :" + isConvertible(fetch));
       return isConvertible(fetch) ? fetch : null;
     }
     return checkOperators(fetch, fetch.scanOp, bypassFilter);
@@ -377,6 +383,7 @@ public class SimpleFetchOptimizer extends Transform {
     private FetchWork convertToWork() throws HiveException {
       inputs.clear();
       Utilities.addSchemaEvolutionToTableScanOperator(table, scanOp);
+      // 调用getTableDesc方法
       TableDesc tableDesc = Utilities.getTableDesc(table);
       if (!table.isPartitioned()) {
         inputs.add(new ReadEntity(table, parent, !table.isView() && parent == null));
@@ -391,10 +398,12 @@ public class SimpleFetchOptimizer extends Transform {
       for (Partition partition : partsList.getNotDeniedPartns()) {
         inputs.add(new ReadEntity(partition, parent, parent == null));
         listP.add(partition.getDataLocation());
+        // 调用getPartitionDescFromTableDesc方法
         partP.add(Utilities.getPartitionDescFromTableDesc(tableDesc, partition, true));
       }
       Table sourceTable = partsList.getSourceTable();
       inputs.add(new ReadEntity(sourceTable, parent, parent == null));
+      // 调用getTableDesc
       TableDesc table = Utilities.getTableDesc(sourceTable);
       FetchWork work = new FetchWork(listP, partP, table);
       if (!work.getPartDesc().isEmpty()) {

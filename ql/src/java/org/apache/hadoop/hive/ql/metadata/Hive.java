@@ -3685,7 +3685,9 @@ private void constructOneLBLocationMap(FileStatus fSta,
   public ImmutableMap<String, Long> dumpAndClearMetaCallTiming(String phase) {
     boolean phaseInfoLogged = false;
     if (LOG.isDebugEnabled()) {
+      // 调用方法logDumpPhase
       phaseInfoLogged = logDumpPhase(phase);
+      // 打印日志, 比如: metadata.Hive: Total time spent in each metastore function (ms): {isCompatibleWith_(HiveConf, )=0, getTable_(String, String, )=141, flushCache_()=19, listPartitions_(String, String, short, )=58}
       LOG.debug("Total time spent in each metastore function (ms): " + metaCallTimeMap);
     }
 
@@ -3709,6 +3711,7 @@ private void constructOneLBLocationMap(FileStatus fSta,
   }
 
   private boolean logDumpPhase(String phase) {
+    // 打印日志, 比如: metadata.Hive: Dumping metastore api call timing information for : compilation phase
     LOG.info("Dumping metastore api call timing information for : " + phase + " phase");
     return true;
   }

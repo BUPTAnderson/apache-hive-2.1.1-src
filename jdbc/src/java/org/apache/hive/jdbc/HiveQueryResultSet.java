@@ -18,18 +18,6 @@
 
 package org.apache.hive.jdbc;
 
-import static org.apache.hive.service.rpc.thrift.TCLIServiceConstants.TYPE_NAMES;
-
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.concurrent.locks.ReentrantLock;
-
 import org.apache.hadoop.hive.common.type.HiveDecimal;
 import org.apache.hive.service.cli.RowSet;
 import org.apache.hive.service.cli.RowSetFactory;
@@ -54,6 +42,18 @@ import org.apache.hive.service.rpc.thrift.TTypeQualifierValue;
 import org.apache.hive.service.rpc.thrift.TTypeQualifiers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.concurrent.locks.ReentrantLock;
+
+import static org.apache.hive.service.rpc.thrift.TCLIServiceConstants.TYPE_NAMES;
 
 /**
  * HiveQueryResultSet.
@@ -193,7 +193,9 @@ public class HiveQueryResultSet extends HiveBaseResultSet {
     normalizedColumnNames = new ArrayList<String>();
     columnTypes = new ArrayList<String>();
     columnAttributes = new ArrayList<JdbcColumnAttributes>();
+    // retrieveSchema默认是true
     if (builder.retrieveSchema) {
+      // 执行retrieveSchema, 会调用server的方法
       retrieveSchema();
     } else {
       this.setSchema(builder.colNames, builder.colTypes, builder.colAttributes);
@@ -249,6 +251,7 @@ public class HiveQueryResultSet extends HiveBaseResultSet {
       TGetResultSetMetadataReq metadataReq = new TGetResultSetMetadataReq(stmtHandle);
       // TODO need session handle
       TGetResultSetMetadataResp  metadataResp;
+      // 调用client的GetResultSetMetadata方法
       metadataResp = client.GetResultSetMetadata(metadataReq);
       Utils.verifySuccess(metadataResp.getStatus());
 
@@ -263,6 +266,7 @@ public class HiveQueryResultSet extends HiveBaseResultSet {
       setSchema(new TableSchema(schema));
 
       List<TColumnDesc> columns = schema.getColumns();
+      // columnNames, normalizedColumnNames, columnTypes, columnAttributes是父类HiveBaseResultSet的熟悉
       for (int pos = 0; pos < schema.getColumnsSize(); pos++) {
         if (pos != 0) {
           namesSb.append(",");
@@ -305,6 +309,7 @@ public class HiveQueryResultSet extends HiveBaseResultSet {
   public void close() throws SQLException {
     if (this.statement != null && (this.statement instanceof HiveStatement)) {
       HiveStatement s = (HiveStatement) this.statement;
+      // closeClientOperation会通过client调用的server端的CloseOperation方法
       s.closeClientOperation();
     } else {
       // for those stmtHandle passed from HiveDatabaseMetaData instead of Statement
@@ -353,11 +358,15 @@ public class HiveQueryResultSet extends HiveBaseResultSet {
      * HiveDatabaseMetaData which also uses this ResultSet returns only after the RPC is complete.
      */
     if ((statement != null) && (statement instanceof HiveStatement)) {
+      // 等待从server端获取FINISHED_STATE状态
       ((HiveStatement) statement).waitForOperationToComplete();
     }
 
     try {
       TFetchOrientation orientation = TFetchOrientation.FETCH_NEXT;
+      if ((statement != null) && (statement instanceof HiveStatement)) {
+        ((HiveConnection)((HiveStatement) statement).getConnection()).LOG.info("++++++++ fetchFirse:" + fetchFirst);
+      }
       if (fetchFirst) {
         // If we are asked to start from begining, clear the current fetched resultset
         orientation = TFetchOrientation.FETCH_FIRST;
@@ -369,6 +378,7 @@ public class HiveQueryResultSet extends HiveBaseResultSet {
         TFetchResultsReq fetchReq = new TFetchResultsReq(stmtHandle,
             orientation, fetchSize);
         TFetchResultsResp fetchResp;
+        // 调用hiveServer2端获取数据
         fetchResp = client.FetchResults(fetchReq);
         Utils.verifySuccessWithInfo(fetchResp.getStatus());
 

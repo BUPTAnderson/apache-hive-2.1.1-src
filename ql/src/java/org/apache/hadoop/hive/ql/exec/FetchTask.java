@@ -18,12 +18,6 @@
 
 package org.apache.hadoop.hive.ql.exec;
 
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.List;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.hadoop.hive.ql.CommandNeedRetryException;
 import org.apache.hadoop.hive.ql.CompilationOpContext;
 import org.apache.hadoop.hive.ql.DriverContext;
@@ -42,6 +36,12 @@ import org.apache.hadoop.hive.serde2.ColumnProjectionUtils;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.util.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.List;
 
 /**
  * FetchTask implementation.
@@ -84,6 +84,7 @@ public class FetchTask extends Task<FetchWork> implements Serializable {
       }
       sink = work.getSink();
       fetch = new FetchOperator(work, job, source, getVirtualColumns(source));
+      // 调用Operator的initialize方法
       source.initialize(conf, new ObjectInspector[]{fetch.getOutputObjectInspector()});
       totalRows = 0;
       ExecMapper.setDone(false);

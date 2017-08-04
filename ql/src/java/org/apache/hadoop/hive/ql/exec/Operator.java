@@ -18,22 +18,6 @@
 
 package org.apache.hadoop.hive.ql.exec;
 
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicBoolean;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.ql.CompilationOpContext;
 import org.apache.hadoop.hive.ql.exec.mr.ExecMapperContext;
@@ -54,6 +38,22 @@ import org.apache.hadoop.mapred.OutputCollector;
 import org.apache.hadoop.mapred.Reporter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Base operator implementation.
@@ -323,6 +323,7 @@ public abstract class Operator<T extends OperatorDesc> implements Serializable,C
     }
 
     if (isLogInfoEnabled) {
+      // 打印日志
       LOG.info("Initializing operator " + this);
     }
 
@@ -355,6 +356,7 @@ public abstract class Operator<T extends OperatorDesc> implements Serializable,C
 
     boolean isInitOk = false;
     try {
+      // 调用具体Operator的initializeOp方法
       initializeOp(hconf);
       // sanity checks
       if (!rootInitializeCalled
@@ -362,9 +364,11 @@ public abstract class Operator<T extends OperatorDesc> implements Serializable,C
         throw new AssertionError("Internal error during operator initialization");
       }
       if (isLogDebugEnabled) {
+        // 打印日志
         LOG.debug("Initialization Done " + id + " " + getName());
       }
 
+      // 调用initializeChildren方法, 如果有child的话, 里面会再次调用到该方法
       initializeChildren(hconf);
       isInitOk = true;
     } finally {
@@ -486,15 +490,18 @@ public abstract class Operator<T extends OperatorDesc> implements Serializable,C
   protected void initializeChildren(Configuration hconf) throws HiveException {
     state = State.INIT;
     if (isLogDebugEnabled) {
+      // 打印日志
       LOG.debug("Operator " + id + " " + getName() + " initialized");
     }
     if (childOperators == null || childOperators.isEmpty()) {
       return;
     }
     if (isLogDebugEnabled) {
+      // 打印日志
       LOG.debug("Initializing children of " + id + " " + getName());
     }
     for (int i = 0; i < childOperatorsArray.length; i++) {
+      // 调用initialize方法
       childOperatorsArray[i].initialize(hconf, outputObjInspector, childOperatorsTag[i]);
       if (reporter != null) {
         childOperatorsArray[i].setReporter(reporter);
@@ -531,6 +538,7 @@ public abstract class Operator<T extends OperatorDesc> implements Serializable,C
   protected void initialize(Configuration hconf, ObjectInspector inputOI,
       int parentId) throws HiveException {
     if (isLogDebugEnabled) {
+      // 打印日志
       LOG.debug("Initializing child " + id + " " + getName());
     }
     // Double the size of the array if needed
@@ -543,6 +551,7 @@ public abstract class Operator<T extends OperatorDesc> implements Serializable,C
     }
     inputObjInspectors[parentId] = inputOI;
     // call the actual operator initialization function
+    // 调用initialize方法
     initialize(hconf, null);
   }
 

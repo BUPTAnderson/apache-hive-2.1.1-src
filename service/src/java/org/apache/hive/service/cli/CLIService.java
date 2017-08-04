@@ -306,6 +306,7 @@ public class CLIService extends CompositeService implements ICLIService {
     OperationHandle opHandle =
         sessionManager.getSession(sessionHandle).executeStatementAsync(statement, confOverlay,
             queryTimeout);
+    // 打印日志, 比如: cli.CLIService: SessionHandle [53f6d768-8ea7-41ac-aa6b-734b4bdae2f1]: executeStatementAsync()
     LOG.debug(sessionHandle + ": executeStatementAsync()");
     return opHandle;
   }

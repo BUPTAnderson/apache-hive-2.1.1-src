@@ -234,7 +234,7 @@ public class SetProcessor implements CommandProcessor {
           message.append("' FAILED in validation : ").append(fail).append('.');
           throw new IllegalArgumentException(message.toString());
         }
-      } else if (!removedConfigs.contains(key) && key.startsWith("hive.")) { // 如果就的配置项里面没有对应的配置项，且配置项以"hive."开头， 则抛出异常， 这里我们知道如果想设置自定义的配置项，一定不要以"hive."开头，否则保证，以"hive."开头的只能用来设置HiveConf存在的配置项
+      } else if (!removedConfigs.contains(key) && key.startsWith("hive.")) { // 如果旧的配置项里面没有对应的配置项，且配置项以"hive."开头， 则抛出异常， 这里我们知道如果想设置自定义的配置项，一定不要以"hive."开头，否则保证，以"hive."开头的只能用来设置HiveConf存在的配置项
         throw new IllegalArgumentException("hive configuration " + key + " does not exists.");
       }
     }

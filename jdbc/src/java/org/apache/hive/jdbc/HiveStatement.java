@@ -251,7 +251,7 @@ public class HiveStatement implements java.sql.Statement {
   public boolean execute(String sql) throws SQLException {
     // 通过client调用hiveserver2来执行hql, 主要逻辑是获取返回的TOperationHandle赋值给stmtHandle
     runAsyncOnServer(sql);
-    // 等待hql执行完毕, 主要是用上面生成的stmtHandle, 通过client调用获取hql的执行状态
+    // 等待hql执行完毕, 主要是用上面生成的stmtHandle, 通过client不断调用服务端的GetOperationStatus方法获取hql的执行状态, 直到获取FINISHED_STATE
     waitForOperationToComplete();
 
     // The query should be completed by now

@@ -506,8 +506,10 @@ public class Driver implements CommandProcessor {
       LOG.info("Semantic Analysis Completed");
 
       // validate the plan
+      // 调用CalcitePlanner的的validate方法, 时间调用的是SemanticAnalyzer的validate方法
       sem.validate();
       acidInQuery = sem.hasAcidInQuery();
+      // 打印日志
       perfLogger.PerfLogEnd(CLASS_NAME, PerfLogger.ANALYZE);
 
       if (isInterrupted()) {
@@ -515,6 +517,7 @@ public class Driver implements CommandProcessor {
       }
 
       // get the output schema
+      // 调用getSchema方法
       schema = getSchema(sem, conf);
       plan = new QueryPlan(queryStr, sem, perfLogger.getStartTime(PerfLogger.DRIVER_RUN), queryId,
         queryState.getHiveOperation(), schema);
@@ -526,14 +529,17 @@ public class Driver implements CommandProcessor {
 
       // initialize FetchTask right here
       if (plan.getFetchTask() != null) {
+        // 调用initialize方法
         plan.getFetchTask().initialize(queryState, plan, null, ctx.getOpContext());
       }
 
       //do the authorization check
+      // 进行权限校验
       if (!sem.skipAuthorization() &&
           HiveConf.getBoolVar(conf, HiveConf.ConfVars.HIVE_AUTHORIZATION_ENABLED)) {
 
         try {
+          // 打印日志
           perfLogger.PerfLogBegin(CLASS_NAME, PerfLogger.DO_AUTHORIZATION);
           doAuthorization(queryState.getHiveOperation(), sem, command);
         } catch (AuthorizationException authExp) {
@@ -543,10 +549,12 @@ public class Driver implements CommandProcessor {
           SQLState = "42000";
           return 403;
         } finally {
+          // 打印日志
           perfLogger.PerfLogEnd(CLASS_NAME, PerfLogger.DO_AUTHORIZATION);
         }
       }
 
+      // hive.log.explain.output默认值是false
       if (conf.getBoolVar(ConfVars.HIVE_LOG_EXPLAIN_OUTPUT)) {
         String explainOutput = getExplainOutput(sem, plan, tree);
         if (explainOutput != null) {
@@ -589,7 +597,9 @@ public class Driver implements CommandProcessor {
       return error.getErrorCode();//todo: this is bad if returned as cmd shell exit
       // since it exceeds valid range of shell return values
     } finally {
+      // 打印日志, 比如: log.PerfLogger: </PERFLOG method=compile start=1501724875597 end=1501724878348 duration=2751 from=org.apache.hadoop.hive.ql.Driver>
       double duration = perfLogger.PerfLogEnd(CLASS_NAME, PerfLogger.COMPILE)/1000.00;
+      // 调用方法dumpMetaCallTimingWithoutEx
       ImmutableMap<String, Long> compileHMSTimings = dumpMetaCallTimingWithoutEx("compilation");
       queryDisplay.setHmsTimings(QueryDisplay.Phase.COMPILATION, compileHMSTimings);
 
@@ -611,6 +621,7 @@ public class Driver implements CommandProcessor {
       if (isInterrupted) {
         LOG.info("Compiling command(queryId=" + queryId + ") has been interrupted after " + duration + " seconds");
       } else {
+        // 打印日志, 比如: ql.Driver: Completed compiling command(queryId=hadoop_20170803094755_ef85e68f-7e2b-4c77-af89-f56289a83d84); Time taken: 2.751 seconds
         LOG.info("Completed compiling command(queryId=" + queryId + "); Time taken: " + duration + " seconds");
       }
     }

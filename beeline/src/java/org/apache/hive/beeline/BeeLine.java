@@ -2075,6 +2075,7 @@ public class BeeLine implements Closeable {
 
     Rows rows;
 
+    info("-------> getOpts().getIncremental():" + getOpts().getIncremental());
     if (getOpts().getIncremental()) {
       rows = new IncrementalRows(this, rs);
     } else {

@@ -241,7 +241,7 @@ public class Optimizer {
       // RedundantDynamicPruningConditionsRemoval, PartitionPruner, PartitionConditionRemover, GroupByOptimizer,ColumnPruner
       // SamplePruner, MapJoinProcessor, BucketingSortingReduceSinkOptimizer, UnionProcessor, JoinReorder, ReduceSinkDeDuplication
       // NonBlockingOpDeDupProc, IdentityProjectRemover, LimitPushdownOptimizer, SimpleFetchOptimizer
-      // 重点关注SimplePredicatePushDown
+      // 重点关注SimplePredicatePushDown和SimpleFetchOptimizer
       t.beginPerfLogging();
       pctx = t.transform(pctx);
       t.endPerfLogging(t.toString());

@@ -18,6 +18,11 @@
 
 package org.apache.hive.jdbc;
 
+import org.apache.hadoop.hive.common.type.HiveIntervalDayTime;
+import org.apache.hadoop.hive.common.type.HiveIntervalYearMonth;
+import org.apache.hadoop.hive.serde2.thrift.Type;
+import org.apache.hive.service.cli.TableSchema;
+
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.io.Reader;
@@ -43,11 +48,6 @@ import java.sql.Timestamp;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Map;
-
-import org.apache.hadoop.hive.common.type.HiveIntervalDayTime;
-import org.apache.hadoop.hive.common.type.HiveIntervalYearMonth;
-import org.apache.hadoop.hive.serde2.thrift.Type;
-import org.apache.hive.service.cli.TableSchema;
 
 /**
  * Data independent base class which implements the common part of
@@ -380,6 +380,7 @@ public abstract class HiveBaseResultSet implements ResultSet {
   }
 
   public ResultSetMetaData getMetaData() throws SQLException {
+    // 这三个属性在HiveStatement通过execute(String sql)方法构造HiveQueryResultSeth时会初始化
     return new HiveResultSetMetaData(columnNames, columnTypes, columnAttributes);
   }
 

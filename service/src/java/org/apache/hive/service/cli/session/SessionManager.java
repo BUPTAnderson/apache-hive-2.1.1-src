@@ -93,6 +93,7 @@ public class SessionManager extends CompositeService {
     if (hiveConf.getBoolVar(ConfVars.HIVE_SERVER2_LOGGING_OPERATION_ENABLED)) {
       initOperationLogRootDir();
     }
+    // 创建线程池, 用来执行任务
     createBackgroundOperationPool();
     addService(operationManager);
     initSessionImplClassName();

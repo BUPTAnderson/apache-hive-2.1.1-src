@@ -417,6 +417,7 @@ public class HiveSessionImpl implements HiveSession {
     if (sessionState != null) {
       // can be null in-case of junit tests. skip reset.
       // reset thread name at release time.
+      // 调用resetThreadName
       sessionState.resetThreadName();
     }
 
@@ -548,6 +549,7 @@ public class HiveSessionImpl implements HiveSession {
       if (operation == null || operation.getBackgroundHandle() == null) {
         release(true, true); // Not async, or wasn't submitted for some reason (failure, etc.)
       } else {
+        // 调用releaseBeforeOpLock方法, 会reset thread name
         releaseBeforeOpLock(true); // Release, but keep the lock (if present).
       }
     }
@@ -555,6 +557,7 @@ public class HiveSessionImpl implements HiveSession {
 
   @Override
   public Future<?> submitBackgroundOperation(Runnable work) {
+    LOG.info("+++++++ operationLock is null:" + (operationLock == null));
     return getSessionManager().submitBackgroundOperation(
         operationLock == null ? work : new FutureTask<Void>(work, null) {
       protected void done() {

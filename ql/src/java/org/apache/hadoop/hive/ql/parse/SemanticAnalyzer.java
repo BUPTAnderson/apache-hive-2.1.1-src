@@ -11045,6 +11045,8 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
 
     // 7. Perform Logical optimization, 开始执行逻辑优化
     if (LOG.isDebugEnabled()) {
+      // 打印日志: parse.CalcitePlanner: Before logical optimization
+      // TS[0]-SEL[1]-LIM[2]-FS[3]
       LOG.debug("Before logical optimization\n" + Operator.toString(pCtx.getTopOps().values()));
     }
     Optimizer optm = new Optimizer();
@@ -11058,13 +11060,18 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     }
     FetchTask origFetchTask = pCtx.getFetchTask();
     if (LOG.isDebugEnabled()) {
+      // 打印日志, 比如: parse.CalcitePlanner: After logical optimization
+      // TS[0]-SEL[1]-LIM[2]-LIST_SINK[4]
       LOG.debug("After logical optimization\n" + Operator.toString(pCtx.getTopOps().values()));
     }
 
     // 8. Generate column access stats if required - wait until column pruning
     // takes place during optimization
+    // hive.security.authorization.enabled一般设置为true, 是MODeV2
     boolean isColumnInfoNeedForAuth = SessionState.get().isAuthorizationModeV2()
         && HiveConf.getBoolVar(conf, HiveConf.ConfVars.HIVE_AUTHORIZATION_ENABLED);
+    // hive.stats.collect.scancols默认值是false
+    LOG.info("++++++isColumnInfoNeedForAuth:" + isColumnInfoNeedForAuth);
     if (isColumnInfoNeedForAuth
         || HiveConf.getBoolVar(this.conf, HiveConf.ConfVars.HIVE_STATS_COLLECT_SCANCOLS)) {
       ColumnAccessAnalyzer columnAccessAnalyzer = new ColumnAccessAnalyzer(pCtx);
@@ -11074,6 +11081,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
 
     // 9. Optimize Physical op tree & Translate to target execution engine (MR,
     // TEZ..)
+    LOG.info("++++++ getExplainLogical:" + ctx.getExplainLogical());
     if (!ctx.getExplainLogical()) {
       TaskCompiler compiler = TaskCompilerFactory.getCompiler(conf, pCtx);
       compiler.init(queryState, console, db);
@@ -11083,11 +11091,13 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     LOG.info("Completed plan generation");
 
     // 10. put accessed columns to readEntity
+    // hive.stats.collect.scancols默认值是false
     if (HiveConf.getBoolVar(this.conf, HiveConf.ConfVars.HIVE_STATS_COLLECT_SCANCOLS)) {
       putAccessedColumnsToReadEntity(inputs, columnAccessInfo);
     }
 
     // 11. if desired check we're not going over partition scan limits
+    LOG.info("+++++++ ctx.getExplain():" + ctx.getExplain());
     if (!ctx.getExplain()) {
       enforceScanLimits(pCtx, origFetchTask);
     }
@@ -11521,6 +11531,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
         }
       }
 
+      LOG.info("++++++ type:" + type.name());
       if (type != WriteEntity.Type.TABLE &&
           type != WriteEntity.Type.PARTITION) {
         LOG.debug("not validating writeEntity, because entity is neither table nor partition");
