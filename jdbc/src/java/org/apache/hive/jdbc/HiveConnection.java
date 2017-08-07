@@ -178,7 +178,7 @@ public class HiveConnection implements java.sql.Connection {
       client = embeddedClient;
 
       // open client session
-      // 打开会话
+      // 打开会话, 通过client调用Server端的OpenSession方法
       openSession();
     } else {
       int maxRetries = 1;

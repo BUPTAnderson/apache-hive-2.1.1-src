@@ -352,11 +352,13 @@ public class HiveMetaStoreClient implements IMetaStoreClient {
   public boolean isCompatibleWith(HiveConf conf) {
     // Make a copy of currentMetaVars, there is a race condition that
 	// currentMetaVars might be changed during the execution of the method
+    // open方法中已经通过调用snapshotActiveConf方法初始化currentMetaVars了, 所以currentMetaVarsCopy不为null
     Map<String, String> currentMetaVarsCopy = currentMetaVars;
     if (currentMetaVarsCopy == null) {
       return false; // recreate
     }
     boolean compatible = true;
+    // 下面是对metaVars进行循环判断, 判断oldVar和newVar是否相同, 只有有不同的, compatible就置为false, 即不兼容
     for (ConfVars oneVar : HiveConf.metaVars) {
       // Since metaVars are all of different types, use string for comparison
       String oldVar = currentMetaVarsCopy.get(oneVar.varname);
@@ -368,6 +370,7 @@ public class HiveMetaStoreClient implements IMetaStoreClient {
         compatible = false;
       }
     }
+    LOG.info("++++++++++++++++++++++ compatible:" + compatible);
     return compatible;
   }
 
@@ -546,6 +549,7 @@ public class HiveMetaStoreClient implements IMetaStoreClient {
         " Most recent failure: " + StringUtils.stringifyException(tte));
     }
 
+    // 将conf中的与元数据相关的一些配置复制到currentMetaVars中, currentMetaVars中的配置变化的话会创建新的Hive实例, 详见Hive中的getInternal方法中的isCompatible方法的使用
     snapshotActiveConf();
 
     LOG.info("Connected to metastore.");

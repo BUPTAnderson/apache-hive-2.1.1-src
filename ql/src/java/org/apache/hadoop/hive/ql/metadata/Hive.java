@@ -284,6 +284,9 @@ public class Hive {
       boolean doRegisterAllFns) throws HiveException {
     // 获取当前线程对应的Hive实例, 如果为null, 创建
     Hive db = hiveDB.get();
+    // 注意方法isCompatible, beeline通过opensession创建会话, SessionState会调用该方法创建Hive实例, 之后HiveSessionImpl也会调用该方法, 会进行下面的判断, 此时Hive实例已经由SessionState创建了, 所以db不为null
+    // SessionState创建的时候owner是启动HiveServer2的系统用户, isCurrentUserOwner是true, needsRefresh是false, c不为null,metaStoreClient不为null, 进入isCompatible方法, isFastCheck是false
+    // 该方法的作业实际是判断传入的新的c的与元数据相关的那些设置和metaStoreClient的conf中已有的设置是否相同, 这里只是比较的HiveConf的metaVars包含的配置项, 并不是对所有配置项进行对比
     if (db == null || !db.isCurrentUserOwner() || needsRefresh
         || (c != null && db.metaStoreClient != null && !isCompatible(db, c, isFastCheck))) {
       new RuntimeException("hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh").printStackTrace();
@@ -323,6 +326,7 @@ public class Hive {
   }
 
   private static boolean isCompatible(Hive db, HiveConf c, boolean isFastCheck) {
+    // isFastCheck是false, 调用HiveMetaStoreClient的isCompatibleWith方法, 即当前client是否兼容c的配置
     return isFastCheck
         ? db.metaStoreClient.isSameConfObj(c) : db.metaStoreClient.isCompatibleWith(c);
   }
@@ -3405,6 +3409,7 @@ private void constructOneLBLocationMap(FileStatus fSta,
       try {
         // 这里获取的owner应该是启动HiveServer2服务的用户, 比如: hadoop
         owner = UserGroupInformation.getCurrentUser();
+        LOG.info("++++++++++ owner:" + owner);
       } catch(IOException e) {
         String msg = "Error getting current user: " + e.getMessage();
         LOG.error(msg, e);

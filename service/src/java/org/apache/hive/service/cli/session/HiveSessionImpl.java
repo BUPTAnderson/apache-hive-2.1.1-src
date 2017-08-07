@@ -168,6 +168,7 @@ public class HiveSessionImpl implements HiveSession {
    */
   public void open(Map<String, String> sessionConfMap) throws HiveSQLException {
     // 构建SessionState, HiveConf使用的是当前类的sessionConf，即当HiveSessionImpl和SessionState使用的是同一个sessionConf，即每个会话对应一个HiveSessionImpl和SessionState
+    // username是调用端client传过来的用户名
     sessionState = new SessionState(sessionConf, username);
     sessionState.setUserIpAddress(ipAddress);
     sessionState.setIsHiveServerQuery(true);
