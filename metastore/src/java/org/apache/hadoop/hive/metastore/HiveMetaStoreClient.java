@@ -331,6 +331,7 @@ public class HiveMetaStoreClient implements IMetaStoreClient {
     if (metastoreUris.length <= 1) {
       return;
     }
+    // 交换下标是0和index的两个uri的位置
     Random rng = new Random();
     int index = rng.nextInt(metastoreUris.length - 1) + 1;
     URI tmp = metastoreUris[0];
@@ -390,7 +391,9 @@ public class HiveMetaStoreClient implements IMetaStoreClient {
       // Swap the first element of the metastoreUris[] with a random element from the rest
       // of the array. Rationale being that this method will generally be called when the default
       // connection has died and the default connection is likely to be the first array element.
+      // 交换metastoreUris中下标是0和index的两个uri的位置
       promoteRandomMetaStoreURI();
+      // 重新选择metastoreuri进行连接
       open();
     }
   }

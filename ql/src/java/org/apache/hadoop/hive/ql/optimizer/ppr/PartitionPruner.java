@@ -18,19 +18,7 @@
 
 package org.apache.hadoop.hive.ql.optimizer.ppr;
 
-import java.util.AbstractSequentialList;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.LinkedHashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
 import com.google.common.annotations.VisibleForTesting;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.hadoop.hive.common.ObjectPair;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.conf.HiveConf.StrictChecks;
@@ -65,6 +53,17 @@ import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorFactory;
 import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.AbstractSequentialList;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.LinkedHashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * The transformation step that does partition pruning.
@@ -141,6 +140,7 @@ public class PartitionPruner extends Transform {
    */
   public static PrunedPartitionList prune(TableScanOperator ts, ParseContext parseCtx,
       String alias) throws SemanticException {
+    // 调用prune方法
     return prune(ts.getConf().getTableMetadata(), parseCtx.getOpToPartPruner().get(ts),
         parseCtx.getConf(), alias, parseCtx.getPrunedPartitions());
   }
@@ -207,6 +207,7 @@ public class PartitionPruner extends Transform {
             tab, new LinkedHashSet<Partition>(0), new ArrayList<String>(0), false);
       }
       // For null and true values, return every partition
+      // 调用getAllPartsFromCacheOrServer方法
       return getAllPartsFromCacheOrServer(tab, key, true, prunedPartitionsMap);
     }
     if (LOG.isDebugEnabled()) {
@@ -233,6 +234,7 @@ public class PartitionPruner extends Transform {
     }
     Set<Partition> parts;
     try {
+      // 调用getAllPartitions方法
       parts = getAllPartitions(tab);
     } catch (HiveException e) {
       throw new SemanticException(e);
@@ -451,6 +453,7 @@ public class PartitionPruner extends Transform {
   private static Set<Partition> getAllPartitions(Table tab) throws HiveException {
     PerfLogger perfLogger = SessionState.getPerfLogger();
     perfLogger.PerfLogBegin(CLASS_NAME, PerfLogger.PARTITION_RETRIEVING);
+    // 调用getAllPartitionsOf方法
     Set<Partition> result = Hive.get().getAllPartitionsOf(tab);
     perfLogger.PerfLogEnd(CLASS_NAME, PerfLogger.PARTITION_RETRIEVING);
     return result;

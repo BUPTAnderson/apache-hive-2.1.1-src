@@ -373,7 +373,7 @@ public class HiveSessionImpl implements HiveSession {
     }
     boolean success = false;
     try {
-      // 执行acquireAfterOpLock方法
+      // 执行acquireAfterOpLock方法, 更新ThreadName
       acquireAfterOpLock(userAccess);
       success = true;
     } finally {
@@ -407,6 +407,7 @@ public class HiveSessionImpl implements HiveSession {
    */
   protected void release(boolean userAccess, boolean isOperation) {
     try {
+      // 调用releaseBeforeOpLock方法
       releaseBeforeOpLock(userAccess);
     } finally {
       if (isOperation && operationLock != null) {
@@ -419,7 +420,7 @@ public class HiveSessionImpl implements HiveSession {
     if (sessionState != null) {
       // can be null in-case of junit tests. skip reset.
       // reset thread name at release time.
-      // 调用resetThreadName
+      // 调用resetThreadName, 打印日志信息
       sessionState.resetThreadName();
     }
 
@@ -473,14 +474,17 @@ public class HiveSessionImpl implements HiveSession {
   @Override
   public GetInfoValue getInfo(GetInfoType getInfoType)
       throws HiveSQLException {
+    // 调用acquiire方法
     acquire(true, true);
     try {
       switch (getInfoType) {
       case CLI_SERVER_NAME:
         return new GetInfoValue("Hive");
       case CLI_DBMS_NAME:
+        // 返回"Apache Hive"
         return new GetInfoValue("Apache Hive");
       case CLI_DBMS_VER:
+        // getVersion方法返回"2.1.1"
         return new GetInfoValue(HiveVersionInfo.getVersion());
       case CLI_MAX_COLUMN_NAME_LEN:
         return new GetInfoValue(128);
@@ -493,6 +497,7 @@ public class HiveSessionImpl implements HiveSession {
         throw new HiveSQLException("Unrecognized GetInfoType value: " + getInfoType.toString());
       }
     } finally {
+      // 调用release方法
       release(true, true);
     }
   }

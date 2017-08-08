@@ -508,6 +508,7 @@ public class ParseContext {
       throws SemanticException {
     PrunedPartitionList partsList = opToPartList.get(ts);
     if (partsList == null) {
+      // 调用prune方法
       partsList = PartitionPruner.prune(ts, this, alias);
       opToPartList.put(ts, partsList);
     }

@@ -38,6 +38,7 @@ public class HiveVersionInfo {
 
   static {
     myPackage = HiveVersionAnnotation.class.getPackage();
+    // 见package-info.java
     version = myPackage.getAnnotation(HiveVersionAnnotation.class);
   }
 
@@ -54,6 +55,7 @@ public class HiveVersionInfo {
    * @return the Hive version string, eg. "0.6.3-dev"
    */
   public static String getVersion() {
+    // 调用version的version方法
     return version != null ? version.version() : "Unknown";
   }
 

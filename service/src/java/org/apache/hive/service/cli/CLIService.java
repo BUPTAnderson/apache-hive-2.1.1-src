@@ -252,6 +252,7 @@ public class CLIService extends CompositeService implements ICLIService {
   @Override
   public GetInfoValue getInfo(SessionHandle sessionHandle, GetInfoType getInfoType)
       throws HiveSQLException {
+    // 调用HiveSessionImpl的getInfo方法
     GetInfoValue infoValue = sessionManager.getSession(sessionHandle)
         .getInfo(getInfoType);
     LOG.debug(sessionHandle + ": getInfo()");

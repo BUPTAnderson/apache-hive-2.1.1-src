@@ -152,6 +152,8 @@ public class RetryingMetaStoreClient implements InvocationHandler {
     while (true) {
       try {
         reloginExpiringKeytabUser();
+        // connectionLifeTimeInMillis默认是0, hasConnectionLifeTimeReached从而返回false
+        // 如果连接失败, retriesMade会大于0, 这时会执行if中的逻辑, 默认可以重新连接一次
         if (retriesMade > 0 || hasConnectionLifeTimeReached(method)) {
           base.reconnect();
           lastConnectionTime = System.currentTimeMillis();
@@ -201,7 +203,7 @@ public class RetryingMetaStoreClient implements InvocationHandler {
         }
       }
 
-
+      // retryLimit默认值为1
       if (retriesMade >= retryLimit) {
         throw caughtException;
       }

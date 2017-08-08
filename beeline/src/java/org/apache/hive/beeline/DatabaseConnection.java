@@ -160,6 +160,7 @@ class DatabaseConnection {
 
     try {
       // 输出信息: Connected to: Apache Hive (version 2.1.1)
+      // 见BeeLine.properties的connected输入格式, getDatabaseProductName和getDatabaseProductVersion方法会通过client调用两次HiveServer2的GetInfo方法
       beeLine.info(beeLine.loc("connected", new Object[] {
           getDatabaseMetaData().getDatabaseProductName(),
           getDatabaseMetaData().getDatabaseProductVersion()}));
@@ -177,7 +178,7 @@ class DatabaseConnection {
     }
 
     try {
-      // autoCommit默认为false
+      // autoCommit默认为false, 会在控制台打印警告信息: WARN jdbc.HiveConnection: Request to set autoCommit to false; Hive does not support autoCommit=false.
       getConnection().setAutoCommit(beeLine.getOpts().getAutoCommit());
       // TODO: Setting autocommit should not generate an exception as long as it is set to false
       // beeLine.autocommitStatus(getConnection());
@@ -186,7 +187,7 @@ class DatabaseConnection {
     }
 
     try {
-      // isolation默认值为: "TRANSACTION_REPEATABLE_READ"
+      // isolation默认值为: "TRANSACTION_REPEATABLE_READ", 会打印日志: Transaction isolation: TRANSACTION_REPEATABLE_READ
       beeLine.getCommands().isolation("isolation: " + beeLine.getOpts().getIsolation());
     } catch (Exception e) {
       beeLine.handleException(e);

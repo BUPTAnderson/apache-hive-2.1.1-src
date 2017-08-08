@@ -243,6 +243,7 @@ public class Optimizer {
       // NonBlockingOpDeDupProc, IdentityProjectRemover, LimitPushdownOptimizer, SimpleFetchOptimizer
       // 重点关注SimplePredicatePushDown和SimpleFetchOptimizer
       t.beginPerfLogging();
+      // 查看SimpleFetchOptimizer的transform方法
       pctx = t.transform(pctx);
       t.endPerfLogging(t.toString());
     }

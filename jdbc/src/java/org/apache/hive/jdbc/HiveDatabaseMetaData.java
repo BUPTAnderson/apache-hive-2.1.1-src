@@ -18,19 +18,9 @@
 
 package org.apache.hive.jdbc;
 
-import java.sql.Connection;
-import java.sql.DatabaseMetaData;
-import java.sql.ResultSet;
-import java.sql.RowIdLifetime;
-import java.sql.SQLException;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.jar.Attributes;
-
 import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hive.service.cli.GetInfoType;
 import org.apache.hive.service.rpc.thrift.TCLIService;
-import org.apache.hive.service.rpc.thrift.TCLIService.Iface;
 import org.apache.hive.service.rpc.thrift.TGetCatalogsReq;
 import org.apache.hive.service.rpc.thrift.TGetCatalogsResp;
 import org.apache.hive.service.rpc.thrift.TGetColumnsReq;
@@ -54,6 +44,15 @@ import org.apache.hive.service.rpc.thrift.TGetTypeInfoReq;
 import org.apache.hive.service.rpc.thrift.TGetTypeInfoResp;
 import org.apache.hive.service.rpc.thrift.TSessionHandle;
 import org.apache.thrift.TException;
+
+import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.ResultSet;
+import java.sql.RowIdLifetime;
+import java.sql.SQLException;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.jar.Attributes;
 
 /**
  * HiveDatabaseMetaData.
@@ -291,16 +290,21 @@ public class HiveDatabaseMetaData implements DatabaseMetaData {
   }
 
   public String getDatabaseProductName() throws SQLException {
+    // 通过client调用GetInfo方法
     TGetInfoResp resp = getServerInfo(GetInfoType.CLI_DBMS_NAME.toTGetInfoType());
+    // 返回"Apache Hive"
     return resp.getInfoValue().getStringValue();
   }
 
   public String getDatabaseProductVersion() throws SQLException {
+    // 第一次调用的时候dbVersion是null
     if (dbVersion != null) { //lazy-caching of the version.
       return dbVersion;
     }
 
+    // 通过client调用GetInfo方法
     TGetInfoResp resp = getServerInfo(GetInfoType.CLI_DBMS_VER.toTGetInfoType());
+    // 返回"2.1.1"赋值给dbVersion
     this.dbVersion = resp.getInfoValue().getStringValue();
     return dbVersion;
   }
