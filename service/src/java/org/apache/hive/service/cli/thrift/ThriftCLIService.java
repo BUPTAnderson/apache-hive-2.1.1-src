@@ -657,6 +657,7 @@ public abstract class ThriftCLIService extends AbstractService implements TCLISe
   public TGetOperationStatusResp GetOperationStatus(TGetOperationStatusReq req) throws TException {
     TGetOperationStatusResp resp = new TGetOperationStatusResp();
     try {
+      // 调用getOperationStatus方法
       OperationStatus operationStatus = cliService.getOperationStatus(
           new OperationHandle(req.getOperationHandle()));
       resp.setOperationState(operationStatus.getState().toTOperationState());

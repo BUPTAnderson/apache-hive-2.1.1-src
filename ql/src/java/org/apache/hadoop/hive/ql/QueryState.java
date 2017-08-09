@@ -45,6 +45,7 @@ public class QueryState {
   }
 
   public QueryState(HiveConf conf, Map<String, String> confOverlay, boolean runAsync) {
+    // 初始化queryConf, runAsync默认是false
     this.queryConf = createConf(conf, confOverlay, runAsync);
   }
 
@@ -61,6 +62,7 @@ public class QueryState {
       Map<String, String> confOverlay,
       boolean runAsync) {
 
+    // 处理confOverlay
     if ( (confOverlay != null && !confOverlay.isEmpty()) ) {
       conf = (conf == null ? new HiveConf() : new HiveConf(conf));
 

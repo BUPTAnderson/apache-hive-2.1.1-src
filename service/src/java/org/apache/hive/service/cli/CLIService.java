@@ -436,6 +436,7 @@ public class CLIService extends CompositeService implements ICLIService {
   @Override
   public OperationStatus getOperationStatus(OperationHandle opHandle)
       throws HiveSQLException {
+    // 调用OperationManager的getOperation方法
     Operation operation = sessionManager.getOperationManager().getOperation(opHandle);
     /**
      * If this is a background operation run asynchronously,
@@ -443,8 +444,11 @@ public class CLIService extends CompositeService implements ICLIService {
      * (duration: HIVE_SERVER2_LONG_POLLING_TIMEOUT).
      * However, if the background operation is complete, we return immediately.
      */
+    // 调用对应的Operation的shouldRunAsync方法, 如果是SQLOperation, 且是beeline 调用的话, 返回true
     if (operation.shouldRunAsync()) {
+      // 获取operation对应的HiveSessionImpl的sessionConf
       HiveConf conf = operation.getParentSession().getHiveConf();
+      // 超时时间, 默认5000ms
       long timeout = HiveConf.getTimeVar(conf,
           HiveConf.ConfVars.HIVE_SERVER2_LONG_POLLING_TIMEOUT, TimeUnit.MILLISECONDS);
       try {

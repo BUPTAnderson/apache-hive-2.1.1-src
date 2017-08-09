@@ -99,13 +99,15 @@ public abstract class Operation {
     if (confOverlay != null) {
       this.confOverlay = confOverlay;
     }
+    // 构造OperationHandle
     this.opHandle = new OperationHandle(opType, parentSession.getProtocolVersion());
     beginTime = System.currentTimeMillis();
     lastAccessTime = beginTime;
+    // 超时时间默认5day
     operationTimeout = HiveConf.getTimeVar(parentSession.getHiveConf(),
         HiveConf.ConfVars.HIVE_SERVER2_IDLE_OPERATION_TIMEOUT, TimeUnit.MILLISECONDS);
     setMetrics(state);
-    // 构造queryState, isAsyncQueryState默认是false
+    // 构造queryState, isAsyncQueryState默认是false, 传入的是HiveSessionImpl的sessionConf
     queryState = new QueryState(parentSession.getHiveConf(), confOverlay, isAsyncQueryState);
   }
 
@@ -140,10 +142,14 @@ public abstract class Operation {
   public OperationStatus getStatus() {
     String taskStatus = null;
     try {
+      // 调用子类的getTaskStatus方法
       taskStatus = getTaskStatus();
+      LOG.info("+++++++++++++++ taskStatus:" + taskStatus);
     } catch (HiveSQLException sqlException) {
       LOG.error("Error getting task status for " + opHandle.toString(), sqlException);
     }
+    // 任务执行过程中, state是会不断更新的. operationStart是任务起始时间, 在设置state为RUNNING是会设置该值, operationComplete是完成时间, 在设置state为ERROR, FINISHED, CANCELED时会设置该值
+    // 任务执行过程中如果有异常信息, 会设置给operationException
     return new OperationStatus(state, taskStatus, operationStart, operationComplete, operationException);
   }
 
@@ -165,7 +171,9 @@ public abstract class Operation {
     OperationState prevState = state;
     this.state = newState;
     setMetrics(state);
+    // 更新任务起始和结束时间
     onNewState(state, prevState);
+    // 更新最后访问时间
     this.lastAccessTime = System.currentTimeMillis();
     return this.state;
   }

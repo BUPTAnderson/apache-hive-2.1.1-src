@@ -189,6 +189,7 @@ public class OperationManager extends AbstractService {
   }
 
   public Operation getOperation(OperationHandle operationHandle) throws HiveSQLException {
+    // 从handleToOperation获取对应的operationHandle
     Operation operation = getOperationInternal(operationHandle);
     if (operation == null) {
       throw new HiveSQLException("Invalid OperationHandle: " + operationHandle);

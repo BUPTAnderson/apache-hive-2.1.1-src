@@ -111,8 +111,11 @@ public class SQLOperation extends ExecuteStatementOperation {
   public SQLOperation(HiveSession parentSession, String statement, Map<String, String> confOverlay,
       boolean runInBackground, long queryTimeout) {
     // TODO: call setRemoteUser in ExecuteStatementOperation or higher.
+    // 调用父类ExecuteStatementOperation的构造方法
     super(parentSession, statement, confOverlay, runInBackground);
+    // beeline调用的时候runAsync是true
     this.runAsync = runInBackground;
+    // queryTimeout默认是0
     this.queryTimeout = queryTimeout;
     setupSessionIO(parentSession.getSessionState());
     try {
@@ -148,6 +151,7 @@ public class SQLOperation extends ExecuteStatementOperation {
    * @throws HiveSQLException
    */
   public void prepare(QueryState queryState) throws HiveSQLException {
+    // 调用父类的setState方法设置状态
     setState(OperationState.RUNNING);
     try {
       // 实例化driver
@@ -271,11 +275,13 @@ public class SQLOperation extends ExecuteStatementOperation {
       setState(OperationState.ERROR);
       throw new HiveSQLException("Error running query: " + e.toString(), e);
     }
+    // 更新状态为finished
     setState(OperationState.FINISHED);
   }
 
   @Override
   public void runInternal() throws HiveSQLException {
+    // 调用父类方法更新状态
     setState(OperationState.PENDING);
 
     // runAsync通过beeline调用的话是true
@@ -304,6 +310,7 @@ public class SQLOperation extends ExecuteStatementOperation {
       try {
         // This submit blocks if no background threads are available to run this operation
         Future<?> backgroundHandle = getParentSession().submitBackgroundOperation(work);
+        // 调用setBackgroundHandle方法将上面的backgroundHandle设置给SQLOperation的backgroundHandle
         setBackgroundHandle(backgroundHandle);
       } catch (RejectedExecutionException rejected) {
         setState(OperationState.ERROR);
@@ -347,8 +354,10 @@ public class SQLOperation extends ExecuteStatementOperation {
             if (asyncPrepare) {
               prepare(queryState);
             }
+            // 调用runQuery方法
             runQuery();
           } catch (HiveSQLException e) {
+            // 调用父类方法设置异常信息
             setOperationException(e);
             LOG.error("Error running hive query: ", e);
           } finally {
@@ -362,6 +371,7 @@ public class SQLOperation extends ExecuteStatementOperation {
       try {
         currentUGI.doAs(doAsAction);
       } catch (Exception e) {
+        // 调用父类的方法设置异常信息
         setOperationException(new HiveSQLException(e));
         LOG.error("Error running hive query as user : " + currentUGI.getShortUserName(), e);
       }

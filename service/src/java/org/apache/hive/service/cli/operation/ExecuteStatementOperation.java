@@ -31,7 +31,9 @@ public abstract class ExecuteStatementOperation extends Operation {
 
   public ExecuteStatementOperation(HiveSession parentSession, String statement,
       Map<String, String> confOverlay, boolean runInBackground) {
+    // 调用父类Operation的构造方法
     super(parentSession, confOverlay, OperationType.EXECUTE_STATEMENT);
+    // statement是要执行的hql
     this.statement = statement;
   }
 
@@ -53,6 +55,7 @@ public abstract class ExecuteStatementOperation extends Operation {
     if (processor == null) {
       // runAsync, queryTimeout makes sense only for a SQLOperation
       // 所以正常的hql查询, 返回的是SQLOperation, SQLOperation的构造方法中会调用父类的构造方法来构造OperationHandle对象
+      // beeline调用的时候runAsync是true, 即异步执行
       return new SQLOperation(parentSession, statement, confOverlay, runAsync, queryTimeout);
     }
     return new HiveCommandOperation(parentSession, statement, processor, confOverlay);

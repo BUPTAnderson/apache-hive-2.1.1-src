@@ -125,7 +125,7 @@ public class HiveSessionImpl implements HiveSession {
     // 这里sessionConf是该session独有的, 是将SessionManager的hiveConf复制一份给当前session
     this.sessionConf = new HiveConf(serverConf);
     this.ipAddress = ipAddress;
-    // 是否允许在一个会话中进行多个并行操作（如SQL语句）。默认为true， 创建一个Semaphore对象
+    // 是否允许在一个会话中进行多个并行操作（如SQL语句）。默认为true， operationLock是null
     this.operationLock = serverConf.getBoolVar(
         ConfVars.HIVE_SERVER2_PARALLEL_OPS_IN_SESSION) ? null : new Semaphore(1);
     try {
@@ -354,11 +354,14 @@ public class HiveSessionImpl implements HiveSession {
   }
 
   private OperationManager getOperationManager() {
+    // SessionManager在创建HiveSessionImpl的时候会调用HiveSessionImp的setOperationManager方法初始化该operationManager
     return operationManager;
   }
 
   @Override
   public void setOperationManager(OperationManager operationManager) {
+    // SessionManager中会调用该方法, 会将SessionManager中的operationManager设置给当前HiveSessionImpl, 这里需要注意一点:
+    // 每个HiveSessionImpl是共享一份SessionManager和OperationManager的, 该OperationManager是在SessionManager中创建的
     this.operationManager = operationManager;
   }
 
@@ -521,6 +524,7 @@ public class HiveSessionImpl implements HiveSession {
   @Override
   public OperationHandle executeStatementAsync(String statement, Map<String, String> confOverlay,
       long queryTimeout) throws HiveSQLException {
+    // true是指异步执行
     return executeStatementInternal(statement, confOverlay, true, queryTimeout);
   }
 
@@ -565,6 +569,7 @@ public class HiveSessionImpl implements HiveSession {
   @Override
   public Future<?> submitBackgroundOperation(Runnable work) {
     LOG.info("+++++++ operationLock is null:" + (operationLock == null));
+    // operationLock默认是null, 则直接提交work
     return getSessionManager().submitBackgroundOperation(
         operationLock == null ? work : new FutureTask<Void>(work, null) {
       protected void done() {
