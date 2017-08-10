@@ -366,6 +366,7 @@ public class HiveSessionImpl implements HiveSession {
   }
 
   protected void acquire(boolean userAccess, boolean isOperation) {
+    LOG.info("++++++++++++++++++ operationLock is null : " + (operationLock == null));
     if (isOperation && operationLock != null) {
       try {
         operationLock.acquire();
@@ -413,6 +414,9 @@ public class HiveSessionImpl implements HiveSession {
       // 调用releaseBeforeOpLock方法
       releaseBeforeOpLock(userAccess);
     } finally {
+      if (isOperation) {
+        new RuntimeException("+++++++++++++++++++++ release operationLock").printStackTrace();
+      }
       if (isOperation && operationLock != null) {
         operationLock.release();
       }
@@ -530,7 +534,7 @@ public class HiveSessionImpl implements HiveSession {
 
   private OperationHandle executeStatementInternal(String statement,
       Map<String, String> confOverlay, boolean runAsync, long queryTimeout) throws HiveSQLException {
-    // 获取锁
+    // 获取Semaphore锁
     acquire(true, true);
 
     ExecuteStatementOperation operation = null;
@@ -560,7 +564,7 @@ public class HiveSessionImpl implements HiveSession {
       if (operation == null || operation.getBackgroundHandle() == null) {
         release(true, true); // Not async, or wasn't submitted for some reason (failure, etc.)
       } else {
-        // 调用releaseBeforeOpLock方法, 会reset thread name
+        // 调用releaseBeforeOpLock方法, 会reset thread name, 注意这里没有释放Semaphore锁的操作, 是在上面的operation.run()中实现的是否Semaphore锁的操作
         releaseBeforeOpLock(true); // Release, but keep the lock (if present).
       }
     }
@@ -569,7 +573,8 @@ public class HiveSessionImpl implements HiveSession {
   @Override
   public Future<?> submitBackgroundOperation(Runnable work) {
     LOG.info("+++++++ operationLock is null:" + (operationLock == null));
-    // operationLock默认是null, 则直接提交work
+    // operationLock默认是null, 则直接提交work. 如果operationLock不为null, 则封装成FutureTask对象, 执行完之后执行done方法, 即释放Semaphore锁, 即当开启了Semaphore锁, 保证了只会执行1条hql
+    // 即hive.server2.parallel.ops.in.session设置为false是会开启Semaphore锁, 具体见HiveSessionImpl的构造方法中operationLock的初始化
     return getSessionManager().submitBackgroundOperation(
         operationLock == null ? work : new FutureTask<Void>(work, null) {
       protected void done() {

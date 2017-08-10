@@ -309,6 +309,7 @@ public class SQLOperation extends ExecuteStatementOperation {
 
       try {
         // This submit blocks if no background threads are available to run this operation
+        // 调用HiveSessionImpl的submitBackgroundOperation方法
         Future<?> backgroundHandle = getParentSession().submitBackgroundOperation(work);
         // 调用setBackgroundHandle方法将上面的backgroundHandle设置给SQLOperation的backgroundHandle
         setBackgroundHandle(backgroundHandle);

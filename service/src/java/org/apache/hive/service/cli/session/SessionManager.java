@@ -107,8 +107,10 @@ public class SessionManager extends CompositeService {
   }
 
   private void createBackgroundOperationPool() {
+    // 默认值为100
     int poolSize = hiveConf.getIntVar(ConfVars.HIVE_SERVER2_ASYNC_EXEC_THREADS);
     LOG.info("HiveServer2: Background operation thread pool size: " + poolSize);
+    // 默认值为100
     int poolQueueSize = hiveConf.getIntVar(ConfVars.HIVE_SERVER2_ASYNC_EXEC_WAIT_QUEUE_SIZE);
     LOG.info("HiveServer2: Background operation thread wait queue size: " + poolQueueSize);
     long keepAliveTime = HiveConf.getTimeVar(
