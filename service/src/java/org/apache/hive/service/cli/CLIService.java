@@ -468,6 +468,7 @@ public class CLIService extends CompositeService implements ICLIService {
       }
     }
     OperationStatus opStatus = operation.getStatus();
+    // 打印日志, 比如: cli.CLIService: OperationHandle [opType=EXECUTE_STATEMENT, getHandleIdentifier()=553f5538-c485-4a39-9d22-0780e19e1958]: getOperationStatus()
     LOG.debug(opHandle + ": getOperationStatus()");
     return opStatus;
   }

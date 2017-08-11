@@ -430,13 +430,17 @@ public class SessionState {
 
   public void resetThreadName() {
     final String sessionId = getSessionId();
+    // 返回的logPrefix是sessionId, 比如: dae1d9d8-4a01-4a80-b66c-634333661b7c
     final String logPrefix = getConf().getLogIdVar(sessionId);
+    // 当前线程名, 比如: dae1d9d8-4a01-4a80-b66c-634333661b7c HiveServer2-Handler-Pool: Thread-45
     final String currThreadName = Thread.currentThread().getName();
     if (currThreadName.contains(logPrefix)) {
+      // 以logPrefix分割, 则变成两部分, ""和" HiveServer2-Handler-Pool: Thread-45"
       final String[] names = currThreadName.split(logPrefix);
       // 打印日志, 比如: session.SessionState: Resetting thread name to  HiveServer2-Handler-Pool: Thread-44
       LOG.info("+++++++ Thread name : " + Thread.currentThread().getName());
       LOG.info("Resetting thread name to {}", names[names.length - 1]);
+      // 将最后一个字符串取出空格后设置为线程名, 比如:"HiveServer2-Handler-Pool: Thread-45"
       Thread.currentThread().setName(names[names.length - 1].trim());
       LOG.info("+++++++>>>> Thread name : " + Thread.currentThread().getName());
     }
@@ -1653,6 +1657,7 @@ public class SessionState {
     if (ss == null) {
       return PerfLogger.getPerfLogger(null, resetPerfLogger);
     } else {
+      // 获取当前线程对应的PerfLogger对象
       return PerfLogger.getPerfLogger(ss.getConf(), resetPerfLogger);
     }
   }

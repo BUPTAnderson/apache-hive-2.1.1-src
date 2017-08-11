@@ -142,7 +142,8 @@ public abstract class Operation {
   public OperationStatus getStatus() {
     String taskStatus = null;
     try {
-      // 调用子类的getTaskStatus方法
+      // 调用子类的getTaskStatus方法,
+      // taskStatus示例: [{"beginTime":1502420492448,"taskId":"Stage-1","externalHandle":"job_1496195987638_0513","taskState":"RUNNING","taskType":"MAPRED","name":"MAPRED","elapsedTime":5005}]
       taskStatus = getTaskStatus();
       LOG.info("+++++++++++++++ taskStatus:" + taskStatus);
     } catch (HiveSQLException sqlException) {
@@ -230,9 +231,13 @@ public abstract class Operation {
   }
 
   protected void createOperationLog() {
+    // 默认为true
     if (parentSession.isOperationLogEnabled()) {
+      // logFile,创建文件, 比如: /tmp/hadoop/operation_logs/dae1d9d8-4a01-4a80-b66c-634333661b7c/553f5538-c485-4a39-9d22-0780e19e1958
+      // 后面两个串分别是SessionHandle的Identifier和operationHandler的Identifier
       File operationLogFile = new File(parentSession.getOperationLogSessionDir(),
           opHandle.getHandleIdentifier().toString());
+      LOG.info("++++++++++++++++ operationLogFile:" + operationLogFile.getAbsolutePath());
       isOperationLogEnabled = true;
 
       // create log file
@@ -242,6 +247,7 @@ public abstract class Operation {
               operationLogFile.getAbsolutePath());
           operationLogFile.delete();
         }
+        // 创建文件
         if (!operationLogFile.createNewFile()) {
           // the log file already exists and cannot be deleted.
           // If it can be read/written, keep its contents and use it.
@@ -284,8 +290,9 @@ public abstract class Operation {
    * Set up some preconditions, or configurations.
    */
   protected void beforeRun() {
-    // 创建OperationLog文件, 比如: /tmp/hadoop/operation_logs/ef609f7e-ddea-420a-962f-8475ed8675eb
+    // 注册OperationLog对象创建OperationLog文件, 比如: /tmp/hadoop/operation_logs/dae1d9d8-4a01-4a80-b66c-634333661b7c/553f5538-c485-4a39-9d22-0780e19e1958
     createOperationLog();
+    // 注册context
     registerLoggingContext();
   }
 
@@ -293,8 +300,12 @@ public abstract class Operation {
    * Register logging context so that Log4J can print QueryId and/or SessionId for each message
    */
   protected void registerLoggingContext() {
+    // SESSIONID_LOG_KEY, 即获取sessionId, 实际就是sessionHandler的Identifier
     ThreadContext.put(SESSIONID_LOG_KEY, SessionState.get().getSessionId());
+    LOG.info("++++++++++++++++++ sessionId:" + SessionState.get().getSessionId());
+    // QUERYID_LOG_KEY, 默认是null
     ThreadContext.put(QUERYID_LOG_KEY, confOverlay.get(HiveConf.ConfVars.HIVEQUERYID.varname));
+    LOG.info("++++++++++++++++++ queryId:" + confOverlay.get(HiveConf.ConfVars.HIVEQUERYID.varname));
   }
 
   /**
@@ -309,7 +320,9 @@ public abstract class Operation {
    * Clean up resources, which was set up in beforeRun().
    */
   protected void afterRun() {
+    // 取消注册context
     unregisterLoggingContext();
+    // 移除注册的OperationLog对象
     unregisterOperationLog();
   }
 
@@ -320,6 +333,7 @@ public abstract class Operation {
   protected abstract void runInternal() throws HiveSQLException;
 
   public void run() throws HiveSQLException {
+    // 创建日志目录, 注册context
     beforeRun();
     try {
       Metrics metrics = MetricsFactory.getInstance();

@@ -52,6 +52,7 @@ public class OperationLog {
     logFile = new LogFile(file);
 
     if (hiveConf.getBoolVar(HiveConf.ConfVars.HIVE_SERVER2_LOGGING_OPERATION_ENABLED)) {
+      // 默认EXECUTION
       String logLevel = hiveConf.getVar(HiveConf.ConfVars.HIVE_SERVER2_LOGGING_OPERATION_LEVEL);
       opLoggingLevel = getLoggingLevel(logLevel);
     }

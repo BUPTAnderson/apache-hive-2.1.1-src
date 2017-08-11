@@ -313,7 +313,7 @@ public class HiveSessionImpl implements HiveSession {
     // sessionLogDir为: operationLogRootDir/sessionId, 比如: /tmp/hadoop/operation_logs/a3efaa36-80de-4b6f-9845-3e0e7f3fd73f
     sessionLogDir = new File(operationLogRootDir, sessionHandle.getHandleIdentifier().toString());
     isOperationLogEnabled = true;
-    // 这是目录还不存在, exists方法返回false
+    // 这时目录还不存在, exists方法返回false
     if (!sessionLogDir.exists()) {
       // 可否创建sessionLogDir对应的目录, 默认是可以的, 并且会创建
       if (!sessionLogDir.mkdir()) {
@@ -534,7 +534,7 @@ public class HiveSessionImpl implements HiveSession {
 
   private OperationHandle executeStatementInternal(String statement,
       Map<String, String> confOverlay, boolean runAsync, long queryTimeout) throws HiveSQLException {
-    // 获取Semaphore锁
+    // 如果单个会话中不允许并行操作的话, 这里需要获取Semaphore锁
     acquire(true, true);
 
     ExecuteStatementOperation operation = null;
@@ -564,7 +564,7 @@ public class HiveSessionImpl implements HiveSession {
       if (operation == null || operation.getBackgroundHandle() == null) {
         release(true, true); // Not async, or wasn't submitted for some reason (failure, etc.)
       } else {
-        // 调用releaseBeforeOpLock方法, 会reset thread name, 注意这里没有释放Semaphore锁的操作, 是在上面的operation.run()中实现的是否Semaphore锁的操作
+        // 调用releaseBeforeOpLock方法, 会reset thread name, 注意这里没有释放Semaphore锁的操作, 是在上面的operation.run()中实现的释放Semaphore锁的操作
         releaseBeforeOpLock(true); // Release, but keep the lock (if present).
       }
     }
@@ -579,6 +579,7 @@ public class HiveSessionImpl implements HiveSession {
         operationLock == null ? work : new FutureTask<Void>(work, null) {
       protected void done() {
         // We assume this always comes from a user operation that took the lock.
+        // 如果是FutureTask, 执行完之后需要释放operationLock
         operationLock.release();
       };
     });

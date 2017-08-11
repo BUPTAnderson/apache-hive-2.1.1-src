@@ -532,7 +532,7 @@ public abstract class ThriftCLIService extends AbstractService implements TCLISe
               queryTimeout) : cliService.executeStatement(sessionHandle, statement, confOverlay,
               queryTimeout);
       // 设置TOperationHandle和状态码返回
-      LOG.info("++++++++++++ operationHandle:");
+      LOG.info("++++++++++++ operationHandle:" + operationHandle);
       resp.setOperationHandle(operationHandle.toTOperationHandle());
       resp.setStatus(OK_STATUS);
     } catch (Exception e) {

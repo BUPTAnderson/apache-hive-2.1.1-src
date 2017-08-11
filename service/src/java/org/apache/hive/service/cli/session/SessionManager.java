@@ -91,6 +91,7 @@ public class SessionManager extends CompositeService {
     this.hiveConf = hiveConf;
     //Create operation log root directory, if operation logging is enabled
     if (hiveConf.getBoolVar(ConfVars.HIVE_SERVER2_LOGGING_OPERATION_ENABLED)) {
+      // 在本地创建存放Log的文件夹
       initOperationLogRootDir();
     }
     // 创建线程池, 用来执行任务
@@ -164,6 +165,7 @@ public class SessionManager extends CompositeService {
     }
 
     if (!operationLogRootDir.exists()) {
+      // 创建文件夹, 注意这里是mkdirs(), 是级联创建, 先创建/tmp, 再创建用户目录, 比如/tmp/hadoop, 再创建log目录, /tmp/hadoop/operation_logs
       if (!operationLogRootDir.mkdirs()) {
         LOG.warn("Unable to create operation log root directory: " +
             operationLogRootDir.getAbsolutePath());

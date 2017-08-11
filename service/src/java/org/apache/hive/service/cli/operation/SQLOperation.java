@@ -349,20 +349,25 @@ public class SQLOperation extends ExecuteStatementOperation {
           SessionState.setCurrentSessionState(parentSessionState);
           PerfLogger.setPerfLogger(parentPerfLogger);
           // Set current OperationLog in this async thread for keeping on saving query log.
+          // 将SQLOperation的OperationLog设置给当前线程
           registerCurrentOperationLog();
+          // 注册当前线程的Context
           registerLoggingContext();
           try {
+            // 通过beeline调用时, asyncPrepare是false
             if (asyncPrepare) {
               prepare(queryState);
             }
-            // 调用runQuery方法
+            // 最核心的地方, 调用SQLOperation的runQuery方法
             runQuery();
           } catch (HiveSQLException e) {
             // 调用父类方法设置异常信息
             setOperationException(e);
             LOG.error("Error running hive query: ", e);
           } finally {
+            // 移除设置的Context信息
             unregisterLoggingContext();
+            // 移除注册在当前线程的OperationLog
             unregisterOperationLog();
           }
           return null;
