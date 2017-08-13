@@ -360,6 +360,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     loadTableWork = new ArrayList<LoadTableDesc>();
     loadFileWork = new ArrayList<LoadFileDesc>();
     columnStatsAutoGatherContexts = new ArrayList<ColumnStatsAutoGatherContext>();
+    // 初始化opParseCtx
     opParseCtx = new LinkedHashMap<Operator<? extends OperatorDesc>, OpParseContext>();
     joinContext = new HashMap<JoinOperator, QBJoinTree>();
     smbMapJoinContext = new HashMap<SMBMapJoinOperator, QBJoinTree>();
@@ -374,6 +375,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     groupOpToInputTables = new HashMap<GroupByOperator, Set<String>>();
     prunedPartitions = new HashMap<String, PrunedPartitionList>();
     tabNameToTabObject = new HashMap<String, Table>();
+    // conf在父类BaseSemanticAnalyzer中已经初始化过了
     unparseTranslator = new UnparseTranslator(conf);
     autogenColAliasPrfxLbl = HiveConf.getVar(conf,
         HiveConf.ConfVars.HIVE_AUTOGEN_COLUMNALIAS_PREFIX_LABEL);
@@ -425,6 +427,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     opToSamplePruner.clear();
     nameToSplitSample.clear();
     fsopToTable.clear();
+    // resultSchema置为null
     resultSchema = null;
     createVwDesc = null;
     viewsExpanded = null;
@@ -10891,7 +10894,8 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
 
     // 5. Resolve Parse Tree
     // Materialization is allowed if it is not a view definition
-    // 获取元数据信息，主要是sql中涉及到的表和元数据的关联, 第4步中生成了qb, 但是qb中没有对应的元数据, getMetaData方法的作用就是获取元数据, createVwDesc默认是null
+    // 获取元数据信息，主要是sql中涉及到的表和元数据的关联, 第4步中生成了qb, 但是qb中没有对应的元数据, getMetaData方法的作用就是获取元数据, 如果是创建或修改视图操作
+    // 上面第2步中 analyzeCreateView方法中会初始化createVwDesc, 否则createVwDesc是null
     LOG.info("############## createVwDesc:" + createVwDesc);
     getMetaData(qb, createVwDesc == null);
     // 打印日志: 比如: parse.CalcitePlanner: Completed getting MetaData in Semantic Analysis
@@ -10956,9 +10960,11 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
 
     // 2. Gen OP Tree from resolved Parse Tree
     // 生成Operator Tree, Operator是一个抽象类, sinkOp是一个有向无环图DAG, 如果是CalcitePlanner, 调用的是CalcitePlanner的genOPTree方法
+    // 最终生成的是Logical plan
     Operator sinkOp = genOPTree(ast, plannerCtx);
 
     LOG.info("^^^^^^^^^^^^^^ unparseTranslator.isEnabled():" + unparseTranslator.isEnabled() + ", tableMask.isEnabled():" + tableMask.isEnabled());
+    // isEnabled默认是false, 如果设置了权限验证为SQLstdHiveAuthorizationValidator, 则isEnabled是false, 则不执行if中的逻辑, tableMask是在genResolvedParseTree中初始化的
     if (!unparseTranslator.isEnabled() && tableMask.isEnabled()) {
       // Here we rewrite the * and also the masking table
       ASTNode tree = rewriteASTWithMaskAndFilter(ast);
@@ -10975,6 +10981,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
 
     // 3. Deduce Resultset Schema
     LOG.info("++++++ createVwDesc is null:" + (createVwDesc == null) + ", resultSchema is null:" + (resultSchema == null));
+    // 当hql是创建或修改视图操作时, 在genResolvedParseTree会初始化createVwDesc, 否则createVwDesc是null
     if (createVwDesc != null) {
       resultSchema = convertRowSchemaToViewSchema(opParseCtx.get(sinkOp).getRowResolver());
     } else {
@@ -10984,7 +10991,9 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       // resultSchema will be re-initialized)
       // It will only be not null if cbo is enabled with new return path and it
       // succeeds.
+      // resultSchema在init方法中已经置为null
       if (resultSchema == null) {
+        // hive.resultset.use.unique.column.names默认值是true,
         resultSchema = convertRowSchemaToResultSetSchema(opParseCtx.get(sinkOp).getRowResolver(),
             HiveConf.getBoolVar(conf, HiveConf.ConfVars.HIVE_RESULTSET_USE_UNIQUE_COLUMN_NAMES));
       }
@@ -11049,6 +11058,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       // TS[0]-SEL[1]-LIM[2]-FS[3]
       LOG.debug("Before logical optimization\n" + Operator.toString(pCtx.getTopOps().values()));
     }
+    // optm实际是一个逻辑优化器, Logical Optimizer, 对有向无环图做逻辑优化
     Optimizer optm = new Optimizer();
     optm.setPctx(pCtx);
     optm.initialize(conf);

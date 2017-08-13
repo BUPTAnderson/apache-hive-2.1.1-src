@@ -75,12 +75,14 @@ public class Optimizer {
     Set<String> postExecHooks = Sets.newHashSet(
       Splitter.on(",").trimResults().omitEmptyStrings().split(
         Strings.nullToEmpty(HiveConf.getVar(hiveConf, HiveConf.ConfVars.POSTEXECHOOKS))));
+    LOG.info("+++++ postExecHooks size:" + postExecHooks.size());
     if (postExecHooks.contains("org.apache.hadoop.hive.ql.hooks.PostExecutePrinter")
         || postExecHooks.contains("org.apache.hadoop.hive.ql.hooks.LineageLogger")) {
       transformations.add(new Generator());
     }
 
     // Try to transform OR predicates in Filter into simpler IN clauses first
+    LOG.info("+++++ pctx.getContext().isCboSucceeded():" + pctx.getContext().isCboSucceeded());
     if (HiveConf.getBoolVar(hiveConf, HiveConf.ConfVars.HIVEPOINTLOOKUPOPTIMIZER) &&
             !pctx.getContext().isCboSucceeded()) {
       final int min = HiveConf.getIntVar(hiveConf,
@@ -88,10 +90,12 @@ public class Optimizer {
       transformations.add(new PointLookupOptimizer(min));
     }
 
+    // hive.optimize.partition.columns.separate默认值为true
     if (HiveConf.getBoolVar(hiveConf, HiveConf.ConfVars.HIVEPARTITIONCOLUMNSEPARATOR)) {
         transformations.add(new PartitionColumnsSeparator());
     }
 
+    // hive.optimize.ppd默认值为true
     if (HiveConf.getBoolVar(hiveConf, HiveConf.ConfVars.HIVEOPTPPD) &&
             !pctx.getContext().isCboSucceeded()) {
       transformations.add(new PredicateTransitivePropagate());
@@ -99,6 +103,7 @@ public class Optimizer {
         transformations.add(new ConstantPropagate());
       }
       transformations.add(new SyntheticJoinPredicate());
+      // PredicatePushDown: 谓词下推优化器，将条件推到特定的位置
       transformations.add(new PredicatePushDown());
     } else if (HiveConf.getBoolVar(hiveConf, HiveConf.ConfVars.HIVEOPTPPD) &&
             pctx.getContext().isCboSucceeded()) {
@@ -107,6 +112,7 @@ public class Optimizer {
       transformations.add(new RedundantDynamicPruningConditionsRemoval());
     }
 
+    // hive.optimize.constant.propagation默认值为true
     if (HiveConf.getBoolVar(hiveConf, HiveConf.ConfVars.HIVEOPTCONSTANTPROPAGATION) &&
             !pctx.getContext().isCboSucceeded()) {    
       // We run constant propagation twice because after predicate pushdown, filter expressions   
@@ -121,9 +127,13 @@ public class Optimizer {
       transformations.add(new SortedDynPartitionOptimizer());
     }
 
+    // hive.optimize.ppd默认值为true
     if (HiveConf.getBoolVar(hiveConf, HiveConf.ConfVars.HIVEOPTPPD)) {
+      // PartitionPruner: 分区剪裁条件优化器
       transformations.add(new PartitionPruner());
+      // PartitionConditionRemover: PartitionPruner消除无用分支条件的优化器。
       transformations.add(new PartitionConditionRemover());
+      // hive.optimize.listbucketing默认值是false
       if (HiveConf.getBoolVar(hiveConf, HiveConf.ConfVars.HIVEOPTLISTBUCKETING)) {
         /* Add list bucketing pruner. */
         transformations.add(new ListBucketingPruner());
@@ -137,8 +147,10 @@ public class Optimizer {
 
     if (HiveConf.getBoolVar(hiveConf, HiveConf.ConfVars.HIVEOPTGROUPBY) ||
         HiveConf.getBoolVar(hiveConf, HiveConf.ConfVars.HIVE_MAP_GROUPBY_SORT)) {
+      // GroupByOptimizer: Group by优化Map端预聚合的优化器
       transformations.add(new GroupByOptimizer());
     }
+    // ColumnPruner: 列前裁优化器
     transformations.add(new ColumnPruner());
     if (HiveConf.getBoolVar(hiveConf, HiveConf.ConfVars.HIVE_OPTIMIZE_SKEWJOIN_COMPILETIME)) {
       if (!isTezExecEngine) {
@@ -150,14 +162,17 @@ public class Optimizer {
     if (HiveConf.getBoolVar(hiveConf, HiveConf.ConfVars.HIVEOPTGBYUSINGINDEX)) {
       transformations.add(new RewriteGBUsingIndex());
     }
+    // SamplePruner: 抽样优化器，降低抽样的数据量
     transformations.add(new SamplePruner());
 
+    // MapJoinProcessor: 在特定的情况下把JoinOperator改写为MapJoinOperator的优化器。
     MapJoinProcessor mapJoinProcessor = isSparkExecEngine ? new SparkMapJoinProcessor()
       : new MapJoinProcessor();
     transformations.add(mapJoinProcessor);
 
     if ((HiveConf.getBoolVar(hiveConf, HiveConf.ConfVars.HIVEOPTBUCKETMAPJOIN))
       && !isTezExecEngine && !isSparkExecEngine) {
+      // BucketMapJoinOptimizer: 对Bucket表作MapJoin优化器
       transformations.add(new BucketMapJoinOptimizer());
       bucketMapJoinOptimizer = true;
     }
@@ -170,6 +185,7 @@ public class Optimizer {
         // No need to add BucketMapJoinOptimizer twice
         transformations.add(new BucketMapJoinOptimizer());
       }
+      // SortedMergeBucketMapJoinOptimizer: 对SortedMergeBucket表作MapJoin的优化器
       transformations.add(new SortedMergeBucketMapJoinOptimizer());
     }
 
@@ -177,6 +193,7 @@ public class Optimizer {
       transformations.add(new BucketingSortingReduceSinkOptimizer());
     }
 
+    // UnionProcessor: 识别UNION两边的子查询是否都是Map-Only的
     transformations.add(new UnionProcessor());
 
     if (HiveConf.getBoolVar(hiveConf, HiveConf.ConfVars.NWAYJOINREORDER)) {
@@ -193,6 +210,7 @@ public class Optimizer {
     }
 
     if(HiveConf.getBoolVar(hiveConf, HiveConf.ConfVars.HIVEOPTREDUCEDEDUPLICATION) || pctx.hasAcidWrite()) {
+      // ReduceSinkDeDuplication: 如果两个ReduceSink操作符共享分区和排序列
       transformations.add(new ReduceSinkDeDuplication());
     }
     transformations.add(new NonBlockingOpDeDupProc());

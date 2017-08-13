@@ -55,6 +55,7 @@ public class QB {
   private HashMap<String, Map<String, String>> aliasToProps;
   // 当前包含的别名, 主要是为了判断多个别名不可以重复, 如果没有别名, 加入的是原表名
   private List<String> aliases;
+  // 存放了QB parse的相关信息
   private QBParseInfo qbp;
   // 里面存储了alias和Table的对应关系
   private QBMetaData qbm;

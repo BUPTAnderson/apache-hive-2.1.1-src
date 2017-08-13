@@ -169,6 +169,7 @@ public final class SemanticAnalyzerFactory {
     } else {
       // TOK_QUERY是860, 返回的是HiveOperation.QUERY
       HiveOperation opType = commandType.get(tree.getType());
+      // 将opType设置给queryState的commandType
       queryState.setCommandType(opType);
       switch (tree.getType()) {
       case HiveParser.TOK_EXPLAIN:
@@ -297,7 +298,7 @@ public final class SemanticAnalyzerFactory {
       case HiveParser.TOK_ROLLBACK:
       case HiveParser.TOK_SET_AUTOCOMMIT:
       default: {
-        // hive.cbo.enable默认值为true
+        // queryState.getConf()返回的实际是HiveSessionImpl的sessionConf, hive.cbo.enable默认值为true, 所以返回的是CalcitePlanner对象, 该类是SemanticAnalyzer的子类
         SemanticAnalyzer semAnalyzer = HiveConf
             .getBoolVar(queryState.getConf(), HiveConf.ConfVars.HIVE_CBO_ENABLED) ?
                 new CalcitePlanner(queryState) : new SemanticAnalyzer(queryState);

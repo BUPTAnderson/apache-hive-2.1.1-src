@@ -168,6 +168,7 @@ public class Driver implements CommandProcessor {
 
   // a lock is used for synchronizing the state transition and its associated
   // resource releases
+  // 锁用于同步状态转换及其相关资源释放
   private final ReentrantLock stateLock = new ReentrantLock();
   private DriverState driverState = DriverState.INITIALIZED;
 
@@ -363,12 +364,14 @@ public class Driver implements CommandProcessor {
   // deferClose indicates if the close/destroy should be deferred when the process has been
   // interrupted, it should be set to true if the compile is called within another method like
   // runInternal, which defers the close to the called in that method.
+  // deferClose表示当进程被中断时是否应该延迟关闭/销毁，如果在另一个方法（如runInternal）中调用编译，则该对象应该设置为true，该方法将该方法的被调用者的关闭延迟。
   public int compile(String command, boolean resetTaskIds, boolean deferClose) {
     PerfLogger perfLogger = SessionState.getPerfLogger(true);
     // 打印日志, 比如: log.PerfLogger: <PERFLOG method=Driver.run from=org.apache.hadoop.hive.ql.Driver>
     perfLogger.PerfLogBegin(CLASS_NAME, PerfLogger.DRIVER_RUN);
     // 打印日志, 比如: log.PerfLogger: <PERFLOG method=compile from=org.apache.hadoop.hive.ql.Driver>
     perfLogger.PerfLogBegin(CLASS_NAME, PerfLogger.COMPILE);
+    // 获取锁更新状态为COMPILING
     stateLock.lock();
     try {
       // 更新状态为COMPILING
@@ -406,16 +409,19 @@ public class Driver implements CommandProcessor {
     }
 
     if (resetTaskIds) {
+      // 设置当前线程的taskId为0
       TaskFactory.resetId();
     }
 
+    // 获取queryId, 该id在Operation的构造方法中调用new QueryState的时候在QueryState内创建, 比如: hadoop_20170813122140_c6a1eeb6-a9d1-4ee3-8b83-59a386d8fdfc
     String queryId = conf.getVar(HiveConf.ConfVars.HIVEQUERYID);
+    LOG.info("===+++=== hive.query.id:" + queryId);
 
     //save some info for webUI for use after plan is freed
     this.queryDisplay.setQueryStr(queryStr);
     this.queryDisplay.setQueryId(queryId);
 
-    // 打印日志, 比如: ql.Driver: Compiling command(queryId=hadoop_20170802090430_c660b098-0254-4ab9-b5eb-cbda977bc2f4): select * from default.partition_test limit 10
+    // 打印日志, 比如: ql.Driver: Compiling command(queryId=hadoop_20170813122140_c6a1eeb6-a9d1-4ee3-8b83-59a386d8fdfc): select * from default.partition_test limit 10
     LOG.info("Compiling command(queryId=" + queryId + "): " + queryStr);
 
     SessionState.get().setupQueryCurrentTimestamp();
@@ -466,7 +472,7 @@ public class Driver implements CommandProcessor {
       perfLogger.PerfLogBegin(CLASS_NAME, PerfLogger.ANALYZE);
       // queryState在Driver的无参构造方法中已经初始化过了, 会根据tree的tree.getType()来获取相应的SemanticAnalyzer, 如果是TOK_QUERY,
       // 会判断hive.cbo.enable的值, 如果是true, 返回的是new CalcitePlanner(queryState), 如果是false, 返回的是new SemanticAnalyzer(queryState),
-      // 默认值是true, 即返回CalcitePlanner(queryState), CBO（Cost Based Optimizatio）,基于成本模型的优化
+      // 默认值是true, 即返回CalcitePlanner(queryState), CBO(Cost Based Optimizatio), 基于成本模型的优化
       BaseSemanticAnalyzer sem = SemanticAnalyzerFactory.get(queryState, tree);
       // 获取hive.semantic.analyzer.hook, 默认为空
       List<HiveSemanticAnalyzerHook> saHooks =
@@ -477,6 +483,7 @@ public class Driver implements CommandProcessor {
       // query running in this same thread.  This has to be done after we get our semantic
       // analyzer (this is when the connection to the metastore is made) but before we analyze,
       // because at that point we need access to the objects.
+      // 调用metastore的flushCache()方法, metastore实际未做任何操作
       Hive.get().getMSC().flushCache();
 
       // 默认saHooks size是0, 执行else中的逻辑
@@ -506,10 +513,10 @@ public class Driver implements CommandProcessor {
       LOG.info("Semantic Analysis Completed");
 
       // validate the plan
-      // 调用CalcitePlanner的的validate方法, 时间调用的是SemanticAnalyzer的validate方法
+      // 调用CalcitePlanner的的validate方法, 实际调用的是SemanticAnalyzer的validate方法
       sem.validate();
       acidInQuery = sem.hasAcidInQuery();
-      // 打印日志
+      // 打印日志, 比如: log.PerfLogger: </PERFLOG method=semanticAnalyze start=1502598100603 end=1502598101791 duration=1188 from=org.apache.hadoop.hive.ql.Driver>
       perfLogger.PerfLogEnd(CLASS_NAME, PerfLogger.ANALYZE);
 
       if (isInterrupted()) {
@@ -1280,8 +1287,9 @@ public class Driver implements CommandProcessor {
       return ErrorMsg.COMPILE_LOCK_TIMED_OUT.getErrorCode();
     }
 
+    // 对于ReentrantLock, 获取锁之后的执行逻辑一定要放在try中, 并且在finally中释放重入锁
     try {
-      // 继续调用compile, compile用来完成语法和语义的分析，生成执行计划, 核心方法
+      // 继续调用compile, compile用来完成语法和语义的分析，生成执行计划, 核心方法, 编译成功, 返回0
       ret = compile(command, true, deferClose);
       LOG.info("++++++ ret:" + ret);
     } finally {
@@ -1307,7 +1315,7 @@ public class Driver implements CommandProcessor {
   }
 
   /**
-   * 获取可重入锁。 如果配置了可重入锁等待超时，则如果在给定的等待时间内未锁定另一个线程，则会获取该锁。
+   * 获取可重入锁。 如果配置了可重入锁等待超时，则如果在给定的等待时间内另一个线程未锁定该锁，则当前线程会获取该锁。
    * Acquires the compile lock. If the compile lock wait timeout is configured,
    * it will acquire the lock if it is not held by another thread within the given
    * waiting time.
@@ -1321,12 +1329,14 @@ public class Driver implements CommandProcessor {
     // 是否支持并发, 默认为false, 则compileLock从SessionState获取, 否则用Driver的全局锁
     final ReentrantLock compileLock = isParallelEnabled ?
         SessionState.get().getCompileLock() : globalCompileLock;
-    // 获取编译锁等待超时时间, 默认为0, 永不超时
+    // 获取编译锁等待超时时间, 默认为0
     long maxCompileLockWaitTime = HiveConf.getTimeVar(
       this.conf, ConfVars.HIVE_SERVER2_COMPILE_LOCK_TIMEOUT,
       TimeUnit.SECONDS);
 
     final String lockAcquiredMsg = "Acquired the compile lock.";
+    // 下面获取锁分成了两步, 首先直接去获取锁, 如果拿到了锁, 则直接返回.
+    // 如果没有拿到锁, 则根据maxCompileLockWaitTime值再次去获取锁, 如果maxCompileLockWaitTime不为0, 则调用tryLock(long timeout, TimeUnit unit)去获取锁, 如果maxCompileLockWaitTime为0, 则调用lock()获取锁
     // First shot without waiting.
     try {
       if (compileLock.tryLock(0, TimeUnit.SECONDS)) {
@@ -1353,6 +1363,7 @@ public class Driver implements CommandProcessor {
 
     if (maxCompileLockWaitTime > 0) {
       try {
+        // 如果在maxCompileLockWaitTime时间内没有获取到锁, 则返回null
         if(!compileLock.tryLock(maxCompileLockWaitTime, TimeUnit.SECONDS)) {
           errorMessage = ErrorMsg.COMPILE_LOCK_TIMED_OUT.getErrorCodedMsg();
           LOG.error(errorMessage + ": " + command);
@@ -1366,6 +1377,7 @@ public class Driver implements CommandProcessor {
         return null;
       }
     } else {
+      // 排队等待获取锁
       compileLock.lock();
     }
 

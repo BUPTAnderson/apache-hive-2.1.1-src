@@ -60,6 +60,8 @@ public class TableMask {
       ctxBuilder.setUserIpAddress(ss.getUserIpAddress());
       ctxBuilder.setForwardedAddresses(ss.getForwardedAddresses());
       queryContext = ctxBuilder.build();
+      // 如果设置的是SQLStdHiveAuthorizationValidator, 则needTransform为false
+      LOG.info("++++ authorizer is null:" + (authorizer == null) + ", needTransform:" + needTransform() + ", ctx.isSkipTableMasking():" + ctx.isSkipTableMasking());
       if (authorizer != null && needTransform() && !ctx.isSkipTableMasking()) {
         enable = true;
         translator = new UnparseTranslator(conf);

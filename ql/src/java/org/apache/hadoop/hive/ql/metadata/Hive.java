@@ -258,7 +258,7 @@ public class Hive {
    *          new Hive Configuration
    * @return Hive object for current thread
    * @throws HiveException
-   * HiveSessionImpl中调用的是该方法
+   * HiveSessionImpl中调用的是该方法, BaseSemanticAnalyzer中也会调用该方法
    */
   public static Hive get(HiveConf c) throws HiveException {
     return getInternal(c, false, false, true);

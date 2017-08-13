@@ -107,8 +107,9 @@ public abstract class Operation {
     operationTimeout = HiveConf.getTimeVar(parentSession.getHiveConf(),
         HiveConf.ConfVars.HIVE_SERVER2_IDLE_OPERATION_TIMEOUT, TimeUnit.MILLISECONDS);
     setMetrics(state);
-    // 构造queryState, isAsyncQueryState默认是false, 传入的是HiveSessionImpl的sessionConf
+    // 构造queryState, isAsyncQueryState默认是false, 传入的是HiveSessionImpl的sessionConf, 会在QueryState创建hive.query.id并赋值给hiveconf
     queryState = new QueryState(parentSession.getHiveConf(), confOverlay, isAsyncQueryState);
+    LOG.info("======= query.id: " + parentSession.getHiveConf().getVar(HiveConf.ConfVars.HIVEQUERYID));
   }
 
   public Future<?> getBackgroundHandle() {

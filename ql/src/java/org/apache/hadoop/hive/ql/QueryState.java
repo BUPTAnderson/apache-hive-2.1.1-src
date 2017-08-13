@@ -38,6 +38,7 @@ public class QueryState {
   /**
    * type of the command.
    */
+  // 查询操作类型, 在SemanticAnalyzerFactory的get(QueryState queryState, ASTNode tree)方法中会设置该值, 该值是一个枚举类, 比如: HiveOperation.QUERY
   private HiveOperation commandType;
 
   public QueryState(HiveConf conf) {
@@ -45,7 +46,7 @@ public class QueryState {
   }
 
   public QueryState(HiveConf conf, Map<String, String> confOverlay, boolean runAsync) {
-    // 初始化queryConf, runAsync默认是false
+    // 初始化queryConf, runAsync默认是false, 创建queryID
     this.queryConf = createConf(conf, confOverlay, runAsync);
   }
 
@@ -82,7 +83,7 @@ public class QueryState {
       conf = new HiveConf();
     }
 
-    // 设置该条hsql的queryId, 如: zhangsan_20170714110522_f9001412-2aa0-4775-ad7a-f8e49aae3515
+    // 设置该条hql的queryId, 如: hadoop_20170813122140_c6a1eeb6-a9d1-4ee3-8b83-59a386d8fdfc
     conf.setVar(HiveConf.ConfVars.HIVEQUERYID, QueryPlan.makeQueryId());
     return conf;
   }
