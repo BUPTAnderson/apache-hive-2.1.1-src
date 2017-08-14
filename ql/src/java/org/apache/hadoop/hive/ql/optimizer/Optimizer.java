@@ -210,7 +210,7 @@ public class Optimizer {
     }
 
     if(HiveConf.getBoolVar(hiveConf, HiveConf.ConfVars.HIVEOPTREDUCEDEDUPLICATION) || pctx.hasAcidWrite()) {
-      // ReduceSinkDeDuplication: 如果两个ReduceSink操作符共享分区和排序列
+      // ReduceSinkDeDuplication: 如果两个ReduceSink操作符共享分区和排序列, 进行去重操作
       transformations.add(new ReduceSinkDeDuplication());
     }
     transformations.add(new NonBlockingOpDeDupProc());

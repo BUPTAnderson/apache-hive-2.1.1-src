@@ -1200,6 +1200,7 @@ public class Driver implements CommandProcessor {
     }
   }
 
+  // cli会调用该方法来编译hql, 而beeline是调用的compileAndRespond来编译hql
   @Override
   public CommandProcessorResponse run(String command)
       throws CommandNeedRetryException {
@@ -1278,6 +1279,7 @@ public class Driver implements CommandProcessor {
   }
 
   private static final ReentrantLock globalCompileLock = new ReentrantLock();
+  // cli和beeline都会调用该方法, 只不过cli传入的deferClose是true, beeline传入的deferClose是false
   private int compileInternal(String command, boolean deferClose) {
     int ret;
     // 获取重入锁
@@ -1443,6 +1445,7 @@ public class Driver implements CommandProcessor {
       // 如果alreadyCompiled为false, 调用compileInternal对HQL进行编译
       if (!alreadyCompiled) {
         // compile internal will automatically reset the perf logger
+        // 调用compileInternal来编译hql
         ret = compileInternal(command, true);
         // then we continue to use this perf logger
         perfLogger = SessionState.getPerfLogger();

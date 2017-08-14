@@ -42,13 +42,13 @@ public class QBMetaData {
   public static final int DEST_REDUCE = 4;
   public static final int DEST_LOCAL_FILE = 5;
 
-  // 表的别名和对应的Table信息, 比如 <"partition_test", Table>
+  // 表的别名和对应的Table信息, 比如 <"partition_test", Table(partition_test)>
   private final HashMap<String, Table> aliasToTable;
   private final HashMap<String, Table> nameToDestTable;
   private final HashMap<String, Partition> nameToDestPartition;
   // alias和filename, 比如: <"insclause-0", "hdfs://ns1/tmp/hive/hadoop/b7fca867-8db2-4e65-a166-1c32edd3616c/hive_2017-08-02_15-36-28_004_3653770231138742857-1/-mr-10000">
   private final HashMap<String, String> nameToDestFile;
-  // alias和是不是DFSFile, 比如: <"insclause-0", 3>
+  // alias和是不是DFSFile, 比如: <"insclause-0", 3>, 3是dfs, 5是local
   private final HashMap<String, Integer> nameToDestType;
   private final HashMap<String, Map<String, String>> aliasToPartSpec;
   private final HashMap<String, DynamicPartitionCtx> aliasToDPCtx;

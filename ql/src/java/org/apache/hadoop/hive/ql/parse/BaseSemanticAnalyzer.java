@@ -203,6 +203,7 @@ public abstract class BaseSemanticAnalyzer {
   }
 
   public BaseSemanticAnalyzer(QueryState queryState) throws SemanticException {
+    // 继续调用
     this(queryState, createHiveDB(queryState.getConf()));
   }
 
@@ -215,6 +216,7 @@ public abstract class BaseSemanticAnalyzer {
       LOG = LoggerFactory.getLogger(this.getClass().getName());
       console = new LogHelper(LOG);
       idToTableNameMap = new HashMap<String, String>();
+      // 初始化输入输出
       inputs = new LinkedHashSet<ReadEntity>();
       outputs = new LinkedHashSet<WriteEntity>();
     } catch (Exception e) {

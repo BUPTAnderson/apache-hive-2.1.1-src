@@ -929,6 +929,7 @@ public final class PlanUtils {
   // mergeIsDirectFlag, need to merge isDirect flag even newInput does not have parent
   public static ReadEntity addInput(Set<ReadEntity> inputs, ReadEntity newInput, boolean mergeIsDirectFlag) {
     // If the input is already present, make sure the new parent is added to the input.
+    LOG.info("++++++++++++++ inputs.contains(newInput):" + inputs.contains(newInput) + ", mergeIsDirectFlag:" + mergeIsDirectFlag);
     if (inputs.contains(newInput)) {
       for (ReadEntity input : inputs) {
         if (input.equals(newInput)) {
@@ -1043,9 +1044,10 @@ public final class PlanUtils {
     // T's parent would be V1
     for (int pos = 0; pos < aliases.length; pos++) {
       currentAlias = currentAlias == null ? aliases[pos] : currentAlias + ":" + aliases[pos];
-
+      LOG.info("++++++++++= currentAlias:" + currentAlias);
       currentAlias = currentAlias.replace(SemanticAnalyzer.SUBQUERY_TAG_1, "")
           .replace(SemanticAnalyzer.SUBQUERY_TAG_2, "");
+      LOG.info("++++++++++>> currentAlias:" + currentAlias);
       ReadEntity input = viewAliasToInput.get(currentAlias);
       LOG.info("+++ input is null:" + (input == null) + ", currentInput is null:" + (currentInput == null));
       if (input == null && currentInput != null) {

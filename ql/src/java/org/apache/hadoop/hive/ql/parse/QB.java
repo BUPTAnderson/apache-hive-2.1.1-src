@@ -44,7 +44,7 @@ public class QB {
 
   private final int numJoins = 0;
   private final int numGbys = 0;
-  // 表示select的个数, 比如1
+  // 表示TOK_SELECT的个数, 比如1
   private int numSels = 0;
   private int numSelDi = 0;
   // alias -> 库名.表名/表名 的映射, 比如: <"partition_test", "default.partition_test">
@@ -53,11 +53,11 @@ public class QB {
   private HashMap<String, QBExpr> aliasToSubq;
   private HashMap<String, Table> viewAliasToViewSchema;
   private HashMap<String, Map<String, String>> aliasToProps;
-  // 当前包含的别名, 主要是为了判断多个别名不可以重复, 如果没有别名, 加入的是原表名
+  // 当前包含的别名, 主要是为了判断多个别名不可以重复, 如果没有别名, 加入的是原表名, 比如加入 "partition_test"
   private List<String> aliases;
   // 存放了QB parse的相关信息
   private QBParseInfo qbp;
-  // 里面存储了alias和Table的对应关系
+  // 里面存储了alias和Table的对应关系, 即meta data
   private QBMetaData qbm;
   private QBJoinTree qbjoin;
   private String id;

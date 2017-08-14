@@ -44,7 +44,7 @@ public class QBParseInfo {
   private final String alias;
   private ASTNode joinExpr;
   private ASTNode hints;
-  // 里面存放的是<alias, TOK_TABNAME节点的tree>, 如果没有别名, alias是原表名, 存放的是要查询的表的别名和对应的ASTNode信息
+  // 里面存放的是<alias, TOK_TABNAME节点的tree>, 如果没有别名, alias是原表名, 存放的是要查询的表的别名和对应的ASTNode信息, 比如<"partition_test", TOK_TABNAME ASTNode>
   private final HashMap<String, ASTNode> aliasToSrc;
   /**
    * insclause-0 -> TOK_TAB ASTNode, 比如"insclause-0" -> TOK_DIR ASTNode
