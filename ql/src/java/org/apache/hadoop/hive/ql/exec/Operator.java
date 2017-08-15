@@ -1060,6 +1060,8 @@ public abstract class Operator<T extends OperatorDesc> implements Serializable,C
   }
 
   public void initOperatorId() {
+    LOG.info("+++++++++ getName():" + getName());
+    // 调用子类的getName()方法, 比如调用TableScanOperator的getName()方法, 返回"TS"
     setOperatorId(getName() + "_" + this.id);
   }
 

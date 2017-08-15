@@ -146,6 +146,7 @@ public class Context {
     localScratchDir = new Path(SessionState.getLocalSessionPath(conf), executionId).toUri().getPath();
     scratchDirPermission = HiveConf.getVar(conf, HiveConf.ConfVars.SCRATCHDIRPERMISSION);
     stagingDir = HiveConf.getVar(conf, HiveConf.ConfVars.STAGINGDIR);
+    // 初始化opContext, 主要是初始化熟悉opSeqId, 是一个id
     opContext = new CompilationOpContext();
   }
 

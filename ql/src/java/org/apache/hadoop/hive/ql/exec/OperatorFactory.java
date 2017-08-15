@@ -18,13 +18,7 @@
 
 package org.apache.hadoop.hive.ql.exec;
 
-import java.util.ArrayList;
-import java.util.IdentityHashMap;
-import java.util.List;
-import java.util.Map;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.google.common.base.Preconditions;
 import org.apache.hadoop.hive.ql.CompilationOpContext;
 import org.apache.hadoop.hive.ql.exec.vector.VectorAppMasterEventOperator;
 import org.apache.hadoop.hive.ql.exec.vector.VectorFileSinkOperator;
@@ -73,8 +67,13 @@ import org.apache.hadoop.hive.ql.plan.SparkHashTableSinkDesc;
 import org.apache.hadoop.hive.ql.plan.TableScanDesc;
 import org.apache.hadoop.hive.ql.plan.UDTFDesc;
 import org.apache.hadoop.hive.ql.plan.UnionDesc;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Preconditions;
+import java.util.ArrayList;
+import java.util.IdentityHashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * OperatorFactory.
@@ -230,6 +229,7 @@ public final class OperatorFactory {
   public static <T extends OperatorDesc> Operator<T> get(
       CompilationOpContext cContext, T conf, RowSchema rwsch) {
     Operator<T> ret = get(cContext, conf);
+    LOG.info("+++++++++++++ ret:" + ret.getClass().getName());
     ret.setSchema(rwsch);
     return (ret);
   }

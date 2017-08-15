@@ -257,6 +257,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
   private HashMap<TableScanOperator, ExprNodeDesc> opToPartPruner;
   private HashMap<TableScanOperator, PrunedPartitionList> opToPartList;
   protected HashMap<String, TableScanOperator> topOps;
+  // 比如 <TableScanOperator, OpParseContext>
   protected LinkedHashMap<Operator<? extends OperatorDesc>, OpParseContext> opParseCtx;
   private List<LoadTableDesc> loadTableWork;
   private List<LoadFileDesc> loadFileWork;
@@ -354,8 +355,10 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     opToPartPruner = new HashMap<TableScanOperator, ExprNodeDesc>();
     opToPartList = new HashMap<TableScanOperator, PrunedPartitionList>();
     opToSamplePruner = new HashMap<TableScanOperator, SampleDesc>();
+    // 初始化nameToSplitSample
     nameToSplitSample = new HashMap<String, SplitSample>();
     // Must be deterministic order maps - see HIVE-8707
+    // 初始化topOps
     topOps = new LinkedHashMap<String, TableScanOperator>();
     loadTableWork = new ArrayList<LoadTableDesc>();
     loadFileWork = new ArrayList<LoadFileDesc>();
@@ -381,6 +384,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
         HiveConf.ConfVars.HIVE_AUTOGEN_COLUMNALIAS_PREFIX_LABEL);
     autogenColAliasPrfxIncludeFuncName = HiveConf.getBoolVar(conf,
         HiveConf.ConfVars.HIVE_AUTOGEN_COLUMNALIAS_PREFIX_INCLUDEFUNCNAME);
+    // 初始化queryProperties
     queryProperties = new QueryProperties();
     opToPartToSkewedPruner = new HashMap<TableScanOperator, Map<String, ExprNodeDesc>>();
     // 初始化aliasToCTEs
@@ -3056,6 +3060,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
   public <T extends OperatorDesc> Operator<T> putOpInsertMap(Operator<T> op,
       RowResolver rr) {
     OpParseContext ctx = new OpParseContext(rr);
+    // 将op和ctx放入opParseCtx
     opParseCtx.put(op, ctx);
     op.augmentPlan();
     return op;
@@ -9940,7 +9945,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     Table tab = qb.getMetaData().getSrcForAlias(alias);
     RowResolver rwsch;
 
-    // is the table already present
+    // is the table already present, topOps在构造SemanticAnalyzer时初始化过了
     TableScanOperator top = topOps.get(alias_id);
 
     LOG.info("++++ top is null:" + (top == null) + ", alias_id:" + alias_id);
@@ -9958,11 +9963,13 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
           /**
            * if the column is a skewed column, use ColumnInfo accordingly
            */
+          LOG.info("+++++++++++++ getFieldName:" + fields.get(i).getFieldName());
           ColumnInfo colInfo = new ColumnInfo(fields.get(i).getFieldName(),
               TypeInfoUtils.getTypeInfoFromObjectInspector(fields.get(i)
                   .getFieldObjectInspector()), alias, false);
           colInfo.setSkewedCol((isSkewedCol(alias, qb, fields.get(i)
               .getFieldName())) ? true : false);
+          // 放入rwsch中
           rwsch.put(alias, fields.get(i).getFieldName(), colInfo);
         }
       } catch (SerDeException e) {
@@ -9972,6 +9979,8 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       // Finally add the partitioning columns
       for (FieldSchema part_col : tab.getPartCols()) {
         LOG.trace("Adding partition col: " + part_col);
+        LOG.info("++++ part_col.getName():" + part_col.getName() + ", type:" + part_col.getType());
+        // 放入rwsch中
         rwsch.put(alias, part_col.getName(), new ColumnInfo(part_col.getName(),
             TypeInfoFactory.getPrimitiveTypeInfo(part_col.getType()), alias, true));
       }
@@ -9982,35 +9991,47 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       List<VirtualColumn> vcList = new ArrayList<VirtualColumn>();
       while (vcs.hasNext()) {
         VirtualColumn vc = vcs.next();
+        LOG.info("++++++++++++++ vc.getName().toLowerCase():" + vc.getName().toLowerCase());
+        // 放入rwsch中
         rwsch.put(alias, vc.getName().toLowerCase(), new ColumnInfo(vc.getName(),
             vc.getTypeInfo(), alias, true, vc.getIsHidden()));
+        // 放入vcList中
         vcList.add(vc);
       }
 
       // Create the root of the operator tree
+      // 创建operator tree的根节点
       TableScanDesc tsDesc = new TableScanDesc(alias, vcList, tab);
+      // 设置tsDesc的一些信息
       setupStats(tsDesc, qb.getParseInfo(), tab, alias, rwsch);
 
       SplitSample sample = nameToSplitSample.get(alias_id);
+      LOG.info("++++++++++ sample is null:" + (sample == null));
       if (sample != null && sample.getRowCount() != null) {
         tsDesc.setRowLimit(sample.getRowCount());
         nameToSplitSample.remove(alias_id);
       }
 
+      // 用上面的tsDesc来构造TableScanOperator, 将TableScanOperator和对应的OpParseContext ctx放入map opParseCtx中
       top = (TableScanOperator) putOpInsertMap(OperatorFactory.get(getOpContext(), tsDesc,
           new RowSchema(rwsch.getColumnInfos())), rwsch);
+      LOG.info("+++++++ opParseCtx size:" + opParseCtx.size());
 
       // Set insiderView so that we can skip the column authorization for this.
+      LOG.info("++++++++++ qb.isInsideView():" + qb.isInsideView() + ", qb.getAliasInsideView().contains(alias.toLowerCase()):" + qb.getAliasInsideView().contains(alias.toLowerCase()));
       top.setInsideView(qb.isInsideView() || qb.getAliasInsideView().contains(alias.toLowerCase()));
 
       // Add this to the list of top operators - we always start from a table
       // scan
+      LOG.info("+++++++++++++ alias_id:" + alias_id);
+      // 将alias_id 和对应的top放入topOps中, 比如: <"partition_test", TableScanOperator>
       topOps.put(alias_id, top);
 
       // Add a mapping from the table scan operator to Table
       topToTable.put(top, tab);
 
       Map<String, String> props = qb.getTabPropsForAlias(alias);
+      LOG.info("++++++++++ props is null:" + (props == null));
       if (props != null) {
         topToTableProps.put(top, props);
         tsDesc.setOpProps(props);
@@ -10103,6 +10124,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
             new RowSchema(rwsch.getColumnInfos()), top);
       }
     } else {
+      // testMode默认是false
       boolean testMode = conf.getBoolVar(HiveConf.ConfVars.HIVETESTMODE);
       if (testMode) {
         String tabName = tab.getTableName();
@@ -10157,6 +10179,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     }
 
     Operator output = putOpInsertMap(op, rwsch);
+    LOG.info("+++++++ now opParseCtx size:" + opParseCtx.size());
 
     if (LOG.isDebugEnabled()) {
       // 打印日志信息, 如: parse.CalcitePlanner: Created Table Plan for partition_test TS[0]
@@ -10181,6 +10204,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       RowResolver rwsch)
       throws SemanticException {
 
+    LOG.info("+++++++ qbp.isAnalyzeCommand():" + qbp.isAnalyzeCommand());
     if (!qbp.isAnalyzeCommand()) {
       tsDesc.setGatherStats(false);
     } else {
@@ -10275,6 +10299,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     // Recurse over the subqueries to fill the subquery part of the plan
     // 在子查询上重新填充计划的子查询部分
     for (String alias : qb.getSubqAliases()) {
+      LOG.info("++++++++++++++++ SubqAliase:" + alias);
       QBExpr qbexpr = qb.getSubqForAlias(alias);
       // 调用genPlan(QB parent, QBExpr qbexpr)方法
       Operator operator = genPlan(qb, qbexpr);
@@ -10297,9 +10322,10 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     // Recurse over all the source tables
     // 重复所有源表
     for (String alias : qb.getTabAliases()) {
-      LOG.info("------++> alias:" + alias);
-      // 调用genTablePlan
+      // 调用genTablePlan, 返回一个TableScanOperator
       Operator op = genTablePlan(alias, qb);
+      LOG.info("------++> alias:" + alias + ", operator:" + op.getClass().getName());
+      // 将alias和op放入aliasToOpInfo
       aliasToOpInfo.put(alias, op);
     }
 
@@ -10316,7 +10342,8 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     Operator srcOpInfo = null;
     Operator lastPTFOp = null;
 
-    LOG.info("++++++++ queryProperties.hasPTF():" + queryProperties.hasPTF());
+    LOG.info("++++++++ queryProperties.hasPTF():" + queryProperties.hasPTF() +
+            ", queryProperties outer:" + queryProperties.getOuterQueryLimit() + ", join:" + queryProperties.getJoinCount() + ", out join:" + queryProperties.getOuterJoinCount());
     if(queryProperties.hasPTF()){
       //After processing subqueries and source tables, process
       // partitioned table functions

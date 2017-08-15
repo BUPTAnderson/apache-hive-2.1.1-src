@@ -452,6 +452,7 @@ public class Driver implements CommandProcessor {
         return handleInterruption("before parsing and analysing the query");
       }
 
+      // 初始化ctx
       ctx = new Context(conf);
       ctx.setTryCount(getTryCount());
       ctx.setCmd(command);
