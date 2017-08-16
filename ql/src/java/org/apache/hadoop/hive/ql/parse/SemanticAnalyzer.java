@@ -1966,7 +1966,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       String cteName = tabName.toLowerCase();
 
       Table tab = db.getTable(tabName, false);
-      LOG.info("--------------------table name:" + tabName + ", cteName:" + cteName + ", db:" + tab.getDbName() + ", currentDb:" + SessionState.get().getCurrentDatabase());
+      LOG.info("--------------------table name:" + tabName + ", cteName:" + cteName + ", tab is null:" + (tab == null));
       if (tab == null ||
               tab.getDbName().equals(SessionState.get().getCurrentDatabase())) {
         Table materializedTab = ctx.getMaterializedTable(cteName);
@@ -4059,11 +4059,11 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
   private Operator<?> genSelectPlan(String dest, QB qb, Operator<?> input,
       Operator<?> inputForSelectStar) throws SemanticException {
     ASTNode selExprList = qb.getParseInfo().getSelForClause(dest);
-    // 调用genSelectPlan方法
+    // 调用genSelectPlan方法, 返回一个SelectOperator, 父节点是input
     Operator<?> op = genSelectPlan(dest, selExprList, qb, input, inputForSelectStar, false);
 
     if (LOG.isDebugEnabled()) {
-      // 打印日志信息, 比如: parse.CalcitePlanner: genSelectPlan: input = partition_test{....
+      // 打印日志信息, 比如: Created Select Plan for clause: insclause-0
       LOG.debug("Created Select Plan for clause: " + dest);
     }
 
@@ -4075,7 +4075,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       Operator<?> inputForSelectStar, boolean outerLV) throws SemanticException {
 
     if (LOG.isDebugEnabled()) {
-      // 打印日志信息, 比如: parse.CalcitePlanner: tree: (tok_select (tok_selexpr (.
+      // 打印日志信息, 比如: tree: (tok_select (tok_selexpr tok_allcolref))
       LOG.debug("tree: " + selExprList.toStringTree());
     }
 
@@ -4085,6 +4085,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     Integer pos = Integer.valueOf(0);
     RowResolver inputRR = opParseCtx.get(input).getRowResolver();
     RowResolver starRR = null;
+    LOG.info("++++++++++ inputForSelectStar is null:" + (inputForSelectStar == null) + ", inputForSelectStar == input :" + (inputForSelectStar == input));
     if (inputForSelectStar != null && inputForSelectStar != input) {
       starRR = opParseCtx.get(inputForSelectStar).getRowResolver();
     }
@@ -4098,6 +4099,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
 
     boolean isInTransform = (selExprList.getChild(posn).getChild(0).getType() ==
         HiveParser.TOK_TRANSFORM);
+    LOG.info("+++ hintPresent:" + hintPresent + ", isInTransform:" + isInTransform + ", posn:" + posn);
     if (isInTransform) {
       queryProperties.setUsesScript(true);
       globalLimitCtx.setHasTransformOrUDTF(true);
@@ -4186,7 +4188,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     }
 
     if (LOG.isDebugEnabled()) {
-      // 打印日志信息
+      // 打印日志信息, 如: genSelectPlan: input = partition_test{(member_id,member_id: string)(name,name: string)(stat_date,stat_date: string)(province,province: string)(block__offset__inside__file,BLOCK__OFFSET__INSIDE__FILE: bigint)(input__file__name,INPUT__FILE__NAME: string)(row__id,ROW__ID: struct<transactionid:bigint,bucketid:int,rowid:bigint>)}  starRr = null
       LOG.debug("genSelectPlan: input = " + inputRR + " starRr = " + starRR);
     }
 
@@ -4202,6 +4204,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     boolean[] hasAsClauses = new boolean[exprList.getChildCount()];
     int offset = 0;
     // Iterate over all expression (either after SELECT, or in SELECT TRANSFORM)
+    LOG.info("++++ startPosn:" + ", exprList.getChildCount():" + exprList.getChildCount());
     for (int i = startPosn; i < exprList.getChildCount(); ++i) {
 
       // child can be EXPR AS ALIAS, or EXPR.
@@ -4235,6 +4238,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
             autogenColAliasPrfxIncludeFuncName, i + offset);
         tabAlias = colRef[0];
         colAlias = colRef[1];
+        LOG.info("+++ colRef[0]:" + colRef[0] + ", colRef[1]:" + colRef[1]);
         if (hasAsClause) {
           unparseTranslator.addIdentifierTranslation((ASTNode) child
               .getChild(1));
@@ -4254,6 +4258,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
         if (unparseTranslator.isEnabled()) {
           offset += pos - initPos - 1;
         }
+        LOG.info("+++ initPos:" + initPos + ", pos:" + pos + ", unparseTranslator.isEnabled():" + unparseTranslator.isEnabled() + ", offset:" + offset);
         selectStar = true;
       } else if (expr.getType() == HiveParser.TOK_TABLE_OR_COL && !hasAsClause
           && !inputRR.getIsExprResolver()
@@ -4307,6 +4312,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       }
     }
     selectStar = selectStar && exprList.getChildCount() == posn + 1;
+    LOG.info("+++ exprList.getChildCount():" + exprList.getChildCount() + ", posn:" + posn);
 
     out_rwsch = handleInsertStatementSpec(col_list, dest, out_rwsch, inputRR, qb, selExprList);
 
@@ -4315,9 +4321,11 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     for (int i = 0; i < col_list.size(); i++) {
       String outputCol = getColumnInternalName(i);
       colExprMap.put(outputCol, col_list.get(i));
+      LOG.info("+++ outputCol:" + outputCol + ", type:" + col_list.get(i).getTypeString());
       columnNames.add(outputCol);
     }
 
+    // 获取一个SelectOperator, 其父节点是input
     Operator output = putOpInsertMap(OperatorFactory.getAndMakeChild(
         new SelectDesc(col_list, columnNames, selectStar), new RowSchema(
             out_rwsch.getColumnInfos()), input), out_rwsch);
@@ -4331,9 +4339,10 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       output = genUDTFPlan(genericUDTF, udtfTableAlias, udtfColAliases, qb,
           output, outerLV);
     }
+    LOG.info("++++ >isInTransform:" + isInTransform + ", isUDTF:" + isUDTF);
 
     if (LOG.isDebugEnabled()) {
-      // 打印日志信息, 比如: parse.CalcitePlanner: Created Select Plan row schema: null{...
+      // 打印日志信息, 比如: Created Select Plan row schema: partition_test{(member_id,_col0: string)(name,_col1: string)(stat_date,_col2: string)(province,_col3: string)}
       LOG.debug("Created Select Plan row schema: " + out_rwsch.toString());
     }
     return output;
@@ -6914,6 +6923,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       // table command rather than taking the default value
       List<FieldSchema> field_schemas = null;
       CreateTableDesc tblDesc = qb.getTableDesc();
+      LOG.info("++++ tblDesc == null:" + (tblDesc == null));
       if (tblDesc != null) {
         field_schemas = new ArrayList<FieldSchema>();
         destTableIsTemporary = tblDesc.isTemporary();
@@ -6929,6 +6939,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
         }
 
         String colName = colInfo.getInternalName();  //default column name
+        LOG.info("+++ field_schemas is null:" + (field_schemas == null) + ", colName:" + colName);
         if (field_schemas != null) {
           FieldSchema col = new FieldSchema();
           if (!("".equals(nm[0])) && nm[1] != null) {
@@ -6979,6 +6990,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       }
 
       boolean isDestTempFile = true;
+      LOG.info("++ ctx.isMRTmpFileURI(dest_path.toUri().toString()):" + ctx.isMRTmpFileURI(dest_path.toUri().toString()));
       if (!ctx.isMRTmpFileURI(dest_path.toUri().toString())) {
         idToTableNameMap.put(String.valueOf(destTableId), dest_path.toUri().toString());
         currentTableId = destTableId;
@@ -6993,6 +7005,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       if (tblDesc == null) {
         if (qb.getIsQuery()) {
           String fileFormat;
+          LOG.info("++++ SessionState.get().getIsUsingThriftJDBCBinarySerDe():" + SessionState.get().getIsUsingThriftJDBCBinarySerDe());
           if (SessionState.get().getIsUsingThriftJDBCBinarySerDe()) {
               fileFormat = "SequenceFile";
               HiveConf.setVar(conf, HiveConf.ConfVars.HIVEQUERYRESULTFILEFORMAT, fileFormat);
@@ -7025,12 +7038,16 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       throw new SemanticException("Unknown destination type: " + dest_type);
     }
 
+    LOG.info("+++>>> input Operator name:" + input.getClass().getName());
+    // 返回SelectOperator, 父节点是传入的input
     input = genConversionSelectOperator(dest, qb, input, table_desc, dpCtx);
+    LOG.info("+++>>> input Operator name:" + input.getClass().getName());
  
     inputRR = opParseCtx.get(input).getRowResolver();
 
     ArrayList<ColumnInfo> vecCol = new ArrayList<ColumnInfo>();
 
+    LOG.info("+++ updating():" + updating() + ", deleting():" + deleting() + ", input" + input.getClass().getName());
     if (updating() || deleting()) {
       vecCol.add(new ColumnInfo(VirtualColumn.ROWID.getName(), VirtualColumn.ROWID.getTypeInfo(),
           "", true));
@@ -7059,7 +7076,9 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
         (dest_tab.getSortCols() != null && dest_tab.getSortCols().size() > 0)));
 
     // If this table is working with ACID semantics, turn off merging
+    LOG.info("+++ canBeMerged:" + canBeMerged);
     canBeMerged &= !destTableIsAcid;
+    LOG.info("+++ >canBeMerged:" + canBeMerged);
 
     // Generate the partition columns from the parent input
     if (dest_type.intValue() == QBMetaData.DEST_TABLE
@@ -7095,6 +7114,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     fileSinkDesc.setMaterialization(destTableIsMaterialization);
 
     /* Set List Bucketing context. */
+    LOG.info("+++ lbCtx == null:" + (lbCtx == null));
     if (lbCtx != null) {
       lbCtx.processRowSkewedIndex(fsRS);
       lbCtx.calculateSkewedValueSubDirList();
@@ -7110,10 +7130,11 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
             HiveConf.getVar(conf, HIVESTATSDBCLASS).equalsIgnoreCase(StatDB.fs.name())) {
       String statsTmpLoc = ctx.getExtTmpPathRelTo(queryTmpdir).toString();
       fileSinkDesc.setStatsTmpDir(statsTmpLoc);
-      // 打印日志信息, 比如:  parse.CalcitePlanner: Set stats collection dir : hdfs://ns1/tmp/hive/hadoop/b....
+      // 打印日志信息, 比如:Set stats collection dir : hdfs://ns1/tmp/hive/hadoop/7f88adf8-8cd2-4dc6-a85d-d73259071682/hive_2017-08-16_11-10-22_488_7624422816704392492-2/-mr-10000/.hive-staging_hive_2017-08-16_11-10-22_488_7624422816704392492-2/-ext-10002
       LOG.debug("Set stats collection dir : " + statsTmpLoc);
     }
 
+    LOG.info("++ dest_part == null:" + (dest_part == null) + ", dpCtx == null:" + (dpCtx == null));
     if (dest_part != null) {
       try {
         String staticSpec = Warehouse.makePartPath(dest_part.getSpec());
@@ -7125,23 +7146,28 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       fileSinkDesc.setStaticSpec(dpCtx.getSPPath());
     }
 
+    LOG.info("null == table_desc:" + (null == table_desc));
     if (isHiveServerQuery &&
       null != table_desc &&
       table_desc.getSerdeClassName().equalsIgnoreCase(ThriftJDBCBinarySerDe.class.getName()) &&
       HiveConf.getBoolVar(conf,HiveConf.ConfVars.HIVE_SERVER2_THRIFT_RESULTSET_SERIALIZE_IN_TASKS)) {
         fileSinkDesc.setIsUsingThriftJDBCBinarySerDe(true);
     } else {
+      LOG.info(">>>>>>>>>");
         fileSinkDesc.setIsUsingThriftJDBCBinarySerDe(false);
     }
 
+    // 返回一个FileSinkOperator, 父节点是传入的input
     Operator output = putOpInsertMap(OperatorFactory.getAndMakeChild(
         fileSinkDesc, fsRS, input), inputRR);
 
+    LOG.info("+++ ltd is null:" + (ltd == null));
     if (ltd != null && SessionState.get() != null) {
       SessionState.get().getLineageState()
           .mapDirToFop(ltd.getSourcePath(), (FileSinkOperator) output);
     } else if ( queryState.getCommandType().equals(HiveOperation.CREATETABLE_AS_SELECT.getOperationName())) {
 
+      LOG.info("++++++++");
       Path tlocation = null;
       String tName = Utilities.getDbTableName(tableDesc.getTableName())[1];
       try {
@@ -7166,6 +7192,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     // the following code is used to collect column stats when
     // hive.stats.autogather=true
     // and it is an insert overwrite or insert into table
+    LOG.info("++ dest_tab is null:" + (dest_tab == null));
     if (dest_tab != null && conf.getBoolVar(ConfVars.HIVESTATSAUTOGATHER)
         && conf.getBoolVar(ConfVars.HIVESTATSCOLAUTOGATHER)
         && ColumnStatsAutoGatherContext.canRunAutogatherStats(fso)) {
@@ -7286,10 +7313,12 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
         MetadataTypedColumnsetSerDe.class);
     boolean isLazySimpleSerDe = table_desc.getDeserializerClass().equals(
         LazySimpleSerDe.class);
+    LOG.info("++ isMetaDataSerDe:" + isMetaDataSerDe + ", isLazySimpleSerDe:" + isLazySimpleSerDe + ", deleting:" + deleting());
     if (!isMetaDataSerDe && !deleting()) {
 
       // If we're updating, add the ROW__ID expression, then make the following column accesses
       // offset by 1 so that we don't try to convert the ROW__ID
+      LOG.info("+++ updating():" + updating());
       if (updating()) {
         expressions.add(new ExprNodeColumnDesc(rowFields.get(0).getType(),
             rowFields.get(0).getInternalName(), "", true));
@@ -7312,6 +7341,8 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
             && !(isLazySimpleSerDe
                 && tableFieldTypeInfo.getCategory().equals(Category.PRIMITIVE) && tableFieldTypeInfo
                   .equals(TypeInfoFactory.stringTypeInfo))) {
+          LOG.info("++ tableFieldTypeInfo.equals(rowFieldTypeInfo):" + tableFieldTypeInfo.equals(rowFieldTypeInfo) + ", " + tableFieldTypeInfo.getCategory().equals(Category.PRIMITIVE) + ", " + tableFieldTypeInfo
+                  .equals(TypeInfoFactory.stringTypeInfo));
           // need to do some conversions here
           converted = true;
           if (tableFieldTypeInfo.getCategory() != Category.PRIMITIVE) {
@@ -7333,6 +7364,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     }
 
     // deal with dynamic partition columns: convert ExprNodeDesc type to String??
+    LOG.info("++ dynPart:" + dynPart + ", dpCtx == null" + (dpCtx == null));
     if (dynPart && dpCtx != null && dpCtx.getNumDPCols() > 0) {
       // DP columns starts with tableFields.size()
       for (int i = tableFields.size() + (updating() ? 1 : 0); i < rowFields.size(); ++i) {
@@ -7344,6 +7376,8 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       // converted = true; // [TODO]: should we check & convert type to String and set it to true?
     }
 
+    LOG.info("+++ >converted:" + converted);
+    // converted如果是false的话, 返回的还是输入的input
     if (converted) {
       // add the select operator
       RowResolver rowResolver = new RowResolver();
@@ -7356,6 +7390,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
         colNames.add(name);
         colExprMap.put(name, expressions.get(i));
       }
+      // 返回SelectOperator, 父节点是传入的input
       input = putOpInsertMap(OperatorFactory.getAndMakeChild(
           new SelectDesc(expressions, colNames), new RowSchema(rowResolver
               .getColumnInfos()), input), rowResolver);
@@ -7494,7 +7529,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     // A better approach would be to
     // write into a local file and then have a map-only job.
     // Add the limit operator to get the value fields
-    // 调用genLimitPlan
+    // 调用genLimitPlan, 返回一个LimitOperator, 父节点是input
     Operator curr = genLimitPlan(dest, qb, input, offset, limit);
 
     // the client requested that an extra map-reduce step be performed
@@ -9205,6 +9240,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
   }
 
   private Operator genSelectAllDesc(Operator input) throws SemanticException {
+    LOG.info("+++++++++ input operator:" + input.toString());
     OpParseContext inputCtx = opParseCtx.get(input);
     RowResolver inputRR = inputCtx.getRowResolver();
     ArrayList<ColumnInfo> columns = inputRR.getColumnInfos();
@@ -9215,6 +9251,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     for (int i = 0; i < columns.size(); i++) {
       ColumnInfo col = columns.get(i);
       colList.add(new ExprNodeColumnDesc(col));
+      LOG.info("++++++++++++++= col.getInternalName():" + col.getInternalName());
       columnNames.add(col.getInternalName());
       columnExprMap.put(col.getInternalName(), new ExprNodeColumnDesc(col));
     }
@@ -9223,6 +9260,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
         new SelectDesc(colList, columnNames, true),
         outputRR.getRowSchema(), input), outputRR);
     output.setColumnExprMap(columnExprMap);
+    LOG.info("+++++ output operator:" + output.toString());
     return output;
   }
 
@@ -9239,6 +9277,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
 
     List<List<String>> commonGroupByDestGroups = new ArrayList<List<String>>();
 
+    LOG.info("++++++++++++ ks.size():" + ks.size());
     // If this is a trivial query block return
     if (ks.size() <= 1) {
       List<String> oneList = new ArrayList<String>(1);
@@ -9394,6 +9433,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
 
     // If we can put multiple group bys in a single reducer, determine suitable groups of
     // expressions, otherwise treat all the expressions as a single group
+    // hive.multigroupby.singlereducer默认值是true
     if (conf.getBoolVar(HiveConf.ConfVars.HIVEMULTIGROUPBYSINGLEREDUCER)) {
       try {
         commonGroupByDestGroups = getCommonGroupByDestGroups(qb, inputs);
@@ -9416,6 +9456,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
         }
 
         String firstDest = commonGroupByDestGroup.get(0);
+        LOG.info("++++++++++++ firstDest:" + firstDest);
         input = inputs.get(firstDest);
 
         // Constructs a standard group by plan if:
@@ -9435,6 +9476,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
             LOG.info("========------> dest:" + dest);
             curr = inputs.get(dest);
 
+            LOG.info("++++++++++ qbp.getWhrForClause(dest) is null:" + (qbp.getWhrForClause(dest) == null));
             if (qbp.getWhrForClause(dest) != null) {
               ASTNode whereExpr = qb.getParseInfo().getWhrForClause(dest);
               curr = genFilterPlan((ASTNode) whereExpr.getChild(0), qb, curr, aliasToOpInfo, false, false);
@@ -9446,6 +9488,8 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
                 || getGroupByForClause(qbp, dest).size() > 0)
                     && (qbp.getSelForClause(dest).getToken().getType() != HiveParser.TOK_SELECTDI
                       || qbp.getWindowingExprsForClause(dest) == null)) {
+              LOG.info("++ qbp.getAggregationExprsForClause(dest).size():" + qbp.getAggregationExprsForClause(dest).size()
+              + ", size:" + getGroupByForClause(qbp, dest).size() + ", type:" + qbp.getSelForClause(dest).getToken().getType() + ", null:" + (qbp.getWindowingExprsForClause(dest) == null));
               // multiple distincts is not supported with skew in data
               if (conf.getBoolVar(HiveConf.ConfVars.HIVEGROUPBYSKEW) &&
                   qbp.getDistinctFuncExprsForClause(dest).size() > 1) {
@@ -9485,7 +9529,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
               }
             }
             if (LOG.isDebugEnabled()) {
-              // 打印日志信息, 比如:
+              // 打印RowResolver日志信息, 分别为gb之前和之后的
               LOG.debug("RR before GB " + opParseCtx.get(gbySource).getRowResolver()
                   + " after GB " + opParseCtx.get(curr).getRowResolver());
             }
@@ -9513,6 +9557,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     Map<String, Operator<? extends OperatorDesc>> inputs =
         new HashMap<String, Operator<? extends OperatorDesc>>();
     for (String dest : dests) {
+      LOG.info("++++++++++++ dest:" + dest);
       inputs.put(dest, genLateralViewPlanForDest(dest, qb, input));
     }
     return inputs;
@@ -9553,10 +9598,12 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       }
     }
 
-    // 调用genSelectPlan
+    // 调用genSelectPlan, 返回一个SelectOperator, 父节点是curr
     curr = genSelectPlan(dest, qb, curr, gbySource);
 
+    // 如果hql中有limit的话会返回limit值, 比如10, 如果是 limit m, n返回n
     Integer limit = qbp.getDestLimit(dest);
+    // 如果hql中有limit, 返回对应的offset, 如果没有返回0,如果是 limit m, n, 返回m, 没有的话返回0
     Integer offset = (qbp.getDestLimitOffset(dest) == null) ? 0 : qbp.getDestLimitOffset(dest);
 
     // Expressions are not supported currently without a alias.
@@ -9586,6 +9633,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       genReduceSink = true;
     }
 
+    LOG.info("++++ genReduceSink:" + genReduceSink + ", hasOrderBy:" + hasOrderBy + ", limit:" + limit + ", offset:" + offset);
     if (genReduceSink) {
       int numReducers = -1;
 
@@ -9617,7 +9665,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
           extraMRStep = false;
         }
         LOG.info("++++++ extraMRStep:" + extraMRStep);
-        // 调用genLimitMapRedPlan
+        // 调用genLimitMapRedPlan, 返回LimitOperator, 父节点是输入的curr
         curr = genLimitMapRedPlan(dest, qb, curr, offset.intValue(),
             limit.intValue(), extraMRStep);
         qb.getParseInfo().setOuterQueryLimit(limit.intValue());
@@ -10325,7 +10373,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       // 调用genTablePlan, 返回一个TableScanOperator
       Operator op = genTablePlan(alias, qb);
       LOG.info("------++> alias:" + alias + ", operator:" + op.getClass().getName());
-      // 将alias和op放入aliasToOpInfo
+      // 将alias和TS operator放入aliasToOpInfo
       aliasToOpInfo.put(alias, op);
     }
 
@@ -10415,11 +10463,11 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       srcOpInfo = aliasToOpInfo.values().iterator().next();
       // with ptfs, there maybe more (note for PTFChains:
       // 1 ptf invocation may entail multiple PTF operators)
-      LOG.info("+++++++++ lastPTFOp is null:" + (lastPTFOp == null));
+      LOG.info("+++++++++ lastPTFOp is null:" + (lastPTFOp == null) + ", srcOpInfo:" + srcOpInfo.toString());
       srcOpInfo = lastPTFOp != null ? lastPTFOp : srcOpInfo;
     }
 
-    // 调用genBodyPlan
+    // 调用genBodyPlan, 实际返回的是一个Operator DAG
     Operator bodyOpInfo = genBodyPlan(qb, srcOpInfo, aliasToOpInfo);
 
     if (LOG.isDebugEnabled()) {
@@ -10427,6 +10475,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     }
 
     if (qb.getAlias() != null) {
+      LOG.info("++ qb.getAlias():" + qb.getAlias());
       rewriteRRForSubQ(qb.getAlias(), bodyOpInfo, skipAmbiguityCheck);
     }
 
@@ -10532,6 +10581,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
   private Operator genLateralViewPlanForDest(String dest, QB qb, Operator op)
       throws SemanticException {
     ASTNode lateralViewTree = qb.getParseInfo().getDestToLateralView().get(dest);
+    LOG.info("++++++++++++ lateralViewTree is null:" + (lateralViewTree == null));
     if (lateralViewTree != null) {
       return genLateralViewPlan(qb, op, lateralViewTree);
     }
@@ -10992,6 +11042,13 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     return genPlan(qb);
   }
 
+  void logOperator(Operator operator) {
+    LOG.info("++ > Operator name: "+ operator.getClass().getName());
+    if (!operator.getParentOperators().isEmpty()) {
+      logOperator((Operator) operator.getParentOperators().get(0));
+    }
+  }
+
   // 该方法是最核心的地方, 输入ast -> 输出mapreduce作业
   // 该方法在两个地方被调用, 如果是SemanticAnalyzer调用的该方法, 传入的是new PlannerContext, 如果是CalcitePlanner调用的该方法, 传入的是new PreCboCtx(), PreCboCtx是PlannerContext的子类
   void analyzeInternal(ASTNode ast, PlannerContext plannerCtx) throws SemanticException {
@@ -11008,6 +11065,8 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     // 生成Operator Tree, Operator是一个抽象类, sinkOp是一个有向无环图DAG, 如果是CalcitePlanner, 调用的是CalcitePlanner的genOPTree方法
     // 最终生成的是Logical plan
     Operator sinkOp = genOPTree(ast, plannerCtx);
+    // 打印
+    logOperator(sinkOp);
 
     LOG.info("^^^^^^^^^^^^^^ unparseTranslator.isEnabled():" + unparseTranslator.isEnabled() + ", tableMask.isEnabled():" + tableMask.isEnabled());
     // isEnabled默认是false, 如果设置了权限验证为SQLstdHiveAuthorizationValidator, 则isEnabled是false, 则不执行if中的逻辑, tableMask是在genResolvedParseTree中初始化的

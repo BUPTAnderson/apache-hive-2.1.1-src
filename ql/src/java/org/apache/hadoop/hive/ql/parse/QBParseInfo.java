@@ -109,6 +109,7 @@ public class QBParseInfo {
   // VALUE of SimpleEntry: rowcount
   // 设置查询的limit值,比如 < "insclause-0", <0, 10>> 即从0到10
   private final HashMap<String, SimpleEntry<Integer, Integer>> destToLimit;
+  // 设置limit值, 比如10
   private int outerQueryLimit;
 
   // used by GroupBy
