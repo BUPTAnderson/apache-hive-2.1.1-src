@@ -17,17 +17,8 @@
  */
 package org.apache.hadoop.hive.serde2;
 
-import java.sql.Date;
-import java.sql.Timestamp;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Properties;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.google.common.base.Splitter;
+import com.google.common.collect.Lists;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.common.type.HiveChar;
 import org.apache.hadoop.hive.common.type.HiveDecimal;
@@ -45,9 +36,17 @@ import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.apache.hadoop.hive.serde2.typeinfo.VarcharTypeInfo;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Splitter;
-import com.google.common.collect.Lists;
+import java.sql.Date;
+import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Properties;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * RegexSerDe uses regular expression (regex) to deserialize data. It doesn't
@@ -175,10 +174,12 @@ public class RegexSerDe extends AbstractSerDe {
   // Number of rows that match the regex but have missing groups.
   long partialMatchedRowsCount = 0;
 
+  // 反序列化, 读取一个Writable对象进行处理
   @Override
   public Object deserialize(Writable blob) throws SerDeException {
 
     Text rowText = (Text) blob;
+    // 获取用户设置的正则表达式, 对rowText进行处理
     Matcher m = inputPattern.matcher(rowText.toString());
 
     if (m.groupCount() != numColumns) {
@@ -280,6 +281,7 @@ public class RegexSerDe extends AbstractSerDe {
         row.set(c, null);
        }
      }
+     // 处理完之后, 返回一行处理后的数据
     return row;
   }
 

@@ -18,19 +18,7 @@
 
 package org.apache.hadoop.hive.ql.exec;
 
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Properties;
-import java.util.Set;
-import java.util.TreeMap;
-
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -64,7 +52,16 @@ import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.util.StringUtils;
 
-import com.google.common.annotations.VisibleForTesting;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Properties;
+import java.util.Set;
 
 /**
  * Map operator. This triggers overall map side processing. This is a little
@@ -124,7 +121,9 @@ public class MapOperator extends AbstractMapOperator {
       return vcsObjectInspector != null;
     }
 
+    // 从hadoop中读取一个Writable对象, 转化成一行数据, 返回的是一个Object对象, 方法参数中context是hadoop中的类
     private Object readRow(Writable value, ExecMapperContext context) throws SerDeException {
+      // 碰到map中的一个writable对象, 直接调用deserializer.deserialize进行反序列化
       Object deserialized = deserializer.deserialize(value);
       Object row = partTblObjectInspectorConverter.convert(deserialized);
       if (hasVC()) {

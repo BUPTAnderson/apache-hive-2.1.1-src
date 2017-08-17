@@ -285,9 +285,11 @@ public class LazySimpleSerDe extends AbstractEncodingAwareSerDe {
       return;
     }
 
+    // 根据要序列化的对象类型, 分别进行处理
     char separator;
     List<?> list;
     switch (objInspector.getCategory()) {
+    // 基本数据类型, 都是以文本的形式写到hdfs
     case PRIMITIVE:
       LazyUtils.writePrimitiveUTF8(out, obj,
           (PrimitiveObjectInspector) objInspector, escaped, escapeChar,

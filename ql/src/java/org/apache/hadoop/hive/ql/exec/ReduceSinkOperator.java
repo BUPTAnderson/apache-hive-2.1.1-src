@@ -18,17 +18,6 @@
 
 package org.apache.hadoop.hive.ql.exec;
 
-import static org.apache.hadoop.hive.ql.plan.ReduceSinkDesc.ReducerTraits.UNIFORM;
-
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Random;
-import java.util.concurrent.Future;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.CompilationOpContext;
@@ -59,8 +48,18 @@ import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapred.OutputCollector;
 import org.apache.hadoop.util.hash.MurmurHash;
 
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Random;
+
+import static org.apache.hadoop.hive.ql.plan.ReduceSinkDesc.ReducerTraits.UNIFORM;
+
 /**
  * Reduce Sink Operator sends output to the reduce stage.
+ * 用于连接map输出的数据到reduce之间的数据, map产生的数据通过ReduceSinkOperator发送给reduce, 即从map读, 往reduce中写
  **/
 public class ReduceSinkOperator extends TerminalOperator<ReduceSinkDesc>
     implements Serializable, TopNHash.BinaryCollector {
@@ -117,6 +116,7 @@ public class ReduceSinkOperator extends TerminalOperator<ReduceSinkDesc>
   // picks topN K:V pairs from input.
   protected transient TopNHash reducerHash;
   protected transient HiveKey keyWritable = new HiveKey();
+  // hdfs中的数据是<key, value>格式的, 所以分别定义了一个keyObjectInspector和valueObjectInspector来解析hive中的数据, 转化成hdfs中的<key, value>对
   protected transient ObjectInspector keyObjectInspector;
   protected transient ObjectInspector valueObjectInspector;
   protected transient Object[] cachedValues;
@@ -553,6 +553,7 @@ public class ReduceSinkOperator extends TerminalOperator<ReduceSinkDesc>
     }
   }
 
+  // 通过valueSerializer和valueObjectInspector解析hive中的一行数据, 转化成hdfs中的Writable对象, 最终输出到reduce
   private BytesWritable makeValueWritable(Object row) throws Exception {
     int length = valueEval.length;
 
@@ -561,7 +562,7 @@ public class ReduceSinkOperator extends TerminalOperator<ReduceSinkDesc>
       cachedValues[i] = valueEval[i].evaluate(row);
     }
 
-    // Serialize the value
+    // Serialize the value, 把一行数据序列化成了字节数组, 最终输出到reduce
     return (BytesWritable) valueSerializer.serialize(cachedValues, valueObjectInspector);
   }
 

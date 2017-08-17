@@ -18,18 +18,19 @@
 
 package org.apache.hadoop.hive.ql.plan;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.io.AcidUtils;
 import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.hadoop.hive.ql.plan.Explain.Level;
 
+import java.util.ArrayList;
+import java.util.List;
+
 
 /**
  * FileSinkDesc.
- *
+ * 描述FileSinkOperator的配置类
+ * 注意注解中的属性displayName, 就是explain中打印执行计划是输出的Operator名称
  */
 @Explain(displayName = "File Output Operator", explainLevels = { Level.USER, Level.DEFAULT, Level.EXTENDED })
 public class FileSinkDesc extends AbstractOperatorDesc {

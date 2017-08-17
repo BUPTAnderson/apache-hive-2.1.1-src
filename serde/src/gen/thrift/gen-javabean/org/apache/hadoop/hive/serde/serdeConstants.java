@@ -6,32 +6,8 @@
  */
 package org.apache.hadoop.hive.serde;
 
-import org.apache.thrift.scheme.IScheme;
-import org.apache.thrift.scheme.SchemeFactory;
-import org.apache.thrift.scheme.StandardScheme;
-
-import org.apache.thrift.scheme.TupleScheme;
-import org.apache.thrift.protocol.TTupleProtocol;
-import org.apache.thrift.protocol.TProtocolException;
-import org.apache.thrift.EncodingUtils;
-import org.apache.thrift.TException;
-import org.apache.thrift.async.AsyncMethodCallback;
-import org.apache.thrift.server.AbstractNonblockingServer.*;
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.HashMap;
-import java.util.EnumMap;
-import java.util.Set;
 import java.util.HashSet;
-import java.util.EnumSet;
-import java.util.Collections;
-import java.util.BitSet;
-import java.nio.ByteBuffer;
-import java.util.Arrays;
-import javax.annotation.Generated;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.Set;
 
 @SuppressWarnings({"cast", "rawtypes", "serial", "unchecked"})
 public class serdeConstants {
@@ -58,12 +34,15 @@ public class serdeConstants {
 
   public static final String SERIALIZATION_ENCODING = "serialization.encoding";
 
+  // 列分割符, 默认是'ctrl-A'(ASCII码值1), 可以在SERDEPROPERTIES中指定该参数的值为自己需要的分隔符
   public static final String FIELD_DELIM = "field.delim";
 
+  // 集合(数组)中不同元素之间的分隔符, 默认是'ctrl-B'(ASCII码值2)
   public static final String COLLECTION_DELIM = "colelction.delim";
 
   public static final String LINE_DELIM = "line.delim";
 
+  // map中key和value之间的分割符, 默认是'ctrl-C'(ASCII码值3)
   public static final String MAPKEY_DELIM = "mapkey.delim";
 
   public static final String QUOTE_CHAR = "quote.delim";

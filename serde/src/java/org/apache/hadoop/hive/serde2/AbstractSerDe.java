@@ -18,14 +18,14 @@
 
 package org.apache.hadoop.hive.serde2;
 
-import java.util.Map;
-import java.util.Properties;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.io.Writable;
 
 import javax.annotation.Nullable;
+
+import java.util.Map;
+import java.util.Properties;
 
 /**
  * Abstract class for implementing SerDe. The abstract class has been created, so that
@@ -81,6 +81,7 @@ public abstract class AbstractSerDe implements SerDe {
    * wants to keep a copy of the Writable, the client needs to clone the
    * returned value.
    */
+  // 写-序列化, 将输入的内容Object(实际为hive中一行数据)转换成Writable对象写入hdfs, objInspector解耦了数据使用和数据格式, 即解耦了hdfs中的数据和hive中的数据格式直接的关系
   public abstract Writable serialize(Object obj, ObjectInspector objInspector)
       throws SerDeException;
 
@@ -100,6 +101,7 @@ public abstract class AbstractSerDe implements SerDe {
    *          The Writable object containing a serialized object
    * @return A Java object representing the contents in the blob.
    */
+  // 读-反序列化, 从hdfs读取一个Writable对象, 解析成Object对象(实际为hive中一行数据)
   public abstract Object deserialize(Writable blob) throws SerDeException;
 
   /**
