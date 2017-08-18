@@ -18,13 +18,6 @@
 
 package org.apache.hadoop.hive.ql.exec;
 
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.CompilationOpContext;
@@ -42,6 +35,13 @@ import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Join operator implementation.
@@ -445,6 +445,7 @@ public abstract class CommonJoinOperator<T extends JoinDesc> extends
   }
 
   // entry point (aliasNum = 0)
+  // 执行join操作
   private void genJoinObject() throws HiveException {
     boolean rightFirst = true;
     boolean hasFilter = hasFilter(order[0]);
@@ -457,6 +458,7 @@ public abstract class CommonJoinOperator<T extends JoinDesc> extends
       skipVectors[0][0] = rightNull;
       intermediate[0] = rightObj;
 
+      // 实际调用genObject来执行join操作
       genObject(1, rightFirst, rightNull);
       rightFirst = false;
     }
@@ -483,6 +485,7 @@ public abstract class CommonJoinOperator<T extends JoinDesc> extends
       boolean tryLOForFO = type == JoinDesc.FULL_OUTER_JOIN;
 
       boolean rightFirst = true;
+      // iter内存的迭代器, 里面放了join左边的小表的数据, 处理逻辑就是, 来一条数据, 遍历一遍小表里面的数据做关联
       AbstractRowContainer.RowIterator<List<Object>> iter = aliasRes.rowIter();
       for (List<Object> rightObj = iter.first(); !done && rightObj != null;
            rightObj = loopAgain ? rightObj : iter.next(), rightFirst = loopAgain = false) {
@@ -494,6 +497,7 @@ public abstract class CommonJoinOperator<T extends JoinDesc> extends
         }
         skip[right] = rightNull;
 
+        // 根据不同的join类型进行不同的操作
         if (type == JoinDesc.INNER_JOIN) {
           innerJoin(skip, left, right);
         } else if (type == JoinDesc.LEFT_SEMI_JOIN) {

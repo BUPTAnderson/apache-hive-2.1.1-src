@@ -18,12 +18,12 @@
 
 package org.apache.hadoop.hive.ql.optimizer.physical;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * A hierarchy physical optimizer, which contains a list of
@@ -103,6 +103,7 @@ public class PhysicalOptimizer {
    * @throws HiveException
    */
   public PhysicalContext optimize() throws SemanticException {
+    // 各种PhysicalPlanResolver, 比如:SkewJoinResolver
     for (PhysicalPlanResolver r : resolvers) {
       pctx = r.resolve(pctx);
     }

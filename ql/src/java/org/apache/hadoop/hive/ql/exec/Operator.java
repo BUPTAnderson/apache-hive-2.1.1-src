@@ -569,13 +569,16 @@ public abstract class Operator<T extends OperatorDesc> implements Serializable,C
 
   /**
    * Process the row.
+   * 处理一行数据
    *
    * @param row
    *          The object representing the row.
+   *          row代表一行数据
    * @param tag
    *          The tag of the row usually means which parent this row comes from.
    *          Rows with the same tag should have exactly the same rowInspector
    *          all the time.
+   *          表名对应的整数
    */
   public abstract void process(Object row, int tag) throws HiveException;
 

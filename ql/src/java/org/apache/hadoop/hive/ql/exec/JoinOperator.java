@@ -18,13 +18,6 @@
 
 package org.apache.hadoop.hive.ql.exec;
 
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.Collection;
-import java.util.List;
-import java.util.concurrent.Future;
-
-import org.slf4j.Logger;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -37,6 +30,11 @@ import org.apache.hadoop.hive.serde2.SerDeUtils;
 import org.apache.hadoop.hive.serde2.objectinspector.StructField;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.io.LongWritable;
+import org.slf4j.Logger;
+
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.List;
 
 /**
  * Join operator implementation.
@@ -76,6 +74,18 @@ public class JoinOperator extends CommonJoinOperator<JoinDesc> implements Serial
     statsMap.put(SkewkeyTableCounter.SKEWJOINFOLLOWUPJOBS.toString(), skewjoin_followup_jobs);
   }
 
+  /**
+   *
+   * @param row
+   *          The object representing the row.
+   *          row代表一行数据
+   * @param tag
+   *          The tag of the row usually means which parent this row comes from.
+   *          Rows with the same tag should have exactly the same rowInspector
+   *          all the time.
+   *          tag代表当前表的编号, 从左到右是0,1,2 如: a join b join c join d, a就是0, b就是1, c就是2, d就是3, shuffle保证了这里是排好序的
+   * @throws HiveException
+   */
   @Override
   public void process(Object row, int tag) throws HiveException {
     try {
@@ -101,6 +111,7 @@ public class JoinOperator extends CommonJoinOperator<JoinDesc> implements Serial
           .toString());
       List keyObject = (List) soi.getStructFieldData(row, sf);
       // Are we consuming too much memory
+      // 当alias == numAliases - 1时, 即alias是最右边的最后一张表, 才会进行join操作
       if (alias == numAliases - 1 && !(handleSkewJoin && skewJoinKeyContext.currBigKeyTag >= 0) &&
           !hasLeftSemiJoin) {
         if (sz == joinEmitInterval && !hasFilter(alias)) {
@@ -110,6 +121,7 @@ public class JoinOperator extends CommonJoinOperator<JoinDesc> implements Serial
           // Note this has to be done before adding the current row to the
           // storage,
           // to preserve the correctness for outer joins.
+          // checkAndGenObject方法开始处理join
           checkAndGenObject();
           storage[alias].clearRows();
         }
@@ -119,6 +131,7 @@ public class JoinOperator extends CommonJoinOperator<JoinDesc> implements Serial
           // We won't print a message for the last join operand since the size
           // will never goes to joinEmitInterval.
           LOG.info("table " + alias + " has " + sz + " rows for join key " + keyObject);
+          // 不是最后一张表, 即前面的表, join左边的表读进内存(如果内存放不下则放到硬盘), 由此可知, join左边应该是小表
           nextSz = getNextSize(nextSz);
         }
       }
@@ -131,6 +144,7 @@ public class JoinOperator extends CommonJoinOperator<JoinDesc> implements Serial
         endGroup();
         startGroup();
       }
+      // 存储一行数据(如果内存放不下则放到硬盘)
       storage[alias].addRow(nr);
     } catch (Exception e) {
       e.printStackTrace();

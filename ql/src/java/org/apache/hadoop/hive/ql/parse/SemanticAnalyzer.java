@@ -6370,6 +6370,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     }
 
     // ////// Generate GroupbyOperator for a map-side partial aggregation
+    // 在map端生成groupby Operator做预聚合操作
     Map<String, GenericUDAFEvaluator> genericUDAFEvaluators =
         new LinkedHashMap<String, GenericUDAFEvaluator>();
     GroupByOperator groupByOperatorInfo =
@@ -6386,6 +6387,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       List<ASTNode> distinctFuncExprs = parseInfo.getDistinctFuncExprsForClause(dest);
 
       // ////// Generate ReduceSink Operator
+      // 当hive.groupby.skewindata开关打开的时候, 第一步生成一个ReduceSink Operator
       Operator reduceSinkOperatorInfo =
           genGroupByPlanReduceSinkOperator(qb,
               dest,
@@ -6398,6 +6400,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
               groupingSetsPresent);
 
       // ////// Generate GroupbyOperator for a partial aggregation
+      // 第二步, 生成一个GroupbyOperator
       Operator groupByOperatorInfo2 = genGroupByPlanGroupByOperator1(parseInfo,
           dest, reduceSinkOperatorInfo, GroupByDesc.Mode.PARTIALS,
           genericUDAFEvaluators,
@@ -6409,11 +6412,13 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       }
 
       // ////// Generate ReduceSinkOperator2
+      // 第三步, 再生成一个ReduceSinkOperator
       Operator reduceSinkOperatorInfo2 = genGroupByPlanReduceSinkOperator2MR(
           parseInfo, dest, groupByOperatorInfo2, grpByExprs.size(), numReducers,
           groupingSetsPresent);
 
       // ////// Generate GroupbyOperator3
+      // 第四步, 再生成一个GroupbyOperator
       return genGroupByPlanGroupByOperator2MR(parseInfo, dest,
           reduceSinkOperatorInfo2, GroupByDesc.Mode.FINAL,
           genericUDAFEvaluators, groupingSetsPresent);
@@ -9516,15 +9521,21 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
                   qbp.setSelExprForClause(dest, SemanticAnalyzer.genSelectDIAST(rr));
                 }
               }
+              // 在group by操作中是否启用map端的聚合操作, 默认为true, 预聚合在map端多了一个group by操作, 用于减少到输出到reduce的数据, 类似于map reduce的combine操作
               if (conf.getBoolVar(HiveConf.ConfVars.HIVEMAPSIDEAGGREGATE)) {
+                // 如果查询中存在数据倾斜问题, 是否启用优化, 即倾斜为两道作业, 默认是false
                 if (!conf.getBoolVar(HiveConf.ConfVars.HIVEGROUPBYSKEW)) {
+                  // 预聚合, 不倾斜
                   curr = genGroupByPlanMapAggrNoSkew(dest, qb, curr);
                 } else {
+                  // 预聚合, 倾斜两道作业
                   curr = genGroupByPlanMapAggr2MR(dest, qb, curr);
                 }
               } else if (conf.getBoolVar(HiveConf.ConfVars.HIVEGROUPBYSKEW)) {
+                // 不预聚合, 倾斜两道作业
                 curr = genGroupByPlan2MR(dest, qb, curr);
               } else {
+                // 不预聚合, 不倾斜, 一道作业最原始
                 curr = genGroupByPlan1MR(dest, qb, curr);
               }
             }
@@ -9538,6 +9549,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
             curr = genPostGroupByBodyPlan(curr, dest, qb, aliasToOpInfo, gbySource);
           }
         } else {
+          // multi group by多个group by
           curr = genGroupByPlan1ReduceMultiGBY(commonGroupByDestGroup, qb, input, aliasToOpInfo);
         }
       }
@@ -10467,7 +10479,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       srcOpInfo = lastPTFOp != null ? lastPTFOp : srcOpInfo;
     }
 
-    // 调用genBodyPlan, 实际返回的是一个Operator DAG
+    // 调用genBodyPlan, 实际返回的是一个Operator DAG, group by也是在该方法中进行处理的
     Operator bodyOpInfo = genBodyPlan(qb, srcOpInfo, aliasToOpInfo);
 
     if (LOG.isDebugEnabled()) {
@@ -11042,10 +11054,17 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     return genPlan(qb);
   }
 
-  void logOperator(Operator operator) {
-    LOG.info("++ > Operator name: "+ operator.getClass().getName());
+  void logOperator(Operator operator, String prefix) {
+    LOG.info("++ > Operator name: "+ prefix + operator.getClass().getName());
     if (!operator.getParentOperators().isEmpty()) {
-      logOperator((Operator) operator.getParentOperators().get(0));
+      List<Operator> list = operator.getParentOperators();
+      if (list.size() > 1) {
+        for (int i = 0; i < list.size(); i++) {
+          logOperator(list.get(i), prefix+ "[" + i + "]");
+        }
+      } else {
+        logOperator((Operator) operator.getParentOperators().get(0), prefix + "[]");
+      }
     }
   }
 
@@ -11066,7 +11085,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     // 最终生成的是Logical plan
     Operator sinkOp = genOPTree(ast, plannerCtx);
     // 打印
-    logOperator(sinkOp);
+    logOperator(sinkOp, "");
 
     LOG.info("^^^^^^^^^^^^^^ unparseTranslator.isEnabled():" + unparseTranslator.isEnabled() + ", tableMask.isEnabled():" + tableMask.isEnabled());
     // isEnabled默认是false, 如果设置了权限验证为SQLstdHiveAuthorizationValidator, 则isEnabled是false, 则不执行if中的逻辑, tableMask是在genResolvedParseTree中初始化的
@@ -11183,7 +11202,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
 
     // 8. Generate column access stats if required - wait until column pruning
     // takes place during optimization
-    // hive.security.authorization.enabled一般设置为true, 是MODeV2
+    // hive.security.authorization.enabled一般设置为true, 是ModeV2
     boolean isColumnInfoNeedForAuth = SessionState.get().isAuthorizationModeV2()
         && HiveConf.getBoolVar(conf, HiveConf.ConfVars.HIVE_AUTHORIZATION_ENABLED);
     // hive.stats.collect.scancols默认值是false
@@ -11201,6 +11220,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     if (!ctx.getExplainLogical()) {
       TaskCompiler compiler = TaskCompilerFactory.getCompiler(conf, pCtx);
       compiler.init(queryState, console, db);
+      // compile执行逻辑里面包括执行generateTaskTree方法(生成物理执行计划, 填充到rootTasks中)和optimizeTaskPlan方法(物理执行计划优化, 对rootTasks进行优化)
       compiler.compile(pCtx, rootTasks, inputs, outputs);
       fetchTask = pCtx.getFetchTask();
     }

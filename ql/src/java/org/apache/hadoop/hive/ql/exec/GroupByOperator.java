@@ -18,21 +18,7 @@
 
 package org.apache.hadoop.hive.ql.exec;
 
-import java.lang.management.ManagementFactory;
-import java.lang.management.MemoryMXBean;
-import java.lang.reflect.Field;
-import java.sql.Timestamp;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
 import javolution.util.FastBitSet;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.CompilationOpContext;
@@ -65,6 +51,19 @@ import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.Text;
+
+import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryMXBean;
+import java.lang.reflect.Field;
+import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * GroupBy operator implementation.
@@ -695,6 +694,7 @@ public class GroupByOperator extends Operator<GroupByDesc> {
 
   private void processKey(Object row,
       ObjectInspector rowInspector) throws HiveException {
+    // 根据hashAggr的值分别进行聚合processAggr或者是hash聚合processHashAggr
     if (hashAggr) {
       newKeys.setHashKey();
       processHashAggr(row, rowInspector, newKeys);
@@ -709,6 +709,7 @@ public class GroupByOperator extends Operator<GroupByDesc> {
     }
   }
 
+  // 处理数据, 做聚合操作
   @Override
   public void process(Object row, int tag) throws HiveException {
     firstRow = false;
@@ -762,9 +763,11 @@ public class GroupByOperator extends Operator<GroupByDesc> {
           }
 
           newKeysArray[groupingSetsPosition] = newKeysGroupingSets[groupingSetPos];
+          // 调用processKey
           processKey(row, rowInspector);
         }
       } else {
+        // 调用processKey方法
         processKey(row, rowInspector);
       }
     } catch (HiveException e) {

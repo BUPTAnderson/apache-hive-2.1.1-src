@@ -17,13 +17,13 @@
  */
 package org.apache.hadoop.hive.ql.optimizer.physical;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.apache.hadoop.hive.ql.lib.Dispatcher;
 import org.apache.hadoop.hive.ql.lib.Node;
 import org.apache.hadoop.hive.ql.lib.TaskGraphWalker;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /*
  * Convert tasks involving JOIN into MAPJOIN.
@@ -63,7 +63,7 @@ import org.apache.hadoop.hive.ql.parse.SemanticException;
  * optimization, the join task would be converted to map-only tasks. After HIVE-3952, the map-only
  * task would be merged with the map-reduce task to create a single map-reduce task.
  */
-public class CommonJoinResolver implements PhysicalPlanResolver {
+public class CommonJoinResolver implements PhysicalPlanResolver { // 物理优化器
   @Override
   public PhysicalContext resolve(PhysicalContext pctx) throws SemanticException {
 

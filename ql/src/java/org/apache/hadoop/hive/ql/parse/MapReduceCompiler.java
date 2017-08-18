@@ -18,17 +18,6 @@
 
 package org.apache.hadoop.hive.ql.parse;
 
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.hadoop.fs.ContentSummary;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
@@ -71,6 +60,17 @@ import org.apache.hadoop.hive.ql.plan.MapredWork;
 import org.apache.hadoop.hive.ql.plan.MoveWork;
 import org.apache.hadoop.hive.ql.plan.OperatorDesc;
 import org.apache.hadoop.hive.shims.ShimLoader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public class MapReduceCompiler extends TaskCompiler {
 
@@ -268,6 +268,7 @@ public class MapReduceCompiler extends TaskCompiler {
         getParseContext(pCtx, rootTasks), ctx, rootTasks, pCtx.getFetchTask());
     PhysicalOptimizer physicalOptimizer = new PhysicalOptimizer(
         physicalContext, conf);
+    // 调用各个PhysicalPlanResolver进行物理优化
     physicalOptimizer.optimize();
 
   }

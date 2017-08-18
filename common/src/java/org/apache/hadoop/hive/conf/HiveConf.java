@@ -1163,7 +1163,7 @@ public class HiveConf extends Configuration {
 
     HIVEHADOOPMAXMEM("hive.mapred.local.mem", 0, "mapper/reducer memory in local mode"),
 
-    //small table file size
+    //small table file size, 默认值是25000000L, 单位是字节, 也就是25MB
     HIVESMALLTABLESFILESIZE("hive.mapjoin.smalltable.filesize", 25000000L,
         "The threshold for the input file size of the small tables; if the file size is smaller \n" +
         "than this threshold, it will try to convert the common join into map join"),
@@ -1333,6 +1333,7 @@ public class HiveConf extends Configuration {
         "The default is false, which means only 'TRUE' and 'FALSE' are treated as legal\n" +
         "boolean literal."),
 
+    // 遇到数据倾斜时, 打开此开关
     HIVESKEWJOIN("hive.optimize.skewjoin", false,
         "Whether to enable skew join optimization. \n" +
         "The algorithm is as follows: At runtime, detect the keys with a large skew. Instead of\n" +
@@ -1343,6 +1344,7 @@ public class HiveConf extends Configuration {
     HIVEDYNAMICPARTITIONHASHJOIN("hive.optimize.dynamic.partition.hashjoin", false,
         "Whether to enable dynamically partitioned hash join optimization. \n" +
         "This setting is also dependent on enabling hive.auto.convert.join"),
+    // 字动将common join转化为mapjoin
     HIVECONVERTJOIN("hive.auto.convert.join", true,
         "Whether Hive enables the optimization about converting common join into mapjoin based on the input file size"),
     HIVECONVERTJOINNOCONDITIONALTASK("hive.auto.convert.join.noconditionaltask", true,
@@ -1359,6 +1361,7 @@ public class HiveConf extends Configuration {
         "For conditional joins, if input stream from a small alias can be directly applied to join operator without \n" +
         "filtering or projection, the alias need not to be pre-staged in distributed cache via mapred local task.\n" +
         "Currently, this is not working with vectorization or tez execution engine."),
+    // 默认值是100000条, 超过这个数值,认为该键倾斜, 将把该键的值单独拷贝出来进行处理
     HIVESKEWJOINKEY("hive.skewjoin.key", 100000,
         "Determine if we get a skew key in join. If we see more than the specified number of rows with the same key in join operator,\n" +
         "we think the key as a skew join key. "),

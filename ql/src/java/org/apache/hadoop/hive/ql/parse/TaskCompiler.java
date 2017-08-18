@@ -264,6 +264,7 @@ public abstract class TaskCompiler {
       }
     }
 
+    // 物理执行计划生成
     generateTaskTree(rootTasks, pCtx, mvTask, inputs, outputs);
 
     // For each task, set the key descriptor for the reducer
@@ -277,6 +278,7 @@ public abstract class TaskCompiler {
       setInputFormat(rootTask);
     }
 
+    // 物理执行计划优化
     optimizeTaskPlan(rootTasks, pCtx, ctx);
 
     /*
