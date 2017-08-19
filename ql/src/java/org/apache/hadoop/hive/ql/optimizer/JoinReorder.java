@@ -18,11 +18,6 @@
 
 package org.apache.hadoop.hive.ql.optimizer;
 
-import java.util.HashSet;
-import java.util.IdentityHashMap;
-import java.util.Map;
-import java.util.Set;
-
 import org.apache.hadoop.hive.ql.exec.JoinOperator;
 import org.apache.hadoop.hive.ql.exec.Operator;
 import org.apache.hadoop.hive.ql.exec.ReduceSinkOperator;
@@ -30,6 +25,11 @@ import org.apache.hadoop.hive.ql.exec.TableScanOperator;
 import org.apache.hadoop.hive.ql.parse.ParseContext;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.plan.OperatorDesc;
+
+import java.util.HashSet;
+import java.util.IdentityHashMap;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Implementation of rule-based join table reordering optimization. User passes
@@ -128,6 +128,7 @@ public class JoinReorder extends Transform {
   /**
    * Reorder the tables in a join operator appropriately (by reordering the tags
    * of the reduces sinks).
+   * 主要逻辑就是看大表是不是放在了左边, 如果是则改写, 将小表放在左边, 大表放在右边
    *
    * @param joinOp
    *          The join operator to be processed
@@ -158,6 +159,7 @@ public class JoinReorder extends Transform {
       tagOrder[count - 1] = temp;
 
       // Update tags of reduce sinks
+      // 更新表的位置, 通过setTag, 因为tag表示了表的位置
       ((ReduceSinkOperator) joinOp.getParentOperators().get(biggestPos))
           .getConf().setTag(count - 1);
       ((ReduceSinkOperator) joinOp.getParentOperators().get(count - 1))
@@ -179,6 +181,7 @@ public class JoinReorder extends Transform {
     cache.clear();
 
     for (JoinOperator joinOp : pactx.getJoinOps()) {
+      // 执行reorder方法
       reorder(joinOp, bigTables);
     }
 

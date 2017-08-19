@@ -266,6 +266,7 @@ public class MapReduceCompiler extends TaskCompiler {
 
     PhysicalContext physicalContext = new PhysicalContext(conf,
         getParseContext(pCtx, rootTasks), ctx, rootTasks, pCtx.getFetchTask());
+    // 创建物理优化器, 实际的优化器在PhysicalOptimizer内部创建
     PhysicalOptimizer physicalOptimizer = new PhysicalOptimizer(
         physicalContext, conf);
     // 调用各个PhysicalPlanResolver进行物理优化
@@ -290,6 +291,7 @@ public class MapReduceCompiler extends TaskCompiler {
     // create a walker which walks the tree in a DFS manner while maintaining
     // the operator stack.
     // The dispatcher generates the plan from the operator tree
+    // 定义一系列规则
     Map<Rule, NodeProcessor> opRules = new LinkedHashMap<Rule, NodeProcessor>();
     opRules.put(new RuleRegExp(new String("R1"),
         TableScanOperator.getOperatorName() + "%"),
@@ -321,6 +323,7 @@ public class MapReduceCompiler extends TaskCompiler {
     GraphWalker ogw = new GenMapRedWalker(disp);
     ArrayList<Node> topNodes = new ArrayList<Node>();
     topNodes.addAll(pCtx.getTopOps().values());
+    // 进行深度优先遍历, 如果路径满足给定的某个规则, 则对逻辑执行计划图进行切分或改写. 参考GenMapRedUtils的splitPlan(ReduceSinkOperator cRS, GenMRProcContext opProcCtx)
     ogw.startWalking(topNodes, null);
   }
 }

@@ -11123,7 +11123,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       }
     }
 
-    // 4. Generate Parse Context for Optimizer & Physical compiler
+    // 4. Generate Parse Context for Optimizer & Physical compiler, 重点关注ParseContext中包含Operator的各个属性, 比如topOps, joinOps等, 在逻辑优化的时候会取出这些属性进行优化
     copyInfoToQueryProperties(queryProperties);
     ParseContext pCtx = new ParseContext(queryState, opToPartPruner, opToPartList, topOps,
         new HashSet<JoinOperator>(joinContext.keySet()),
@@ -11182,17 +11182,18 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       // TS[0]-SEL[1]-LIM[2]-FS[3]
       LOG.debug("Before logical optimization\n" + Operator.toString(pCtx.getTopOps().values()));
     }
-    // optm实际是一个逻辑优化器, Logical Optimizer, 对有向无环图做逻辑优化
+    // optm实际是一个逻辑优化器, Logical Optimizer, 对有向无环图做逻辑优化, 但是实际上Optimizer并不是优化器, 它只不过是在内部调用了各种优化器来进行优化而已
     Optimizer optm = new Optimizer();
     optm.setPctx(pCtx);
     // 调用initialize方法, 实际是为Optimizer添加各种优化器
     optm.initialize(conf);
-    // 执行optimize方法
+    // 执行optimize方法, 对逻辑执行计划进行优化, FetchTask在逻辑优化最后一步生成
     pCtx = optm.optimize();
     if (pCtx.getColumnAccessInfo() != null) {
       // set ColumnAccessInfo for view column authorization
       setColumnAccessInfo(pCtx.getColumnAccessInfo());
     }
+    // FetchTask的生成是物理执行计划的开始
     FetchTask origFetchTask = pCtx.getFetchTask();
     if (LOG.isDebugEnabled()) {
       // 打印日志, 比如: parse.CalcitePlanner: After logical optimization
@@ -11216,11 +11217,16 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
 
     // 9. Optimize Physical op tree & Translate to target execution engine (MR,
     // TEZ..)
+    // 优化物理图并转换成目标执行引擎的task(Explain不会执行该操作)
     LOG.info("++++++ getExplainLogical:" + ctx.getExplainLogical());
     if (!ctx.getExplainLogical()) {
-      TaskCompiler compiler = TaskCompilerFactory.getCompiler(conf, pCtx);
+      // 通过工厂类获取对应的执行引擎的编译器: TezCompiler, SparkCompiler, MapReduceCompiler
+      TaskCompiler compiler = TaskCompilerFactory.getCompiler(conf, pCtx);  // MR, Spark还是Tez
+      // 初始化compiler
       compiler.init(queryState, console, db);
       // compile执行逻辑里面包括执行generateTaskTree方法(生成物理执行计划, 填充到rootTasks中)和optimizeTaskPlan方法(物理执行计划优化, 对rootTasks进行优化)
+      // 不同的引擎生成不同的物理执行计划
+      // rootTask就是物理执行计划的有向无环图的第一个节点的指针
       compiler.compile(pCtx, rootTasks, inputs, outputs);
       fetchTask = pCtx.getFetchTask();
     }

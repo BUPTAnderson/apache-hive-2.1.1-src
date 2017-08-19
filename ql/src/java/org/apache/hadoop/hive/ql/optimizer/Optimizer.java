@@ -56,7 +56,7 @@ public class Optimizer {
 
   /**
    * Create the list of transformations.
-   *
+   * 根据用户的配置, 创建一系列的Transform, Transform实际才是优化器
    * @param hiveConf
    */
   public void initialize(HiveConf hiveConf) {
@@ -196,6 +196,8 @@ public class Optimizer {
     // UnionProcessor: 识别UNION两边的子查询是否都是Map-Only的
     transformations.add(new UnionProcessor());
 
+    // hive.reorder.nway.joins, 默认该开关打开, 则进行join的时候,小表可以放在右边, 该JoinReorder优化器会进行优化, 如果小表放在右边, 将小表移动到左边
+    // 注意只能变表, 不能变子查询, 因为在逻辑优化时是不知道子查询的大小的, 所以是没法进行大表和小表的判断的
     if (HiveConf.getBoolVar(hiveConf, HiveConf.ConfVars.NWAYJOINREORDER)) {
       transformations.add(new JoinReorder());
     }
@@ -239,6 +241,7 @@ public class Optimizer {
     }
 
     if (!HiveConf.getVar(hiveConf, HiveConf.ConfVars.HIVEFETCHTASKCONVERSION).equals("none")) {
+      // SimpleFetchOptimizer是最后一个优化器
       transformations.add(new SimpleFetchOptimizer()); // must be called last
     }
 
@@ -249,19 +252,19 @@ public class Optimizer {
 
   /**
    * Invoke all the transformations one-by-one, and alter the query plan.
-   *
+   * 一条规则一条规则的进行优化, 每一个优化器Transform都会对逻辑执行计划进行深度优先遍历, 如果发现符合该优化器的优化规则则进行优化(即改写逻辑执行计划)
    * @return ParseContext
    * @throws SemanticException
    */
   public ParseContext optimize() throws SemanticException {
     for (Transform t : transformations) {
-      // 打印日志信息, t有很多, 按日志打印顺序有:HiveOpConverterPostProc, PartitionColumnsSeparator, SyntheticJoinPredicate, SimplePredicatePushDown
+      // 打印日志信息, Transform有很多, 实际Transform才是优化器, 按日志打印顺序有:HiveOpConverterPostProc, PartitionColumnsSeparator, SyntheticJoinPredicate, SimplePredicatePushDown
       // RedundantDynamicPruningConditionsRemoval, PartitionPruner, PartitionConditionRemover, GroupByOptimizer,ColumnPruner
       // SamplePruner, MapJoinProcessor, BucketingSortingReduceSinkOptimizer, UnionProcessor, JoinReorder, ReduceSinkDeDuplication
       // NonBlockingOpDeDupProc, IdentityProjectRemover, LimitPushdownOptimizer, SimpleFetchOptimizer
-      // 重点关注SimplePredicatePushDown和SimpleFetchOptimizer
+      // 重点关注SimplePredicatePushDown(谓词下推优化器), ReduceSinkDeDuplication(Reduce去重), JoinReorder
       t.beginPerfLogging();
-      // 查看SimpleFetchOptimizer的transform方法, 分别调用各种优化器的transform方法来对pctx进行处理
+      // 分别调用各种优化器的transform方法来对pctx进行处理, SimpleFetchOptimizer是最后一个优化器
       pctx = t.transform(pctx);
       t.endPerfLogging(t.toString());
     }

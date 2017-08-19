@@ -18,11 +18,6 @@
 
 package org.apache.hadoop.hive.ql.exec;
 
-import java.io.Serializable;
-import java.util.Arrays;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.CompilationOpContext;
@@ -35,6 +30,11 @@ import org.apache.hadoop.hive.serde2.objectinspector.StructField;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.Serializable;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * UDTFOperator.
@@ -113,6 +113,7 @@ public class UDTFOperator extends Operator<UDTFDesc> implements Serializable {
       objToSendToUDTF[i] = soi.getStructFieldData(row, fields.get(i));
     }
 
+    // 最终调用genericUDTF的process方法进行处理
     genericUDTF.process(objToSendToUDTF);
     if (conf.isOuterLV() && collector.getCounter() == 0) {
       collector.collect(outerObj);

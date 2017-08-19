@@ -264,7 +264,7 @@ public abstract class TaskCompiler {
       }
     }
 
-    // 物理执行计划生成
+    // 物理执行计划生成, 该抽象方法对应三种引擎的实现
     generateTaskTree(rootTasks, pCtx, mvTask, inputs, outputs);
 
     // For each task, set the key descriptor for the reducer
@@ -278,7 +278,7 @@ public abstract class TaskCompiler {
       setInputFormat(rootTask);
     }
 
-    // 物理执行计划优化
+    // 物理执行计划优化, 该抽象方法对应三种引擎的实现
     optimizeTaskPlan(rootTasks, pCtx, ctx);
 
     /*

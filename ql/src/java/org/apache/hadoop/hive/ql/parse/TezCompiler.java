@@ -17,21 +17,6 @@
  */
 package org.apache.hadoop.hive.ql.parse;
 
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Deque;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.Stack;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
 import org.apache.hadoop.hive.ql.Context;
@@ -90,6 +75,21 @@ import org.apache.hadoop.hive.ql.plan.OperatorDesc;
 import org.apache.hadoop.hive.ql.plan.TezWork;
 import org.apache.hadoop.hive.ql.session.SessionState;
 import org.apache.hadoop.hive.ql.session.SessionState.LogHelper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.Stack;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * TezCompiler translates the operator plan into TezTasks.
@@ -341,7 +341,9 @@ public class TezCompiler extends TaskCompiler {
     // create a walker which walks the tree in a DFS manner while maintaining
     // the operator stack.
     // The dispatcher generates the plan from the operator tree
+    // 定义各种规则,
     Map<Rule, NodeProcessor> opRules = new LinkedHashMap<Rule, NodeProcessor>();
+    // 遇到ReduceSink, 执行genTezWork
     opRules.put(new RuleRegExp("Split Work - ReduceSink",
         ReduceSinkOperator.getOperatorName() + "%"),
         genTezWork);
@@ -368,6 +370,7 @@ public class TezCompiler extends TaskCompiler {
         UnionOperator.getOperatorName() + "%"),
         new UnionProcessor());
 
+    // 遇到AppMasterEventOperator, 则执行AppMasterEventProcessor, AppMasterEventOperator实在第一步优化genTezWork中插入的
     opRules.put(new RuleRegExp("AppMasterEventOperator",
         AppMasterEventOperator.getOperatorName() + "%"),
         new AppMasterEventProcessor());

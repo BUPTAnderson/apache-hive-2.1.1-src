@@ -20,7 +20,6 @@ package org.apache.hadoop.hive.ql.udf.generic;
 
 import org.apache.hadoop.hive.ql.exec.ExprNodeEvaluator;
 import org.apache.hadoop.hive.ql.exec.PTFPartition.PTFPartitionIterator;
-import org.apache.hadoop.hive.ql.exec.PTFUtils;
 import org.apache.hadoop.hive.ql.exec.UDFArgumentException;
 import org.apache.hadoop.hive.ql.exec.UDFArgumentTypeException;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
@@ -35,6 +34,7 @@ import org.apache.hadoop.io.IntWritable;
 
 public abstract class GenericUDFLeadLag extends GenericUDF {
   transient ExprNodeEvaluator exprEvaluator;
+  // pItr可以看作是一个窗口指针
   transient PTFPartitionIterator<Object> pItr;
   transient ObjectInspector firstArgOI;
   transient ObjectInspector defaultArgOI;

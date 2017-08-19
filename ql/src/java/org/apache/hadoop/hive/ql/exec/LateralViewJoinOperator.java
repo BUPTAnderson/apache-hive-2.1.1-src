@@ -18,9 +18,6 @@
 
 package org.apache.hadoop.hive.ql.exec;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.ql.CompilationOpContext;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
@@ -30,6 +27,9 @@ import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorFactory;
 import org.apache.hadoop.hive.serde2.objectinspector.StructField;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * The lateral view join operator is used for FROM src LATERAL VIEW udtf()...
@@ -41,7 +41,7 @@ import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
  * adid
  *
  * The top of the operator DAG will look similar to
- *
+ * 逻辑执行计划:
  *            [Table Scan]
  *                |
  *       [Lateral View Forward]

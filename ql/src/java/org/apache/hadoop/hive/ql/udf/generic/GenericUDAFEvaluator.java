@@ -18,17 +18,17 @@
 
 package org.apache.hadoop.hive.ql.udf.generic;
 
-import java.io.Closeable;
-import java.io.IOException;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-
 import org.apache.hadoop.hive.ql.exec.MapredContext;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.plan.ptf.WindowFrameDef;
 import org.apache.hadoop.hive.ql.udf.UDFType;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hive.common.util.AnnotationUtils;
+
+import java.io.Closeable;
+import java.io.IOException;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 
 /**
  * A Generic User-defined aggregation function (GenericUDAF) for the use with
@@ -41,6 +41,7 @@ import org.apache.hive.common.util.AnnotationUtils;
  * variable length of arguments. 3. It can accept an infinite number of function
  * signature - for example, it's easy to write a GenericUDAF that accepts
  * array<int>, array<array<int>> and so on (arbitrary levels of nesting).
+ * 通用的UDAF类的父类
  */
 @UDFType(deterministic = true)
 public abstract class GenericUDAFEvaluator implements Closeable {
@@ -61,7 +62,7 @@ public abstract class GenericUDAFEvaluator implements Closeable {
 
   /**
    * Mode.
-   *
+   * 模式
    */
   public static enum Mode {
     /**

@@ -59,6 +59,7 @@ public class SimplePredicatePushDown extends Transform {
     OpWalkerInfo opWalkerInfo = new OpWalkerInfo(pGraphContext);
 
     Map<Rule, NodeProcessor> opRules = new LinkedHashMap<Rule, NodeProcessor>();
+    // 定义规则"R1", 如果碰到FilterOperator, 则执行OpProcFactory.getFilterSyntheticJoinPredicateProc()返回的SimpleFilterPPD(NodeProcessor)的process方法
     opRules.put(new RuleRegExp("R1",
       FilterOperator.getOperatorName() + "%"),
       OpProcFactory.getFilterSyntheticJoinPredicateProc());
@@ -94,13 +95,14 @@ public class SimplePredicatePushDown extends Transform {
     // rule and passes the context along
     Dispatcher disp = new DefaultRuleDispatcher(OpProcFactory.getDefaultProc(),
         opRules, opWalkerInfo);
+    // ogw就是一个图的遍历器, 对DAG(逻辑执行计划图)进行深度优先遍历
     GraphWalker ogw = new DefaultGraphWalker(disp);
 
     // Create a list of topop nodes
     ArrayList<Node> topNodes = new ArrayList<Node>();
     topNodes.addAll(pGraphContext.getTopOps().values());
     // 会调用opRules的各个NodeProcessor的process方法根据对应的Rule对topNodes进行处理, NodeProcessor有很多,
-    // 比如SimpleFilterPPD, limit对应的ScriptPPD
+    // 比如SimpleFilterPPD, limit对应的ScriptPPD, startWalking方法就是深度优先遍历
     ogw.startWalking(topNodes, null);
 
     if (LOG.isDebugEnabled()) {

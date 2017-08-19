@@ -1210,6 +1210,7 @@ public class Driver implements CommandProcessor {
 
   public CommandProcessorResponse run()
       throws CommandNeedRetryException {
+    // 继续调用
     return run(null, true);
   }
 
@@ -1807,6 +1808,7 @@ public class Driver implements CommandProcessor {
         // Launch upto maxthreads tasks
         Task<? extends Serializable> task;
         while ((task = driverCxt.getRunnable(maxthreads)) != null) {
+          // 调用launchTask方法
           TaskRunner runner = launchTask(task, queryId, noName, jobname, jobs, driverCxt);
           if (!runner.isRunning()) {
             break;
@@ -2092,6 +2094,7 @@ public class Driver implements CommandProcessor {
   /**
    * Launches a new task
    *
+   * 把Task的有向无环图输入进来, 通过一种遍历方式去执行它
    * @param tsk
    *          task being launched
    * @param queryId

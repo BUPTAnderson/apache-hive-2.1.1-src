@@ -18,16 +18,6 @@
 
 package org.apache.hadoop.hive.ql.optimizer.correlation;
 
-import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.HIVECONVERTJOIN;
-import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.HIVECONVERTJOINNOCONDITIONALTASK;
-
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Stack;
-
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
@@ -59,12 +49,23 @@ import org.apache.hadoop.hive.ql.plan.TableDesc;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Stack;
+
+import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.HIVECONVERTJOIN;
+import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.HIVECONVERTJOINNOCONDITIONALTASK;
+
 /**
  * If two reducer sink operators share the same partition/sort columns and order,
  * they can be merged. This should happen after map join optimization because map
  * join optimization will remove reduce sink operators.
  *
  * This optimizer removes/replaces child-RS (not parent) which is safer way for DefaultGraphWalker.
+ * ReduceSink去重
  */
 public class ReduceSinkDeDuplication extends Transform {
 
@@ -91,12 +92,17 @@ public class ReduceSinkDeDuplication extends Transform {
 
     // If multiple rules can be matched with same cost, last rule will be choosen as a processor
     // see DefaultRuleDispatcher#dispatch()
+    // 定义规则
     Map<Rule, NodeProcessor> opRules = new LinkedHashMap<Rule, NodeProcessor>();
+    // 定义规则"R1", 是一个正则表达式 RS.*RS, 如果RS后面跟其它Operator然后有跟了一个RS, 则匹配该规则
+    // Reduce -> .... -> ReduceSink, 当遍历的路径满足这个规则时, 则执行ReducerReducerProc(ReduceSinkDeduplicateProcFactory.getReducerReducerProc()的返回值)的process方法
     opRules.put(new RuleRegExp("R1", RS + "%.*%" + RS + "%"),
         ReduceSinkDeduplicateProcFactory.getReducerReducerProc());
+    // ReduceSink -> GroupBy -> ... -> ReduceSink, 当遍历的路径满足这个规则时, 则执行GroupbyReducerProc的process方法
     opRules.put(new RuleRegExp("R2", RS + "%" + GBY + "%.*%" + RS + "%"),
         ReduceSinkDeduplicateProcFactory.getGroupbyReducerProc());
     if (mergeJoins) {
+      // JOIN -> GroupBy ... -> ReduceSink, 当遍历的路径满足这个规则时, 则执行JoinReducerProc的process方法
       opRules.put(new RuleRegExp("R3", JOIN + "%.*%" + RS + "%"),
           ReduceSinkDeduplicateProcFactory.getJoinReducerProc());
     }
@@ -111,6 +117,7 @@ public class ReduceSinkDeDuplication extends Transform {
     // Create a list of topop nodes
     ArrayList<Node> topNodes = new ArrayList<Node>();
     topNodes.addAll(pGraphContext.getTopOps().values());
+    // 读dag进行深度优先遍历
     ogw.startWalking(topNodes, null);
     return pGraphContext;
   }

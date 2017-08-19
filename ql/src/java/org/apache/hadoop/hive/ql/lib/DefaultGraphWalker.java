@@ -18,6 +18,8 @@
 
 package org.apache.hadoop.hive.ql.lib;
 
+import org.apache.hadoop.hive.ql.parse.SemanticException;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -27,8 +29,6 @@ import java.util.List;
 import java.util.Queue;
 import java.util.Set;
 import java.util.Stack;
-
-import org.apache.hadoop.hive.ql.parse.SemanticException;
 
 /**
  * base class for operator graph walker this class takes list of starting ops
@@ -117,6 +117,7 @@ public class DefaultGraphWalker implements GraphWalker {
     toWalk.addAll(startNodes);
     while (toWalk.size() > 0) {
       Node nd = toWalk.remove(0);
+      // 调用walk方法
       walk(nd);
       // Some walkers extending DefaultGraphWalker e.g. ForwardWalker
       // do not use opQueue and rely uniquely in the toWalk structure,
@@ -144,7 +145,9 @@ public class DefaultGraphWalker implements GraphWalker {
    * @throws SemanticException
    */
   protected void walk(Node nd) throws SemanticException {
+    // 执行标准的深度优先遍历操作
     // Push the node in the stack
+    // 放到栈里面
     opStack.push(nd);
 
     // While there are still nodes to dispatch...

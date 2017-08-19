@@ -98,9 +98,10 @@ public class SimpleFetchOptimizer extends Transform {
       // no join, no groupby, no distinct, no lateral view, no subq,
       // no CTAS or insert, not analyze command, and single sourced.
       String alias = (String) pctx.getTopOps().keySet().toArray()[0];
+      // 找到所有的最顶层的TableScanOperator
       TableScanOperator topOp = pctx.getTopOps().values().iterator().next();
       try {
-        // 调用optimize方法
+        // 调用optimize方法, 创建FetchTask, 作为最顶层的物理执行计划
         FetchTask fetchTask = optimize(pctx, alias, topOp);
         if (fetchTask != null) {
           pctx.setFetchTask(fetchTask);
@@ -119,6 +120,7 @@ public class SimpleFetchOptimizer extends Transform {
   }
 
   // returns non-null FetchTask instance when succeeded
+  // 如果该方法调用成功会返回不为null的FetchTask
   @SuppressWarnings("unchecked")
   private FetchTask optimize(ParseContext pctx, String alias, TableScanOperator source)
       throws Exception {

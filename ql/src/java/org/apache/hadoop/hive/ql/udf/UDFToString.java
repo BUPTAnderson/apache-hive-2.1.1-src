@@ -38,6 +38,7 @@ import org.apache.hadoop.io.Text;
 
 /**
  * UDFToString.
+ * 转化成String的UDF, 比如 cast(1.5 as string)
  *
  */
 public class UDFToString extends UDF {

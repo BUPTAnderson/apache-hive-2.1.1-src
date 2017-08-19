@@ -73,6 +73,7 @@ public class GroupByOperator extends Operator<GroupByDesc> {
   private static final long serialVersionUID = 1L;
   private static final int NUMROWSESTIMATESIZE = 1000;
 
+  // group by 的key对应的udf操作
   private transient ExprNodeEvaluator[] keyFields;
   private transient ObjectInspector[] keyObjectInspectors;
 

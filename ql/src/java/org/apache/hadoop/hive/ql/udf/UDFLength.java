@@ -28,6 +28,7 @@ import org.apache.hadoop.io.Text;
 
 /**
  * UDFLength.
+ * 返回字符串长度的UDF, 比如length(s)
  *
  */
 @Description(name = "length",
@@ -46,6 +47,7 @@ public class UDFLength extends UDF {
     byte[] data = s.getBytes();
     int len = 0;
     for (int i = 0; i < s.getLength(); i++) {
+      // isUtfStartByte方法判断是不是utf8编码, 所以hive中所有的字符必须是utf8编码
       if (GenericUDFUtils.isUtfStartByte(data[i])) {
         len++;
       }
