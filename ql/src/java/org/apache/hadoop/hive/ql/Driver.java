@@ -504,7 +504,7 @@ public class Driver implements CommandProcessor {
           hook.postAnalyze(hookCtx, sem.getAllRootTasks());
         }
       } else {
-        // 一般HQL对应的sem是CalcitePlanner, 调用CalcitePlanner的analyze方法, 实际是调用父类BaseSemanticAnalyzer的analyze方法
+        // 一般HQL对应的sem是CalcitePlanner, 调用CalcitePlanner的analyze方法, 实际是调用父类BaseSemanticAnalyzer的analyze方法, 会最终生成物理执行计划
         sem.analyze(tree, ctx);
       }
       // Record any ACID compliant FileSinkOperators we saw so we can add our transaction ID to
@@ -527,6 +527,7 @@ public class Driver implements CommandProcessor {
       // get the output schema
       // 调用getSchema方法
       schema = getSchema(sem, conf);
+      // 非常重要的一步, 将sem中生成的物理执行计划及各种信息赋值给QueryPlan, 执行mapreduce任务是从QueryPlan中获取的
       plan = new QueryPlan(queryStr, sem, perfLogger.getStartTime(PerfLogger.DRIVER_RUN), queryId,
         queryState.getHiveOperation(), schema);
 
@@ -1216,7 +1217,7 @@ public class Driver implements CommandProcessor {
 
   public CommandProcessorResponse run(String command, boolean alreadyCompiled)
         throws CommandNeedRetryException {
-    // 处理逻辑在runInternal中
+    // mapReduce task处理逻辑在runInternal中
     CommandProcessorResponse cpr = runInternal(command, alreadyCompiled);
 
     if(cpr.getResponseCode() == 0) {
@@ -1447,7 +1448,7 @@ public class Driver implements CommandProcessor {
       // 如果alreadyCompiled为false, 调用compileInternal对HQL进行编译
       if (!alreadyCompiled) {
         // compile internal will automatically reset the perf logger
-        // 调用compileInternal来编译hql
+        // 调用compileInternal来编译hql, 会调用SemanticAnalyzer生成物理执行计划, 然后把任务信息初始化给plan(QueryPlan)
         ret = compileInternal(command, true);
         // then we continue to use this perf logger
         perfLogger = SessionState.getPerfLogger();
@@ -1517,6 +1518,7 @@ public class Driver implements CommandProcessor {
           return rollback(createProcessorResponse(ret));
         }
       }
+      // 继续调用
       ret = execute(true);
       if (ret != 0) {
         //if needRequireLock is false, the release here will do nothing because there is no lock
@@ -1757,6 +1759,7 @@ public class Driver implements CommandProcessor {
           perfLogger.PerfLogEnd(CLASS_NAME, PerfLogger.PRE_HOOK + peh.getClass().getName());
         }
       }
+      // plan在Driver的compile方法中已经初始化过了, 实在对hql编译生成物理执行计划后对plan进行初始化的
       setQueryDisplays(plan.getRootTasks());
       int mrJobs = Utilities.getMRTasks(plan.getRootTasks()).size();
       int jobs = mrJobs
@@ -1794,6 +1797,7 @@ public class Driver implements CommandProcessor {
       SessionState.get().setLocalMapRedErrors(new HashMap<String, List<String>>());
 
       // Add root Tasks to runnable
+      // 将mapReduce Task添加到driverCxt中
       for (Task<? extends Serializable> tsk : plan.getRootTasks()) {
         // This should never happen, if it does, it's a bug with the potential to produce
         // incorrect results.
@@ -1808,7 +1812,7 @@ public class Driver implements CommandProcessor {
         // Launch upto maxthreads tasks
         Task<? extends Serializable> task;
         while ((task = driverCxt.getRunnable(maxthreads)) != null) {
-          // 调用launchTask方法
+          // 调用launchTask方法来执行mapReduce Task
           TaskRunner runner = launchTask(task, queryId, noName, jobname, jobs, driverCxt);
           if (!runner.isRunning()) {
             break;
@@ -2126,6 +2130,7 @@ public class Driver implements CommandProcessor {
     TaskResult tskRes = new TaskResult();
     TaskRunner tskRun = new TaskRunner(tsk, tskRes);
 
+    // 启动mapReduce任务
     cxt.launching(tskRun);
     // Launch Task
     if (HiveConf.getBoolVar(conf, HiveConf.ConfVars.EXECPARALLEL) && tsk.isMapRedTask()) {

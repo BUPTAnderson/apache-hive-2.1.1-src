@@ -254,6 +254,7 @@ public class SQLOperation extends ExecuteStatementOperation {
       // case, when calling fetch queries since execute() has returned.
       // For now, we disable the test attempts.
       driver.setTryCount(Integer.MAX_VALUE);
+      // 调用Driver的run方法来执行mapreduce Task
       response = driver.run();
       if (0 != response.getResponseCode()) {
         throw toSQLException("Error while processing statement", response);
