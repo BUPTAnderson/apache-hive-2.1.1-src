@@ -18,12 +18,7 @@
 
 package org.apache.hadoop.hive.ql.security;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-
 import junit.framework.TestCase;
-
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.cli.CliSessionState;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -47,6 +42,10 @@ import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.shims.ShimLoader;
 import org.apache.hadoop.hive.shims.Utils;
 import org.apache.hadoop.security.UserGroupInformation;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 
 /**
  * TestHiveMetastoreAuthorizationProvider. Test case for
