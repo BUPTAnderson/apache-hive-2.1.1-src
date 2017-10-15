@@ -110,7 +110,7 @@ public class HiveAlterHandler implements AlterHandler {
       dbname = dbname.toLowerCase();
 
       // check if table with the new name already exists
-      // 判断要目标表对应的库表是否已经存在了
+      // 判断目标表对应的库表是否已经存在了
       if (!newt.getTableName().equalsIgnoreCase(name)
           || !newt.getDbName().equalsIgnoreCase(dbname)) {
         if (msdb.getTable(newt.getDbName(), newt.getTableName()) != null) {
@@ -157,6 +157,7 @@ public class HiveAlterHandler implements AlterHandler {
       boolean partKeysPartiallyEqual = checkPartialPartKeysEqual(oldt.getPartitionKeys(),
           newt.getPartitionKeys());
 
+      // 对于不是view的表, 不允许增加或较少分区字段
       if(!oldt.getTableType().equals(TableType.VIRTUAL_VIEW.toString())){
         if (oldt.getPartitionKeys().size() != newt.getPartitionKeys().size()
             || !partKeysPartiallyEqual) {
