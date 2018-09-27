@@ -268,9 +268,9 @@ public class HiveServer2 extends CompositeService {
    * @throws Exception
    */
   private void addServerInstanceToZooKeeper(HiveConf hiveConf) throws Exception {
-    String zooKeeperEnsemble = ZooKeeperHiveHelper.getQuorumServers(hiveConf);
-    String rootNamespace = hiveConf.getVar(HiveConf.ConfVars.HIVE_SERVER2_ZOOKEEPER_NAMESPACE);
-    String instanceURI = getServerInstanceURI();
+    String zooKeeperEnsemble = ZooKeeperHiveHelper.getQuorumServers(hiveConf); // 获取配置项hive.zookeeper.quorum的值,例如：zkNode1:2181,zkNode2:2181,zkNode3:2181
+    String rootNamespace = hiveConf.getVar(HiveConf.ConfVars.HIVE_SERVER2_ZOOKEEPER_NAMESPACE); // 获取配置项hive.server2.zookeeper.namespace的值，例如：hiveserver2_zk
+    String instanceURI = getServerInstanceURI(); // 获取当前thriftCLIService(ThriftServer)服务的host:port
     setUpZooKeeperAuth(hiveConf);
     int sessionTimeout =
         (int) hiveConf.getTimeVar(HiveConf.ConfVars.HIVE_ZOOKEEPER_SESSION_TIMEOUT,
@@ -473,6 +473,7 @@ public class HiveServer2 extends CompositeService {
     HiveConf hiveConf = this.getHiveConf();
     if (hiveConf.getBoolVar(ConfVars.HIVE_SERVER2_SUPPORT_DYNAMIC_SERVICE_DISCOVERY)) {
       try {
+        // 将该ThriftServer的host/port信息加载至zookeeper中
         addServerInstanceToZooKeeper(hiveConf);
       } catch (Exception e) {
         LOG.error("Error adding this HiveServer2 instance to ZooKeeper: ", e);
