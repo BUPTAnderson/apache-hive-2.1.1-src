@@ -184,7 +184,7 @@ public class CodahaleMetrics implements org.apache.hadoop.hive.common.metrics.co
     //Metrics reporter
     Set<MetricsReporting> finalReporterList = new HashSet<MetricsReporting>();
     List<String> metricsReporterNames = Lists.newArrayList(
-      Splitter.on(",").trimResults().omitEmptyStrings().split(conf.getVar(HiveConf.ConfVars.HIVE_METRICS_REPORTER)));
+      Splitter.on(",").trimResults().omitEmptyStrings().split(conf.getVar(HiveConf.ConfVars.HIVE_METRICS_REPORTER))); // 默认值"JSON_FILE, JMX"
 
     if(metricsReporterNames != null) {
       for (String metricsReportingName : metricsReporterNames) {

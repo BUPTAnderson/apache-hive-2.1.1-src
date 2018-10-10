@@ -116,6 +116,7 @@ public class CLIService extends CompositeService implements ICLIService {
       throw new RuntimeException("Error applying authorization policy on hive configuration: "
           + e.getMessage(), e);
     }
+    // 设置查询可以使用的udf函数白名单和黑名单
     setupBlockedUdfs();
     // 初始化，会对sessionManager进行初始化，调用sessionManager的init方法
     super.init(hiveConf);

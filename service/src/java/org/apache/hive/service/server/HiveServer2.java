@@ -103,8 +103,8 @@ public class HiveServer2 extends CompositeService {
   @Override
   public synchronized void init(HiveConf hiveConf) {
     //Initialize metrics first, as some metrics are for initialization stuff.
-    try {
-      if (hiveConf.getBoolVar(ConfVars.HIVE_SERVER2_METRICS_ENABLED)) {
+    try { // 初始化metrics实例
+      if (hiveConf.getBoolVar(ConfVars.HIVE_SERVER2_METRICS_ENABLED)) { // 默认值为false
         MetricsFactory.init(hiveConf);
       }
     } catch (Throwable t) {

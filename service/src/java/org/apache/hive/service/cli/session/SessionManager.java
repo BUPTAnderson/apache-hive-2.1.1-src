@@ -124,6 +124,7 @@ public class SessionManager extends CompositeService {
     // A bounded blocking queue is used to queue incoming operations, if #operations > poolSize
     String threadPoolName = "HiveServer2-Background-Pool";
     final BlockingQueue queue = new LinkedBlockingQueue<Runnable>(poolQueueSize);
+    // 创建线程池
     backgroundOperationPool = new ThreadPoolExecutor(poolSize, poolSize,
         keepAliveTime, TimeUnit.SECONDS, queue,
         new ThreadFactoryWithGarbageCleanup(threadPoolName));
@@ -134,8 +135,8 @@ public class SessionManager extends CompositeService {
     sessionTimeout = HiveConf.getTimeVar(
         hiveConf, ConfVars.HIVE_SERVER2_IDLE_SESSION_TIMEOUT, TimeUnit.MILLISECONDS);
     checkOperation = HiveConf.getBoolVar(hiveConf,
-        ConfVars.HIVE_SERVER2_IDLE_SESSION_CHECK_OPERATION);
-
+        ConfVars.HIVE_SERVER2_IDLE_SESSION_CHECK_OPERATION); // 默认值为true
+    // 获取metrics实例，添加metrics信息
     Metrics m = MetricsFactory.getInstance();
     if (m != null) {
       m.addGauge(MetricsConstant.EXEC_ASYNC_QUEUE_SIZE, new MetricsVariable() {
