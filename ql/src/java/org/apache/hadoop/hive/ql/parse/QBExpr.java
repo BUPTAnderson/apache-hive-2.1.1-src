@@ -39,7 +39,7 @@ public class QBExpr {
   };
 
   private Opcode opcode;
-  private QBExpr qbexpr1;
+  private QBExpr qbexpr1; // 这里的qbexpr1和qbexpr2是为了表示union操作
   private QBExpr qbexpr2;
   private QB qb;
   private String alias;

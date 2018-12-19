@@ -35,7 +35,7 @@ import java.util.Set;
 
 /**
  * Implementation of the query block.
- *
+ * QueryBlock是一条SQL最基本的组成单元，包括三个部分：输入源，计算过程，输出。简单来讲一个QueryBlock就是一个子查询。
  **/
 
 public class QB {
@@ -49,17 +49,17 @@ public class QB {
   private int numSelDi = 0;
   // alias -> 库名.表名/表名 的映射, 比如: <"partition_test", "default.partition_test">
   private HashMap<String, String> aliasToTabs;
-  // alias -> 子查询的映射, QBExpr又包含QB对象, 也就是说如果有子查询的话, 子查询又有对应的qb
+  // alias -> 子查询的映射, QBExpr又包含QB对象, 也就是说如果有子查询的话, 子查询又有对应的qb。key值为子查询的别名
   private HashMap<String, QBExpr> aliasToSubq;
   private HashMap<String, Table> viewAliasToViewSchema;
   private HashMap<String, Map<String, String>> aliasToProps;
   // 当前包含的别名, 主要是为了判断多个别名不可以重复, 如果没有别名, 加入的是原表名, 比如加入 "partition_test"
   private List<String> aliases;
-  // 存放了QB parse的相关信息
+  // 存放了QB parse的相关信息，保存一个基本SQL单元中的各个操作部分的AST Tree结构
   private QBParseInfo qbp;
-  // 里面存储了alias和Table的对应关系, 即meta data
+  // 里面存储了alias和Table的对应关系, 即meta data。保存每个输入表的元信息，比如表在HDFS上的路径，保存表数据的文件格式等。
   private QBMetaData qbm;
-  private QBJoinTree qbjoin;
+  private QBJoinTree qbjoin; // 是对Join语法树的结构化
   private String id;
   // 是不是query
   private boolean isQuery;
