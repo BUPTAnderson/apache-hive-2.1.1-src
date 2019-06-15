@@ -496,16 +496,16 @@ public class Driver implements CommandProcessor {
         hookCtx.setIpAddress(SessionState.get().getUserIpAddress());
         hookCtx.setCommand(command);
         for (HiveSemanticAnalyzerHook hook : saHooks) {
-          tree = hook.preAnalyze(hookCtx, tree);
+          tree = hook.preAnalyze(hookCtx, tree); // 执行前置钩子
         }
-        sem.analyze(tree, ctx);
+        sem.analyze(tree, ctx); // 执行分析
         hookCtx.update(sem);
         for (HiveSemanticAnalyzerHook hook : saHooks) {
-          hook.postAnalyze(hookCtx, sem.getAllRootTasks());
+          hook.postAnalyze(hookCtx, sem.getAllRootTasks()); // 执行后置钩子
         }
       } else {
         // 一般HQL对应的sem是CalcitePlanner, 调用CalcitePlanner的analyze方法, 实际是调用父类BaseSemanticAnalyzer的analyze方法, 会最终生成物理执行计划
-        sem.analyze(tree, ctx);
+        sem.analyze(tree, ctx); // 执行分析
       }
       // Record any ACID compliant FileSinkOperators we saw so we can add our transaction ID to
       // them later.

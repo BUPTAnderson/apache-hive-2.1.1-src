@@ -189,7 +189,7 @@ public class ParseDriver {
       LOG.debug("Parsing command: " + command);
     }
 
-    // 词法分析器(根据HiveLexer.g进行词法分析), HiveLexerX继承子HiveLexer, HiveLexer由Antlr根据HiveLexer.g生成
+    // 词法分析器(根据HiveLexer.g进行词法分析), HiveLexerX继承子HiveLexer(主要是包装了出错信息), HiveLexer由Antlr根据HiveLexer.g生成 // ANTLRNoCaseStringStream包装了antlr的ANTLRStringStream, 消除了大小写敏感
     HiveLexerX lexer = new HiveLexerX(new ANTLRNoCaseStringStream(command));
     // 词法分析, 获得tokens流
     TokenRewriteStream tokens = new TokenRewriteStream(lexer);

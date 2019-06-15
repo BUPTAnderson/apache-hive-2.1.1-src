@@ -36,11 +36,11 @@ package org.apache.hadoop.hive.ql.parse;
  * usage within the query.
  */
 public class ASTNodeOrigin {
-  private final String objectType;
-  private final String objectName;
-  private final String objectDefinition;
-  private final String usageAlias;
-  private final ASTNode usageNode;
+  private final String objectType; // 对象类型
+  private final String objectName; // 对象名字
+  private final String objectDefinition; // 对象定义
+  private final String usageAlias; // 对象别名
+  private final ASTNode usageNode; //
 
   public ASTNodeOrigin(String objectType, String objectName,
       String objectDefinition, String usageAlias, ASTNode usageNode) {

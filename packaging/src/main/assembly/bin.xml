@@ -26,7 +26,7 @@
 
   <formats>
     <format>dir</format>
-    <format>tar.gz</format>
+    <format>tar.gz</format> <!--打包的文件格式,也可以有：war zip-->
   </formats>
 
   <baseDirectory>apache-hive-${project.version}-bin</baseDirectory>
@@ -61,6 +61,7 @@
       <unpack>false</unpack>
       <useProjectArtifact>false</useProjectArtifact>
       <useStrictFiltering>true</useStrictFiltering>
+      <!--前面是group id,冒号后面是artifactId-->
       <includes>
         <include>org.apache.hive.hcatalog:hive-hcatalog-core</include>
         <include>org.apache.hive.hcatalog:hive-hcatalog-pig-adapter</include>

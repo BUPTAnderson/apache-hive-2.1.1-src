@@ -142,9 +142,11 @@ public class LineageInfo implements NodeProcessor {
 
   public static void main(String[] args) throws IOException, ParseException,
       SemanticException {
-
-    String query = args[0];
-
+//    String query = args[0];
+    String query = "create database if not exists abc COMMENT 'for test' LOCATION '/user/hive/warehouse/' WITH DBPROPERTIES ('creator' = 'licz','date' = '2014-01-23')";
+//    query = "create index employees_index on table employees(country) as 'bitmap' with deferred rebuild idxproperties('creator'='dirk','created_at'='some_time') in table employees_index_table";
+    query = "SELECT foo ,count(bar) FROM a.invites GROUP BY foo";
+    query = "create view test_view (id, name_length) as  select id, length(name) from a.test";
     LineageInfo lep = new LineageInfo();
 
     lep.getLineageInfo(query);

@@ -2618,7 +2618,7 @@ public class HiveConf extends Configuration {
 
     HIVECOUNTERGROUP("hive.counters.group.name", "HIVE",
         "The name of counter group for internal Hive variables (CREATED_FILE, FATAL_ERROR, etc.)"),
-
+    // 默认column）设置为none时，可以使用正则。正则规则和Java相同。SELECT `(ds|hr)?+.+` FROM sales，返回除ds和hr的所有列
     HIVE_QUOTEDID_SUPPORT("hive.support.quoted.identifiers", "column",
         new StringSet("none", "column"),
         "Whether to use quoted identifier. 'none' or 'column' can be used. \n" +

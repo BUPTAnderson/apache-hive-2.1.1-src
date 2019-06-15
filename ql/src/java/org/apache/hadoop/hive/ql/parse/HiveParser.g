@@ -1,9 +1,9 @@
 /**
-   Licensed to the Apache Software Foundation (ASF) under one or more 
-   contributor license agreements.  See the NOTICE file distributed with 
+   Licensed to the Apache Software Foundation (ASF) under one or more
+   contributor license agreements.  See the NOTICE file distributed with
    this work for additional information regarding copyright ownership.
    The ASF licenses this file to You under the Apache License, Version 2.0
-   (the "License"); you may not use this file except in compliance with 
+   (the "License"); you may not use this file except in compliance with
    the License.  You may obtain a copy of the License at
 
        http://www.apache.org/licenses/LICENSE-2.0
@@ -14,8 +14,19 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
+// 标准格式 parser grammar 后面跟语法名。
 parser grammar HiveParser;
 
+/*
+options : 选项
+tokenVocab=HiveLexer;  词汇表来源于 HiveLexer
+language选项：最终antlr会根据此选项，按照文法生成对应语言(比如java)的实现。
+output=AST; 输出 抽象语法树
+output选项：这个选项只能出现在combined，parser和tree三种文法中，并且在tree文法中，output选项只能为template，不能是AST。
+此选项默认为不输出。注意只有output=AST时，才可以使用规则重写->（rewrite rules）和树构建操作符(^,!)。
+backtrack=false; 不回溯
+k=3;  前向窥看3个token的长度。
+*/
 options
 {
 tokenVocab=HiveLexer;
@@ -26,6 +37,7 @@ k=3;
 }
 import SelectClauseParser, FromClauseParser, IdentifiersParser;
 
+// tokens语法，主要用于虚拟树节点。
 tokens {
 TOK_INSERT;
 TOK_QUERY;
@@ -608,7 +620,7 @@ import org.apache.hadoop.hive.conf.HiveConf;
 
     return header;
   }
-  
+
   @Override
   public String getErrorMessage(RecognitionException e, String[] tokenNames) {
     String msg = null;
@@ -645,7 +657,7 @@ import org.apache.hadoop.hive.conf.HiveConf;
     }
     return msg;
   }
-  
+
   public void pushMsg(String msg, RecognizerSharedState state) {
     // ANTLR generated code does not wrap the @init code wit this backtracking check,
     //  even if the matching @after has it. If we have parser rules with that are doing
@@ -701,12 +713,16 @@ catch (RecognitionException e) {
 }
 }
 
-// starting rule
+// starting rule, 必须以End-Of-File来结尾。Linux/Unix中的EOF为Ctrl+D，而Windows中为Ctrl+Z
+// 整个规则由statement开始, statement由解释语句explainStatement或执行语句execStatement组成。这种形式叫产生式,冒号左边的是左部，作为代表这个产生式规则的符号。冒号右边是右部，连接符号|表示右部的组成部分是或者的关系，还有另一种解读的意思是:从statement开始，产生了explainstatement或者execstatement。
 statement
 	: explainStatement EOF
 	| execStatement EOF
 	;
 
+// @init 表示进入规则时执行后面的{}里的动作 ，例中，压入trace的消息。
+// @after{} 表示规则完成后执行{}里面的动作。  例中，弹出trace的消息。
+// -> 构建语法抽象树 ^(rootnode  leafnode1 leafnode2...) 如例 表示构建一个以TOK_EXPLAIN为根节点,execStatement为第一个叶结点，可选项为第二三...叶结点，如果explainOption存在的话。
 explainStatement
 @init { pushMsg("explain statement", state); }
 @after { popMsg(state); }
@@ -735,6 +751,7 @@ execStatement
     | sqlTransactionStatement
     ;
 
+// ->为语法规则重写,语法重写仅仅能够改变token的顺序，或者减少token，但不能进行语义的增加。^在语法规则中使用时，放在作用的字(token)的后面，表示前面的字(token)为树的根节点。在语法规则重写中使用时，放在作用的字(token)的前面，表示后面的字(token)为树的根节点
 loadStatement
 @init { pushMsg("load statement", state); }
 @after { popMsg(state); }
@@ -749,6 +766,7 @@ replicationClause
     -> ^(TOK_REPLICATION $replId $isMetadataOnly?)
     ;
 
+// 导出语句
 exportStatement
 @init { pushMsg("export statement", state); }
 @after { popMsg(state); }
@@ -759,6 +777,7 @@ exportStatement
     -> ^(TOK_EXPORT $tab $path replicationClause?)
     ;
 
+//
 importStatement
 @init { pushMsg("import statement", state); }
 @after { popMsg(state); }
@@ -989,6 +1008,7 @@ indexTblName
     ->^(TOK_CREATEINDEX_INDEXTBLNAME $indexTbl)
     ;
 
+// !在语法规则中使用时,放在作用的字(token)的后面，表示前面的字(token)不作为树的一部分。
 indexPropertiesPrefixed
 @init { pushMsg("table properties with prefix", state); }
 @after { popMsg(state); }
@@ -1282,7 +1302,7 @@ alterTblPartitionStatementSuffixSkewedLocation
   : KW_SET KW_SKEWED KW_LOCATION skewedLocations
   -> ^(TOK_ALTERTABLE_SKEWED_LOCATION skewedLocations)
   ;
-  
+
 skewedLocations
 @init { pushMsg("skewed locations", state); }
 @after { popMsg(state); }
@@ -1311,7 +1331,7 @@ alterStatementSuffixLocation
   -> ^(TOK_ALTERTABLE_LOCATION $newLoc)
   ;
 
-	
+
 alterStatementSuffixSkewedby
 @init {pushMsg("alter skewed by statement", state);}
 @after{popMsg(state);}
@@ -1383,10 +1403,10 @@ tabTypeExpr
    (identifier (DOT^
    (
    (KW_ELEM_TYPE) => KW_ELEM_TYPE
-   | 
+   |
    (KW_KEY_TYPE) => KW_KEY_TYPE
-   | 
-   (KW_VALUE_TYPE) => KW_VALUE_TYPE 
+   |
+   (KW_VALUE_TYPE) => KW_VALUE_TYPE
    | identifier
    ))*
    )?
@@ -1441,7 +1461,7 @@ showStatement
     | KW_SHOW KW_COLUMNS (KW_FROM|KW_IN) tableName ((KW_FROM|KW_IN) db_name=identifier)?
     -> ^(TOK_SHOWCOLUMNS tableName $db_name?)
     | KW_SHOW KW_FUNCTIONS (KW_LIKE showFunctionIdentifier|showFunctionIdentifier)?  -> ^(TOK_SHOWFUNCTIONS KW_LIKE? showFunctionIdentifier?)
-    | KW_SHOW KW_PARTITIONS tabName=tableName partitionSpec? -> ^(TOK_SHOWPARTITIONS $tabName partitionSpec?) 
+    | KW_SHOW KW_PARTITIONS tabName=tableName partitionSpec? -> ^(TOK_SHOWPARTITIONS $tabName partitionSpec?)
     | KW_SHOW KW_CREATE (
         (KW_DATABASE|KW_SCHEMA) => (KW_DATABASE|KW_SCHEMA) db_name=identifier -> ^(TOK_SHOW_CREATEDATABASE $db_name)
         |
@@ -1450,7 +1470,7 @@ showStatement
     | KW_SHOW KW_TABLE KW_EXTENDED ((KW_FROM|KW_IN) db_name=identifier)? KW_LIKE showStmtIdentifier partitionSpec?
     -> ^(TOK_SHOW_TABLESTATUS showStmtIdentifier $db_name? partitionSpec?)
     | KW_SHOW KW_TBLPROPERTIES tableName (LPAREN prptyName=StringLiteral RPAREN)? -> ^(TOK_SHOW_TBLPROPERTIES tableName $prptyName?)
-    | KW_SHOW KW_LOCKS 
+    | KW_SHOW KW_LOCKS
       (
       (KW_DATABASE|KW_SCHEMA) => (KW_DATABASE|KW_SCHEMA) (dbName=Identifier) (isExtended=KW_EXTENDED)? -> ^(TOK_SHOWDBLOCKS $dbName $isExtended?)
       |
@@ -1563,7 +1583,7 @@ showCurrentRole
 setRole
 @init {pushMsg("set role", state);}
 @after {popMsg(state);}
-    : KW_SET KW_ROLE 
+    : KW_SET KW_ROLE
     (
     (KW_ALL) => (all=KW_ALL) -> ^(TOK_SHOW_SET_ROLE Identifier[$all.text])
     |
@@ -2078,7 +2098,7 @@ foreignKeyWithoutName
 skewedValueElement
 @init { pushMsg("skewed value element", state); }
 @after { popMsg(state); }
-    : 
+    :
       skewedColumnValues
      | skewedColumnValuePairList
     ;
@@ -2092,8 +2112,8 @@ skewedColumnValuePairList
 skewedColumnValuePair
 @init { pushMsg("column value pair", state); }
 @after { popMsg(state); }
-    : 
-      LPAREN colValues=skewedColumnValues RPAREN 
+    :
+      LPAREN colValues=skewedColumnValues RPAREN
       -> ^(TOK_TABCOLVALUES $colValues)
     ;
 
@@ -2113,7 +2133,7 @@ skewedColumnValue
 skewedValueLocationElement
 @init { pushMsg("skewed value location element", state); }
 @after { popMsg(state); }
-    : 
+    :
       skewedColumnValue
      | skewedColumnValuePair
     ;
@@ -2322,7 +2342,7 @@ fromStatement[boolean topLevel]
 	            {adaptor.create(Identifier, generateUnionAlias())}
 	           )
 	        )
-	       ^(TOK_INSERT 
+	       ^(TOK_INSERT
 	          ^(TOK_DESTINATION ^(TOK_DIR TOK_TMP_FILE))
 	          ^(TOK_SELECT ^(TOK_SELEXPR TOK_ALLCOLREF))
 	        )
@@ -2546,8 +2566,8 @@ setColumnsClause
    KW_SET columnAssignmentClause (COMMA columnAssignmentClause)* -> ^(TOK_SET_COLUMNS_CLAUSE columnAssignmentClause* )
    ;
 
-/* 
-  UPDATE <table> 
+/*
+  UPDATE <table>
   SET col1 = val1, col2 = val2... WHERE ...
 */
 updateStatement
